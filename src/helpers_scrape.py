@@ -17,6 +17,129 @@ import pandas as pd
 import requests
 from tqdm import tqdm
 
+import io
+import os
+import time
+import logging
+from datetime import datetime
+from contextlib import redirect_stdout, redirect_stderr
+import numpy as np
+import pandas as pd
+
+import io
+import os
+import time
+import logging
+from datetime import datetime
+from contextlib import redirect_stdout, redirect_stderr
+from tqdm import tqdm  # Standard tqdm works fine in helpers
+import numpy as np
+import pandas as pd
+
+
+def get_dataset_pubs(dsl, dataset, term, year, limit, data_dir, logger=None, skip=0):
+    # Construct the file path for the CSV.
+    csv_path = os.path.join(data_dir, f"{term}_{year}.csv")
+    term_dfs = []
+    max_value = np.inf  # Initially unknown total.
+
+    # Build the query string.
+    # If the term contains nested quotes, use the DSL’s triple-quote syntax to avoid extra escaping.
+    if '"' in term:
+        query_fn = lambda s: f'''search publications for """
+{term}
+""" where year={year} return publications[category_for_2020 + date + doi + id + open_access + relative_citation_ratio + times_cited] limit {limit} skip {s}'''
+    else:
+        query_fn = lambda \
+            s: f'''search publications for "{term}" where year={year} return publications[category_for_2020 + date + doi + id + open_access + relative_citation_ratio + times_cited] limit {limit} skip {s}'''
+
+    while skip < max_value:
+        q = query_fn(skip)
+        # Optionally, remove or comment out the print(q) if you no longer want it in console output.
+        # print(q)
+        # Capture DSL output so that it is redirected to the logfile only.
+        capture = io.StringIO()
+        with redirect_stdout(capture), redirect_stderr(capture):
+            result = dsl.query(q)
+        captured_output = capture.getvalue()
+        if logger is not None:
+            logger.info("Captured DSL query output for %s %s: %s", term, year, captured_output)
+
+        # Convert the result to a DataFrame.
+        result_df = result.as_dataframe()
+
+        # On the first iteration, determine the total number of records.
+        if max_value == np.inf:
+            try:
+                max_value = result['_stats']['total_count']
+            except (TypeError, KeyError):
+                max_value = len(result)
+            if max_value == 0:
+                empty_df = pd.DataFrame()
+                empty_df.to_csv(csv_path, index=False)
+                if logger is not None:
+                    logger.info("No records found for %s in %s. Saved empty CSV.", term, year)
+                return empty_df
+        term_dfs.append(result_df)
+        skip += limit
+
+    df = pd.concat(term_dfs)
+    df['dataset'] = dataset
+    df['name'] = term
+    df['year'] = year
+    df.to_csv(csv_path, index=False)
+    return df
+
+
+def get_dataset(dsl, BB_dict, limit, timestamp, startyear):
+    max_retries = 100
+    log_time = datetime.now().strftime('%Y%m%d_%H%M%S')
+    log_dir = "../logging/dimensions/api/datasets"
+    os.makedirs(log_dir, exist_ok=True)
+    logfile = os.path.join(log_dir, f"logfile_{log_time}.txt")
+
+    # Configure a file-only logger.
+    logger = logging.getLogger("dataset_logger")
+    logger.setLevel(logging.INFO)
+    logger.handlers.clear()  # Remove existing handlers.
+    file_handler = logging.FileHandler(logfile)
+    formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
+    file_handler.setFormatter(formatter)
+    logger.addHandler(file_handler)
+
+    # Precompute total iterations: each combination of dataset, name, and year.
+    years = list(range(startyear, 2026))
+    total_iters = sum(len(BB_dict[dataset]) * len(years) for dataset in BB_dict)
+    pbar = tqdm(total=total_iters, desc="Overall Progress", ncols=80, dynamic_ncols=True)
+
+    for dataset in BB_dict.keys():
+        logger.info("Starting work on the %s dataset", dataset)
+        data_dir = os.path.join("../data/dimensions/api/datasets", dataset, timestamp)
+        os.makedirs(data_dir, exist_ok=True)
+
+        for name in BB_dict[dataset]:
+            for year in years:
+                for attempt in range(max_retries):
+                    try:
+                        csv_filepath = os.path.join(data_dir, f"{name}_{year}.csv")
+                        if not os.path.exists(csv_filepath):
+                            df_chunk = get_dataset_pubs(dsl, dataset, name, year, limit, data_dir, logger)
+                        pbar.update(1)
+                        break  # Success; exit retry loop.
+                    except Exception as e:
+                        logger.error("Error for year %s and name %s. Attempt %d/%d. Error: %s",
+                                     year, name, attempt + 1, max_retries, e)
+                        if attempt < max_retries - 1:
+                            sleep_time = 2 ** attempt  # Exponential backoff.
+                            logger.info("Retrying in %d seconds...", sleep_time)
+                            time.sleep(sleep_time)
+                        else:
+                            logger.info("Max retries reached. Skipping this chunk.")
+                            logger.warning("A chunk couldn't be collected for year %s and name %s. INVESTIGATE!", year,
+                                           name)
+    pbar.close()
+    logger.info("Tada!")
+
 
 def login_dimcli():
     def get_apikey(key_file_path):
@@ -123,28 +246,28 @@ def wrangle_raw(df):
     return df
 
 
-def get_pubs(string_representation, field, limit, logger=None):
+def get_pubs(dsl, string_representation, field, limit, logger=None):
     query = f"""search publications
     where {field} in {string_representation}
     return publications[abstract + acknowledgements + altmetric + altmetric_id +
-                         authors + authors_count + book_doi + book_title +
-                         category_bra + category_for + category_for_2020 +
-                         category_hra + category_sdg + category_uoa + 
-                         clinical_trial_ids + concepts + concepts_scores +
-                         date + date_inserted + date_online + date_print +
-                         dimensions_url + document_type + doi + editors +
-                         field_citation_ratio + funder_countries + funders +
-                         funding_section + id + isbn + issn + issue + journal + 
-                         journal_lists + journal_title_raw + linkout + mesh_terms +
-                         open_access + pages + pmcid + pmid + proceedings_title +
-                         publisher + recent_citations + reference_ids +
-                         referenced_pubs + relative_citation_ratio + research_org_cities +
-                         research_org_countries + research_org_country_names +
-                         research_org_names + research_org_state_codes +
-                         research_org_state_names + research_org_types +
-                         research_orgs + researchers + resulting_publication_doi +
-                         score + source_title + subtitles + supporting_grant_ids +
-                         times_cited + title + type + volume + year] limit {limit}"""
+                        authors + authors_count + book_doi + book_title +
+                        category_bra + category_for + category_for_2020 +
+                        category_hra + category_sdg + category_uoa +
+                        clinical_trial_ids + concepts + concepts_scores +
+                        date + date_inserted + date_online + date_print +
+                        dimensions_url + document_type + doi + editors +
+                        field_citation_ratio + funder_countries + funders +
+                        funding_section + id + isbn + issn + issue + journal +
+                        journal_lists + journal_title_raw + linkout + mesh_terms +
+                        open_access + pages + pmcid + pmid + proceedings_title +
+                        publisher + recent_citations + reference_ids +
+                        referenced_pubs + relative_citation_ratio + research_org_cities +
+                        research_org_countries + research_org_country_names +
+                        research_org_names + research_org_state_codes +
+                        research_org_state_names + research_org_types +
+                        research_orgs + researchers + resulting_publication_doi +
+                        score + source_title + subtitles + supporting_grant_ids +
+                        times_cited + title + type + volume + year] limit {limit}"""
     capture = io.StringIO()
     with redirect_stdout(capture), redirect_stderr(capture):
         result = dsl.query(query)
@@ -154,7 +277,7 @@ def get_pubs(string_representation, field, limit, logger=None):
     return result.as_dataframe()
 
 
-def get_raw_data(limit, fields, df, timestamp):
+def get_raw_data(limit, fields, df, timestamp, dsl):
     max_retries = 100
     for field in fields:
         field_log_time = datetime.now().strftime('%Y%m%d_%H%M%S')
@@ -191,7 +314,7 @@ def get_raw_data(limit, fields, df, timestamp):
                 string_representation = json.dumps(chunk)
                 for attempt in range(max_retries):
                     try:
-                        df_chunk = get_pubs(string_representation, field, limit, logger)
+                        df_chunk = get_pubs(dsl, string_representation, field, limit, logger)
                         break
                     except Exception as e:
                         logger.error("Error encountered for chunk %d (attempt %d/%d): %s",
@@ -209,13 +332,19 @@ def get_raw_data(limit, fields, df, timestamp):
     logger.info("Tada!")
 
 
-def merger(directory) -> pd.DataFrame:
-    csv_files = [file for file in os.listdir(directory) if file.endswith(".csv")]
+def merger(directory):
     dataframes = []
+    csv_files = [f for f in os.listdir(directory) if f.endswith('.csv')]
     for file in csv_files:
         file_path = os.path.join(directory, file)
-        df = pd.read_csv(file_path, index_col=0)
-        dataframes.append(df)
+        if os.path.getsize(file_path) == 0:
+            print(f"Skipping empty file: {file}")
+            continue
+        try:
+            df = pd.read_csv(file_path)
+            dataframes.append(df)
+        except pd.errors.EmptyDataError:
+            pass
     return pd.concat(dataframes, ignore_index=True)
 
 
@@ -239,24 +368,44 @@ def evaluate_raw_scrape(df, timestamp):
 
     dups = doi_raw[doi_raw.duplicated(subset=['doi'], keep=False)]
     print(f'Save out the {len(dups)}/2 duplicates to ', os.path.join(eval_path, 'doi_scrape_duplicates.csv'))
+    if not os.path.exists(eval_path):
+        os.makedirs(eval_path, exist_ok=True)
     dups.to_csv(os.path.join(eval_path, 'doi_scrape_duplicates.csv'))
+
     print('If a DOI is duplicated, keep the one which has reference_ids (or the first one seen).')
     doi_cleaned = (
         doi_raw
-        .assign(_has_refs=doi_raw['reference_ids'].notna())  # mark preferred rows
-        .sort_values(by='_has_refs', ascending=False)  # sort to make them come first
+        .assign(_has_refs=doi_raw['reference_ids'].notna())
+        .sort_values(by='_has_refs', ascending=False)
         .drop('_has_refs', axis=1)
-        .drop_duplicates(subset='doi', keep='first')  # keep first (preferred)
+        .drop_duplicates(subset='doi', keep='first')
         .reset_index(drop=True)
     )
     print('We now have this many dois: ', len(doi_cleaned))
+
     no_doi = df[df['doi'].notnull()][~df[df['doi'].notnull()]['doi'].isin(doi_cleaned['doi'])]
-    nodoi_path = os.path.join(eval_path, 'doi_not_in_dim.tsv')
-    no_doi.to_csv(nodoi_path, sep='\t')
+
+    # Ensure the evaluation directory exists
+    nodoi_dir = eval_path
+    os.makedirs(nodoi_dir, exist_ok=True)
+
+    # Final output path
+    nodoi_path = os.path.join(nodoi_dir, 'doi_not_in_dim.tsv')
+
+    # If this path is incorrectly a directory, rename it so that the TSV can be written
+    if os.path.isdir(nodoi_path):
+        backup = nodoi_path + "_backup_dir"
+        os.rename(nodoi_path, backup)
+        print(f"Warning: existing directory renamed to {backup}")
+
+    # Write the TSV
+    no_doi.to_csv(nodoi_path, sep='\t', index=False)
+
     print(f"The {len(no_doi)} DOIs not returned are saved at {nodoi_path}")
     print("Note: some of these are clearly non-indexed preprints.")
     print("Note: Some of are on dimensions.ai app?'")
     print("Note: Some of arent on dimensions.ai app, but look like they should be? e.g. 10.1038/s41588-018-0147-3")
+
     print('We get this many from the pmid search: ', len(pmid['id'].unique()))
     if set(pmid['pmid'].tolist()) == set(df[df['doi'].isnull()]['pmid'].tolist()):
         print('Cool, looks like we got all the pmids without issue')
@@ -266,7 +415,10 @@ def evaluate_raw_scrape(df, timestamp):
     df_dim = pd.concat([doi_cleaned, pmid], axis=0, ignore_index=True)
     print('We got this many rows of data from Dimensions: ', len(df_dim))
     print('Note: different to len(df) from i.) drop duplicates in wrangle_raw(), ii.) non-returns (sum to diff)')
+
     return doi_cleaned, pmid, df_dim
+
+
 
 
 def make_long_refs(df_dim):
@@ -298,8 +450,8 @@ def make_long_refs(df_dim):
 
 
 def save_combined(fpath, doi, pmid, df_dim, refs, df_exploded):
-    doi.to_csv(os.path.join(fpath, 'doi.tsv'), sep='\t')
-    pmid.to_csv(os.path.join(fpath, 'pmid.tsv'), sep='\t')
-    df_dim.to_csv(os.path.join(fpath, 'df_dim.tsv'), sep='\t')
-    refs.to_csv(os.path.join(fpath, 'refs.tsv'), sep='\t')
-    df_exploded.to_csv(os.path.join(fpath, 'df_exploded.tsv'), sep='\t')
+    doi.to_excel(os.path.join(fpath, 'doi.xlsx'))
+    pmid.to_excel(os.path.join(fpath, 'pmid.xlsx'))
+    df_dim.to_excel(os.path.join(fpath, 'df_dimensions.xlsx'))
+    refs.to_excel(os.path.join(fpath, 'refs.xlsx'))
+    df_exploded.to_excel(os.path.join(fpath, 'df_exploded.xlsx'))
