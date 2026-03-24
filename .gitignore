@@ -177,3 +177,7 @@ cython_debug/
 /fig/network
 data/network_metrics_over_time.csv
 data/df_dimensions.xlsx
+/data/patent
+/file/replica_jiani_new_3_LLM_tagging_results
+/scibert_consensus
+/file/llm_modelfile
