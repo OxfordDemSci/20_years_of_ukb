@@ -903,41 +903,6 @@ def build_country_count(df_with_iso):
 
 
 
-def aggregate_topcodes(df,topcode_to_label, fractional=False):
-    """
-    Count occurrences of top-level codes across patents.
-      - fractional=False: each topic occurrence counts as 1
-      - fractional=True: each patent contributes total 1 split across its topics
-    Returns: pandas DataFrame with columns ['top_code','label','count'] sorted desc
-    """
-    counter = Counter()
-    if not fractional:
-        # simple counting: count every occurrence in top_level_topics
-        for lst in df['top_level_topics']:
-            for code, _label in lst:
-                if code:
-                    counter[code] += 1
-    else:
-        # fractional: each patent splits weight 1 across its unique top-level topics
-        for lst in df['top_level_topics']:
-            # get unique top codes in this patent
-            if not isinstance(lst, list):
-                codes = [c for c, _ in lst if c]
-            else:
-                codes = lst
-            unique_codes = list(dict.fromkeys(codes))  # preserve order, remove dups
-            if not unique_codes:
-                continue
-            weight = 1.0 / len(unique_codes)
-            for c in unique_codes:
-                counter[c] += weight
-
-    # build DataFrame
-    items = [(code, counter[code], topcode_to_label.get(code, f'Code {code}')) for code in counter]
-    df_cnt = pd.DataFrame(items, columns=['top_code', 'count', 'label'])
-    df_cnt = df_cnt.sort_values('count', ascending=False).reset_index(drop=True)
-    return df_cnt
-  
 
 # ==============================================================================
 # PLOTTING FUNCTIONS
@@ -947,6 +912,37 @@ def aggregate_topcodes(df,topcode_to_label, fractional=False):
 
 
 
+def plot_topics_distribution(df_patent, cat_col,figsize=(10,6),savefigure=False):
+    """
+    Plots the distribution of the number of topics per patent for a given category column.
+    """
+    avg_topics = df_patent['n_topics'].mean()
+    median_topics = df_patent['n_topics'].median()
+
+    print(f"Average number of topics per patent: {avg_topics:.2f}")
+    print(f"Median number of topics per patent: {median_topics:.0f}")
+
+
+
+    fig, ax = plt.subplots(figsize=figsize)
+    ax.hist(
+        df_patent['n_topics'],
+        bins=range(1, df_patent['n_topics'].max() + 2),
+        edgecolor='black'
+    )
+    ax.axvline(avg_topics, linestyle='--', label=f'Mean = {avg_topics:.2f}')
+    ax.axvline(median_topics, linestyle=':', label=f'Median = {median_topics:.0f}')
+
+    ax.set_xlabel('Number of topics per patent')
+    ax.set_ylabel('Number of patents')
+    ax.set_title(f'Distribution of topics per patent ({cat_col.replace("category_", "")})')
+    ax.legend()
+    ax.tight_layout()
+    if savefigure:
+        plt.savefig(f'fig/patent/topics_distribution_{cat_col}.pdf')
+        print(f"Topics distribution plot saved to: fig/patent/topics_distribution_{cat_col}.pdf")
+    else:
+        return fig, ax
 
 
 
@@ -1010,7 +1006,7 @@ def map_plotting(country_df, column_to_show_counts,figsize=(12, 8),savefigure=Tr
 
 
 
-def plot_filing_status_over_time(df_patent,col,figsize=(10, 6),savefigure=True):
+def plot_filing_status_over_time(df_patent,col,figsize=(10, 6),savefigure=True, ax=None, title: Optional[str] = None):
     """
     Plot stacked bar chart of patent counts by filing status over publication years.
 
@@ -1070,7 +1066,11 @@ def plot_filing_status_over_time(df_patent,col,figsize=(10, 6),savefigure=True):
     totals = pivot_df.sum(axis=1)
 
     # plot
-    fig, ax = plt.subplots(figsize=figsize)
+    created_fig = ax is None
+    if created_fig:
+        fig, ax = plt.subplots(figsize=figsize)
+    else:
+        fig = ax.figure
 
     bottom = None
     for status in pivot_df.columns:
@@ -1115,17 +1115,21 @@ def plot_filing_status_over_time(df_patent,col,figsize=(10, 6),savefigure=True):
     # labels & styling
     ax.set_xlabel('Publication Year')
     ax.set_ylabel('Number of Patents')
-    ax.set_title('Patent Counts by Filing Status and Publication Year')
+    if title is None:
+        title = 'Patent Counts by Filing Status and Publication Year'
+    ax.set_title(title)
     ax.legend(title='Filing Status',frameon=False, loc='upper left')
     ax.set_ylim(0, totals.max() * 1.1)  # add some headroom for annotations
     ax.spines['top'].set_visible(False)
     ax.spines['right'].set_visible(False)
 
-    plt.tight_layout()
-    if savefigure:
-        plt.savefig('fig/patent/patent_filing_status_over_time.pdf', dpi=300)
-    else:
-        return fig, ax
+    if created_fig:
+        plt.tight_layout()
+        if savefigure:
+            plt.savefig('fig/patent/patent_filing_status_over_time.pdf', dpi=300)
+        else:
+            return fig, ax
+    return fig, ax
 
 
 def plot_patent_counts_by_filing_status(
@@ -1761,41 +1765,10 @@ def plot_model_agreement_distribution(
     
     plt.tight_layout()
     if savefile:
-        plt.savefig("fig/patent/topics_distribution.pdf")
-    else:
-        return fig, ax
-
-def plot_topics_distribution(df_patent, cat_col,figsize=(10,6),savefigure=False):
-    """
-    Plots the distribution of the number of topics per patent for a given category column.
-    """
-    avg_topics = df_patent['n_topics'].mean()
-    median_topics = df_patent['n_topics'].median()
-
-    print(f"Average number of topics per patent: {avg_topics:.2f}")
-    print(f"Median number of topics per patent: {median_topics:.0f}")
+        plt.savefig(savefile, dpi=300)
+    plt.show()
 
 
-
-    fig, ax = plt.subplots(figsize=figsize)
-    ax.hist(
-        df_patent['n_topics'],
-        bins=range(1, df_patent['n_topics'].max() + 2),
-        edgecolor='black'
-    )
-    ax.axvline(avg_topics, linestyle='--', label=f'Mean = {avg_topics:.2f}')
-    ax.axvline(median_topics, linestyle=':', label=f'Median = {median_topics:.0f}')
-
-    ax.set_xlabel('Number of topics per patent')
-    ax.set_ylabel('Number of patents')
-    ax.set_title(f'Distribution of topics per patent ({cat_col.replace("category_", "")})')
-    ax.legend()
-    ax.tight_layout()
-    if savefigure:
-        plt.savefig(f'fig/patent/topics_distribution_{cat_col}.pdf')
-        print(f"Topics distribution plot saved to: fig/patent/topics_distribution_{cat_col}.pdf")
-    else:
-        return fig, ax
 
 #=============================================================================
 # TOPIC PARSING FUNCTIONS 
@@ -2322,3 +2295,676 @@ def clean_patent_abstract(text: str) -> str:
     s = re.sub(r'\b([cC])_(\d+)\b', r'\1\2', s)
 
     return s
+
+
+def extract_all_countries(val: Any) -> List[str]:
+    """Extract ISO country codes from a patent assignee country payload."""
+    try:
+        if val is None:
+            return []
+        if isinstance(val, str):
+            try:
+                val = ast.literal_eval(val)
+            except Exception:
+                return []
+        if isinstance(val, list):
+            countries = []
+            for item in val:
+                if isinstance(item, dict) and item.get('id'):
+                    countries.append(item['id'])
+                elif isinstance(item, str):
+                    countries.append(item)
+            return countries
+    except Exception:
+        pass
+    return []
+
+
+def _normalize_topic_code_list(topics: Any) -> List[str]:
+    if not topics:
+        return []
+    if isinstance(topics, list):
+        if topics and isinstance(topics[0], tuple):
+            return [code for code, _ in topics if code]
+        return [code for code in topics if code]
+    return []
+
+
+def analyze_topic_diversity(df_patent: pd.DataFrame, topics_col: str = 'top_level_topics') -> pd.DataFrame:
+    """Return a copy of the dataframe with a topic_count column."""
+    out = df_patent.copy()
+    out['topic_count'] = out[topics_col].apply(lambda x: len(_normalize_topic_code_list(x)))
+    return out
+
+
+def build_topic_cooccurrence_network(
+    df_patent: pd.DataFrame,
+    topics_col: str = 'top_level_topics',
+    min_weight: int = 2,
+):
+    """Build an undirected co-occurrence network from topic lists."""
+    import networkx as nx
+    from itertools import combinations
+
+    pair_counter = Counter()
+    for topics in df_patent[topics_col]:
+        codes = sorted(set(_normalize_topic_code_list(topics)))
+        for left, right in combinations(codes, 2):
+            pair_counter[(left, right)] += 1
+
+    graph = nx.Graph()
+    for (left, right), weight in pair_counter.items():
+        if weight >= min_weight:
+            graph.add_edge(left, right, weight=weight)
+
+    return graph, pair_counter
+
+
+def plot_topic_cooccurrence_network(
+    graph,
+    code_to_label: Optional[Dict[str, str]] = None,
+    figsize: Tuple[int, int] = (12, 10),
+    savefile: Optional[str] = None,
+):
+    """Plot a topic co-occurrence network."""
+    import networkx as nx
+
+    if graph.number_of_nodes() == 0:
+        print('No topic pairs found meeting the co-occurrence threshold.')
+        return None, None
+
+    if code_to_label is None:
+        code_to_label = {}
+
+    pos = nx.spring_layout(graph, seed=42, k=0.7)
+    node_sizes = [400 + 250 * graph.degree(node) for node in graph.nodes()]
+    edge_widths = [0.5 + graph[u][v].get('weight', 1) * 0.4 for u, v in graph.edges()]
+
+    fig, ax = plt.subplots(figsize=figsize)
+    nx.draw_networkx_edges(graph, pos, width=edge_widths, alpha=0.35, ax=ax)
+    nx.draw_networkx_nodes(
+        graph,
+        pos,
+        node_size=node_sizes,
+        node_color='#4C72B0',
+        alpha=0.85,
+        edgecolors='white',
+        linewidths=1.5,
+        ax=ax,
+    )
+    labels = {node: code_to_label.get(node, str(node)) for node in graph.nodes()}
+    nx.draw_networkx_labels(graph, pos, labels=labels, font_size=8, font_weight='bold', ax=ax)
+    edge_labels = {(u, v): graph[u][v].get('weight', 1) for u, v in graph.edges()}
+    nx.draw_networkx_edge_labels(graph, pos, edge_labels=edge_labels, font_size=7, ax=ax)
+    ax.axis('off')
+    plt.tight_layout()
+
+    if savefile:
+        plt.savefig(savefile, dpi=200, bbox_inches='tight')
+        print(f'Network plot saved to: {savefile}')
+    plt.show()
+    return fig, ax
+
+
+def analyze_country_topics(
+    df_patent: pd.DataFrame,
+    topics_col: str = 'top_level_topics',
+    country_col: str = 'country_list',
+    code_to_label: Optional[Dict[str, str]] = None,
+    top_countries: int = 8,
+    top_topics: int = 8,
+):
+    """Build a fractional country-topic matrix and summary tables."""
+    if code_to_label is None:
+        code_to_label = {}
+
+    rows = []
+    country_counter = Counter()
+    topic_counter = Counter()
+
+    for _, row in df_patent.iterrows():
+        countries = extract_all_countries(row.get(country_col))
+        topics = _normalize_topic_code_list(row.get(topics_col))
+        unique_topics = sorted(set(topics))
+        if not countries or not unique_topics:
+            continue
+
+        weight = 1.0 / len(countries)
+        for country in countries:
+            country_counter[country] += weight
+            for code in unique_topics:
+                topic_counter[code] += weight
+                rows.append({
+                    'country': country,
+                    'topic_code': code,
+                    'topic_label': code_to_label.get(code, f'Code {code}'),
+                    'weight': weight,
+                })
+
+    df_country_topic = pd.DataFrame(rows)
+    if df_country_topic.empty:
+        return df_country_topic, pd.DataFrame(), [], [], country_counter, topic_counter
+
+    topic_by_country = (
+        df_country_topic.groupby(['country', 'topic_code', 'topic_label'])['weight']
+        .sum()
+        .reset_index(name='count')
+    )
+
+    top_country_codes = [country for country, _ in country_counter.most_common(top_countries)]
+    top_topic_codes = [code for code, _ in topic_counter.most_common(top_topics)]
+
+    pivot = (
+        topic_by_country[topic_by_country['country'].isin(top_country_codes) & topic_by_country['topic_code'].isin(top_topic_codes)]
+        .pivot(index='topic_code', columns='country', values='count')
+        .fillna(0)
+    )
+    pivot = pivot.reindex(index=top_topic_codes, columns=top_country_codes, fill_value=0)
+
+    return df_country_topic, pivot, top_country_codes, top_topic_codes, country_counter, topic_counter
+
+
+def plot_country_topic_heatmap(
+    pivot_country_topic: pd.DataFrame,
+    code_to_label: Optional[Dict[str, str]] = None,
+    figsize: Tuple[int, int] = (8, 6),
+    savefile: Optional[str] = None,
+    ax=None,
+    cmap=None,
+    title: Optional[str] = None,
+):
+    """Plot a normalized country-topic heatmap."""
+
+    if code_to_label is None:
+        code_to_label = {}
+
+    if pivot_country_topic.empty:
+        print('No country-topic data available for heatmap.')
+        return None, None
+
+    pivot_normalized = pivot_country_topic.div(pivot_country_topic.sum(axis=0), axis=1).fillna(0) * 100
+    created_fig = ax is None
+    if created_fig:
+        fig, ax = plt.subplots(figsize=figsize)
+    else:
+        fig = ax.figure
+
+    if cmap is None:
+        from matplotlib.colors import LinearSegmentedColormap
+        cmap = LinearSegmentedColormap.from_list('custom_cmap', ['#F5F7FA', '#4C72B0'])
+
+    im = ax.imshow(pivot_normalized.values, cmap=cmap, aspect='auto', vmin=0, vmax=100)
+    ax.set_xticks(range(len(pivot_normalized.columns)))
+    ax.set_yticks(range(len(pivot_normalized.index)))
+    ax.set_xticklabels([('UK' if col == 'GB' else col) for col in pivot_normalized.columns], rotation=0, ha='center')
+    ax.set_yticklabels([code_to_label.get(code, code) for code in pivot_normalized.index])
+
+    for i in range(len(pivot_normalized.index)):
+        for j in range(len(pivot_normalized.columns)):
+            value = pivot_normalized.values[i, j]
+            if value > 0:
+                ax.text(j, i, f'{value:.1f}%', ha='center', va='center', color='white', fontsize=7)
+
+    if title is None:
+        title = 'Patent Topics by Country (%)'
+    ax.set_title(title, fontsize=10, fontweight='bold')
+    ax.set_xlabel('Country')
+    ax.set_ylabel('Topic Division')
+    plt.colorbar(im, ax=ax, orientation='vertical', pad=0.02, fraction=0.046)
+    if created_fig:
+        plt.tight_layout()
+
+    if savefile:
+        plt.savefig(savefile, dpi=200, bbox_inches='tight')
+        print(f'Heatmap saved to: {savefile}')
+    plt.show()
+    return fig, ax
+
+
+def plot_country_dominant_topics(
+    topic_by_country: pd.DataFrame,
+    top_countries: List[str],
+    code_to_label: Optional[Dict[str, str]] = None,
+    figsize: Tuple[int, int] = (8, 6),
+    savefile: Optional[str] = None,
+):
+    """Plot the dominant topic per country as a horizontal bar chart."""
+    if code_to_label is None:
+        code_to_label = {}
+
+    if topic_by_country.empty:
+        print('No country-topic data available for dominant topic plot.')
+        return None, None
+
+    dominant_rows = []
+    for country in top_countries:
+        country_rows = topic_by_country[topic_by_country['country'] == country]
+        if country_rows.empty:
+            continue
+        top_row = country_rows.nlargest(1, 'count').iloc[0]
+        dominant_rows.append(top_row)
+
+    if not dominant_rows:
+        print('No dominant topic rows found.')
+        return None, None
+
+    dominant_df = pd.DataFrame(dominant_rows).sort_values('count', ascending=True)
+    fig, ax = plt.subplots(figsize=figsize)
+    bars = ax.barh(dominant_df['country'], dominant_df['count'], color='#4C72B0', edgecolor='black', linewidth=1)
+    for bar, topic_code, count in zip(bars, dominant_df['topic_code'], dominant_df['count']):
+        topic_label = code_to_label.get(topic_code, topic_code)
+        if len(topic_label) > 30:
+            topic_label = topic_label[:30] + '...'
+        ax.text(count + 0.5, bar.get_y() + bar.get_height() / 2, f'{topic_label} ({count:.2f})', va='center', fontsize=8)
+    ax.set_xlabel('Fractional Patent Count in Dominant Topic')
+    ax.set_ylabel('Country')
+    ax.set_title('Dominant Topic per Country (Fractional)', fontsize=10, fontweight='bold')
+    ax.invert_yaxis()
+    ax.spines['top'].set_visible(False)
+    ax.spines['right'].set_visible(False)
+    plt.tight_layout()
+
+    if savefile:
+        plt.savefig(savefile, dpi=200, bbox_inches='tight')
+        print(f'Dominant-topic plot saved to: {savefile}')
+    plt.show()
+    return fig, ax
+
+
+def plot_two_level_hierarchy(
+    counts: pd.DataFrame,
+    parent_code_col: str,
+    parent_label_col: str,
+    child_code_col: str,
+    child_label_col: str,
+    parent_name: str = 'Parent',
+    child_name: str = 'Child',
+    top_parent_n: int = 5,
+    top_child_n: int = 8,
+    figsize: Tuple[int, int] = (14, 20),
+    savefile: Optional[str] = None,
+):
+    """Draw a bubble-tree style hierarchy plot for a two-level taxonomy."""
+    if counts.empty:
+        print(f'No data available for {parent_name} hierarchy plot.')
+        return None, None
+
+    parent_totals = counts.groupby([parent_code_col, parent_label_col])['count'].sum().reset_index()
+    parent_totals = parent_totals.sort_values('count', ascending=False).head(top_parent_n)
+    counts = counts.merge(parent_totals[[parent_code_col]], on=parent_code_col, how='inner')
+    parent_order = parent_totals[parent_code_col].tolist()
+
+    fig, ax = plt.subplots(figsize=figsize)
+    colors_palette = plt.cm.Set3(range(len(parent_order)))
+    parent_colors = dict(zip(parent_order, colors_palette))
+
+    y_spacing = 1.5
+    x_parent = 0
+    x_child = 6
+    y_current = 0
+
+    for parent_code in parent_order:
+        parent_data = counts[counts[parent_code_col] == parent_code]
+        parent_label = parent_data[parent_label_col].iloc[0]
+        parent_total = parent_data['count'].sum()
+
+        children = (
+            parent_data.groupby([child_code_col, child_label_col])['count']
+            .sum()
+            .reset_index()
+            .sort_values('count', ascending=False)
+            .head(top_child_n)
+        )
+
+        n_children = len(children)
+        child_y_start = y_current
+        child_y_spacing = 0.7
+        parent_y = child_y_start + (n_children - 1) * child_y_spacing / 2
+
+        ax.scatter(x_parent, parent_y, s=min(2200, 500 + parent_total * 6), color=parent_colors[parent_code], edgecolor='black', linewidth=2, zorder=3, alpha=0.85)
+        ax.text(x_parent - 0.3, parent_y, f"{parent_code}\n{parent_label}\n({parent_total})", ha='right', va='center', fontsize=9, fontweight='bold')
+
+        for child_idx, (_, child_row) in enumerate(children.iterrows()):
+            child_code = child_row[child_code_col]
+            child_label = child_row[child_label_col]
+            child_count = child_row['count']
+            child_y = child_y_start + child_idx * child_y_spacing
+            ax.plot([x_parent, x_child], [parent_y, child_y], color=parent_colors[parent_code], linewidth=1.3, alpha=0.6, zorder=1)
+            ax.scatter(x_child, child_y, s=min(900, 200 + child_count * 4), color=parent_colors[parent_code], edgecolor='gray', linewidth=1, zorder=2, alpha=0.55)
+            child_text = child_label if len(str(child_label)) <= 35 else str(child_label)[:32] + '...'
+            ax.text(x_child + 0.2, child_y, f"{child_code}: {child_text} ({child_count})", ha='left', va='center', fontsize=7)
+
+        y_current += (n_children * child_y_spacing) + y_spacing
+
+    ax.set_xlim(-2, 15)
+    ax.set_ylim(-1, y_current)
+    ax.axis('off')
+    ax.text(x_parent, -0.5, parent_name, ha='center', va='top', fontsize=9, style='italic')
+    ax.text(x_child, -0.5, child_name, ha='center', va='top', fontsize=9, style='italic')
+    plt.tight_layout()
+
+    if savefile:
+        plt.savefig(savefile, dpi=200, bbox_inches='tight')
+        print(f'Hierarchy plot saved to: {savefile}')
+    plt.show()
+    return fig, ax
+
+
+def prepare_rcdc_macro_context(
+    df_patent: pd.DataFrame,
+    category_col: str = 'category_rcdc',
+    summary_csv: str = 'file/paten_rcdc_macro/cluster_label_summary_louvain.csv',
+    macro_cluster_names: Optional[Dict[int, str]] = None,
+) -> Dict[str, Any]:
+    """Prepare shared RCDC macro-cluster lookup tables for downstream plots."""
+    df = df_patent.copy()
+
+    if macro_cluster_names is None:
+        macro_cluster_names = {
+            0: 'Stem Cell & Regenerative Medicine',
+            1: 'Biomedical Engineering & Digital Health',
+            2: 'Aging & Neurodegenerative Disorders',
+            3: 'Mental Health & Behavioral Disorders',
+            4: 'Genomic & Precision Medicine',
+            5: 'Metabolic & Hepatic Disorders',
+            6: 'Infectious & Rare Disease Research ',
+        }
+
+    if category_col not in df.columns:
+        raise KeyError(f"{category_col!r} column is missing from the input dataframe")
+
+    df[category_col] = df[category_col].apply(safe_parse_category)
+
+    cat_dict: Dict[str, str] = {}
+    for cats in df[category_col]:
+        for c in cats:
+            if isinstance(c, dict) and 'name' in c and 'id' in c:
+                cat_dict[str(c['id'])] = c['name']
+
+    df_rcdc_macro_labels = pd.read_csv(summary_csv)
+    df_rcdc_macro_labels['top_label_names'] = df_rcdc_macro_labels['top_labels'].apply(
+        lambda x: [cat_dict.get(lab, 'Unknown') for lab in str(x).split(';')]
+    )
+    df_rcdc_macro_labels['cluster_names'] = df_rcdc_macro_labels['community'].map(macro_cluster_names)
+
+    top_topic_dict = {
+        x: str(y).split(';')
+        for x, y in zip(df_rcdc_macro_labels['community'], df_rcdc_macro_labels['all_labels'])
+    }
+    code_to_macro = {
+        str(code): macro
+        for macro, code_list in top_topic_dict.items()
+        for code in code_list
+    }
+
+    return {
+        'df_rcdc_macro_labels': df_rcdc_macro_labels,
+        'cat_dict': cat_dict,
+        'macro_cluster_names': macro_cluster_names,
+        'top_topic_dict': top_topic_dict,
+        'code_to_macro': code_to_macro,
+    }
+
+
+def plot_rcdc_macro_hierarchy(
+    df_patent: pd.DataFrame,
+    rcdc_context: Dict[str, Any],
+    category_col: str = 'category_rcdc',
+    top_level_topics_col: str = 'top_level_topics',
+    top_macro: int = 8,
+    figsize: Tuple[int, int] = (14, 20),
+    savefile: Optional[str] = None,
+):
+    """Plot the macro-cluster to RCDC category tree-style hierarchy."""
+    import ast
+
+    cat_dict = rcdc_context['cat_dict']
+    macro_cluster_names = rcdc_context['macro_cluster_names']
+    code_to_macro = rcdc_context['code_to_macro']
+
+    rcdc_rows = []
+    for _, row in df_patent.iterrows():
+        raw_topics = row.get(category_col, [])
+
+        if isinstance(raw_topics, str):
+            try:
+                raw_topics = ast.literal_eval(raw_topics)
+            except Exception:
+                raw_topics = []
+
+        if not isinstance(raw_topics, list):
+            continue
+
+        for topic in raw_topics:
+            if not isinstance(topic, dict):
+                continue
+
+            rcdc_id = topic.get('id')
+            if rcdc_id is None:
+                continue
+
+            rcdc_id_str = str(rcdc_id)
+            macro_code = code_to_macro.get(rcdc_id_str, code_to_macro.get(rcdc_id))
+            if macro_code is None:
+                continue
+
+            rcdc_label = topic.get('name') or cat_dict.get(rcdc_id_str, cat_dict.get(rcdc_id, f'RCDC {rcdc_id_str}'))
+            rcdc_rows.append({
+                'macro_code': macro_code,
+                'macro_label': macro_cluster_names.get(macro_code, f'Macro {macro_code}'),
+                'rcdc_id': rcdc_id_str,
+                'rcdc_label': rcdc_label,
+            })
+
+    hier_df_rcdc = pd.DataFrame(rcdc_rows)
+    if hier_df_rcdc.empty:
+        print('No category_rcdc hierarchy data available for dendrogram plot.')
+        return None, None
+
+    counts = (
+        hier_df_rcdc
+        .groupby(['macro_code', 'macro_label', 'rcdc_id', 'rcdc_label'])
+        .size()
+        .reset_index(name='count')
+    )
+
+    macro_totals = (
+        counts.groupby(['macro_code', 'macro_label'])['count']
+        .sum()
+        .reset_index()
+        .sort_values('count', ascending=False)
+        .head(top_macro)
+    )
+
+    counts = counts.merge(macro_totals[['macro_code']], on='macro_code', how='inner')
+    macro_order = macro_totals['macro_code'].tolist()
+
+    fig, ax = plt.subplots(figsize=figsize)
+    colors = plt.cm.Set3(range(len(macro_order)))
+    macro_colors = dict(zip(macro_order, colors))
+
+    y_spacing = 1.5
+    x_macro = 0
+    x_rcdc = 6
+    y_current = 0
+
+    for macro_code in macro_order:
+        macro_data = counts[counts['macro_code'] == macro_code]
+        macro_label = macro_data['macro_label'].iloc[0]
+        macro_total = macro_data['count'].sum()
+
+        children = (
+            macro_data.groupby(['rcdc_id', 'rcdc_label'])['count']
+            .sum()
+            .reset_index()
+            .sort_values('count', ascending=False)
+        )
+
+        n_children = len(children)
+        child_y_start = y_current
+        child_y_spacing = 0.7
+        macro_y = child_y_start + (n_children - 1) * child_y_spacing / 2
+
+        ax.scatter(
+            x_macro, macro_y, s=min(2200, 500 + macro_total * 6),
+            color=macro_colors[macro_code], edgecolor='black', linewidth=2,
+            zorder=3, alpha=0.85
+        )
+        ax.text(
+            x_macro - 0.3, macro_y,
+            f"{macro_code}\n{macro_label}\n({macro_total})",
+            ha='right', va='center', fontsize=9, fontweight='bold'
+        )
+
+        for child_idx, (_, child_row) in enumerate(children.iterrows()):
+            rcdc_id = child_row['rcdc_id']
+            rcdc_label = child_row['rcdc_label']
+            rcdc_count = child_row['count']
+            child_y = child_y_start + child_idx * child_y_spacing
+
+            ax.plot([x_macro, x_rcdc], [macro_y, child_y], color=macro_colors[macro_code], linewidth=1.3, alpha=0.6, zorder=1)
+            ax.scatter(
+                x_rcdc, child_y,
+                s=min(900, 200 + rcdc_count * 4),
+                color=macro_colors[macro_code], edgecolor='gray', linewidth=1,
+                zorder=2, alpha=0.55
+            )
+            child_text = rcdc_label if len(str(rcdc_label)) <= 35 else str(rcdc_label)[:32] + '...'
+            ax.text(x_rcdc + 0.2, child_y, f"{rcdc_id}: {child_text} ({rcdc_count})", ha='left', va='center', fontsize=7)
+
+        y_current += (n_children * child_y_spacing) + y_spacing
+
+    ax.set_xlim(-2, 15)
+    ax.set_ylim(-1, y_current)
+    ax.set_aspect('auto')
+    ax.axis('off')
+    ax.text(x_macro, -0.5, 'Macro Cluster', ha='center', va='top', fontsize=9, style='italic')
+    ax.text(x_rcdc, -0.5, 'RCDC Category', ha='center', va='top', fontsize=9, style='italic')
+    plt.tight_layout()
+
+    if savefile:
+        plt.savefig(savefile, dpi=300, bbox_inches='tight')
+    plt.show()
+    return fig, ax
+
+
+def plot_rcdc_macro_heatmap(
+    df_patent: pd.DataFrame,
+    rcdc_context: Dict[str, Any],
+    category_col: str = 'category_rcdc',
+    top_n_categories: int = 5,
+    normalize: bool = True,
+    figsize: Tuple[int, int] = (13, 8),
+    savefile: Optional[str] = None,
+):
+    """Plot the macro-cluster by RCDC-category heatmap used in the original notebook."""
+    import ast
+    import textwrap
+    from matplotlib.colors import LinearSegmentedColormap
+    import seaborn as sns
+
+    cat_dict = rcdc_context['cat_dict']
+    macro_cluster_names = rcdc_context['macro_cluster_names']
+    top_topic_dict = rcdc_context['top_topic_dict']
+
+    top_topic_dict_str = {
+        str(macro_code): {str(topic_id) for topic_id in topic_ids}
+        for macro_code, topic_ids in top_topic_dict.items()
+    }
+
+    macro_topic_counts = {str(macro_code): Counter() for macro_code in macro_cluster_names.keys()}
+
+    for _, row in df_patent.iterrows():
+        raw_topics = row.get(category_col, [])
+        if isinstance(raw_topics, str):
+            try:
+                raw_topics = ast.literal_eval(raw_topics)
+            except Exception:
+                raw_topics = []
+
+        if not isinstance(raw_topics, list):
+            continue
+
+        tot_topics = len(raw_topics) if raw_topics else 1
+        for topic in raw_topics:
+            if not isinstance(topic, dict):
+                continue
+
+            topic_id = str(topic.get('id'))
+            if topic_id is None:
+                continue
+
+            for macro_code, allowed_topic_ids in top_topic_dict_str.items():
+                if topic_id in allowed_topic_ids:
+                    macro_topic_counts[macro_code][topic_id] += 1 if not normalize else 1 / tot_topics
+                    break
+
+    heatmap_data = []
+    for macro_code, macro_label in macro_cluster_names.items():
+        macro_code = str(macro_code)
+        top_topics = macro_topic_counts[macro_code].most_common(top_n_categories)
+        heatmap_data.append((macro_label, [(cat_dict.get(topic_id, topic_id), count) for topic_id, count in top_topics]))
+
+    rcdc_labels = []
+    for _, topics in heatmap_data:
+        for topic_label, _ in topics:
+            if topic_label not in rcdc_labels:
+                rcdc_labels.append(topic_label)
+
+    heatmap_matrix = np.zeros((len(heatmap_data), len(rcdc_labels)))
+    for i, (_, topics) in enumerate(heatmap_data):
+        for topic_label, count in topics:
+            j = rcdc_labels.index(topic_label)
+            heatmap_matrix[i, j] = count
+
+    heatmap_df = pd.DataFrame(heatmap_matrix, index=[m for m, _ in heatmap_data], columns=rcdc_labels).T
+    col_order = heatmap_df.columns.tolist()
+    row_category = heatmap_df.idxmax(axis=1)
+    row_value = heatmap_df.max(axis=1)
+    sorted_df = (
+        heatmap_df.assign(
+            _category=row_category,
+            _value=row_value,
+            _category_order=row_category.map({col: i for i, col in enumerate(col_order)})
+        )
+        .sort_values(by=['_category_order', '_value'], ascending=[True, False])
+        .drop(columns=['_category', '_value', '_category_order'])
+        .replace(0, np.nan)
+    )
+
+    macro_topic_totals = {label: int(sum(macro_topic_counts[str(code)].values())) for code, label in macro_cluster_names.items()}
+    #cmap = LinearSegmentedColormap.from_list('rcdc_macro_cmap', ['#345995', '#B80C09'])
+    cmap="YlGnBu"
+    fig, ax = plt.subplots(figsize=figsize)
+    dis_df = sorted_df.copy()
+    if normalize:
+        for col in dis_df.columns:
+            col_sum = macro_topic_totals.get(col, 0)
+            if col_sum > 0:
+                dis_df[col] = dis_df[col] / col_sum
+
+    sns.heatmap(
+        dis_df,
+        annot=True,
+        fmt='.1%',
+        cmap=cmap,
+        cbar_kws={'label': "Fraction of Macro Cluster's Topics" if normalize else 'Patent Count'},
+        annot_kws={'size': 8},
+        ax=ax,
+    )
+
+    for i in range(5, len(dis_df), 5):
+        ax.axhline(i, color='grey', linewidth=1, linestyle='--')
+
+    wrapped_labels = [textwrap.fill(label, width=14) for label in dis_df.columns]
+    ax.set_xticklabels(wrapped_labels, rotation=0, ha='center', fontsize=9)
+    ax.set_title('Top 5 RCDC Categories per Macro Cluster', fontsize=12, fontweight='bold', pad=20)
+    ax.set_ylabel('RCDC Category', fontweight='bold')
+    ax.set_xlabel('Macro Cluster', fontweight='bold')
+    ax.set_yticklabels(ax.get_yticklabels(), fontsize=9)
+    plt.tight_layout()
+
+    if savefile:
+        plt.savefig(savefile, format='svg')
+    plt.show()
+    return fig, ax, sorted_df
