@@ -25,6 +25,10 @@ import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.patheffects as path_effects
 from bs4 import BeautifulSoup
+from collections import Counter
+import pandas as pd
+
+
 
 import ast
 import re
@@ -859,9 +863,151 @@ def plot_bar_matplotlib(
     plt.show()
 
 
+def build_country_count(df_with_iso):
+    # build country -> count dict (ISO-2) and add iso3 code 
+    
+    counter = Counter()
+
+    for countries in df_with_iso['assignee_countries']:
+        if isinstance(countries, list):
+            for c in countries:
+                if isinstance(c, str):
+                    counter[c.upper()] += 1
+
+    country_count = dict(counter)
+
+    # convert to DataFrame
+    country_df = (
+        pd.DataFrame(country_count.items(), columns=['iso2', 'count'])
+        .sort_values('count', ascending=False)
+        .reset_index(drop=True)
+    )
+
+
+    # convert ISO-2 to ISO-3
+    def iso2_to_iso3(iso2):
+        try:
+            return pycountry.countries.get(alpha_2=iso2).alpha_3
+        except Exception:
+            return None
+
+    country_df['iso3'] = country_df['iso2'].apply(iso2_to_iso3)
+    country_df = country_df.dropna(subset=['iso3'])
+    return country_df
+
+
+
+# =========================
+# Topic general functions 
+# =========================
+
+
+
+def aggregate_topcodes(df,topcode_to_label, fractional=False):
+    """
+    Count occurrences of top-level codes across patents.
+      - fractional=False: each topic occurrence counts as 1
+      - fractional=True: each patent contributes total 1 split across its topics
+    Returns: pandas DataFrame with columns ['top_code','label','count'] sorted desc
+    """
+    counter = Counter()
+    if not fractional:
+        # simple counting: count every occurrence in top_level_topics
+        for lst in df['top_level_topics']:
+            for code, _label in lst:
+                if code:
+                    counter[code] += 1
+    else:
+        # fractional: each patent splits weight 1 across its unique top-level topics
+        for lst in df['top_level_topics']:
+            # get unique top codes in this patent
+            if not isinstance(lst, list):
+                codes = [c for c, _ in lst if c]
+            else:
+                codes = lst
+            unique_codes = list(dict.fromkeys(codes))  # preserve order, remove dups
+            if not unique_codes:
+                continue
+            weight = 1.0 / len(unique_codes)
+            for c in unique_codes:
+                counter[c] += weight
+
+    # build DataFrame
+    items = [(code, counter[code], topcode_to_label.get(code, f'Code {code}')) for code in counter]
+    df_cnt = pd.DataFrame(items, columns=['top_code', 'count', 'label'])
+    df_cnt = df_cnt.sort_values('count', ascending=False).reset_index(drop=True)
+    return df_cnt
+  
+
 # ==============================================================================
 # PLOTTING FUNCTIONS
 # ==============================================================================
+
+
+
+
+
+
+
+
+def map_plotting(country_df, column_to_show_counts,figsize=(12, 8),savefigure=True):
+    """
+    function to plot the world map with patent counts.
+
+    Args:
+        country_df (pd.DataFrame): DataFrame with columns 'iso3' and 'count' for each country.
+        column_to_show_counts (str): The column name to show counts for, e.g., 'assignees' or 'inventors'.
+        figsize (tuple, optional): _description_. Defaults to (12, 8).
+        savefigure (bool, optional): _description_. Defaults to True.
+
+    Returns:
+        _type_: _description_
+    """
+
+    # merge world map with patent counts
+
+    # load world shapefile 
+    world = gpd.read_file(
+        "data/ne_110m_admin_0_countries/ne_110m_admin_0_countries.shp"
+    )
+    world.columns = [c.lower() for c in world.columns]
+    # merge patent counts into map
+    world_patents = world.merge(
+        country_df,
+        how='left',
+        left_on='iso_a3',
+        right_on='iso3'
+    )
+
+    fig, ax = plt.subplots(1, 1, figsize=figsize)
+
+    world_patents.plot(
+        column='count',
+        ax=ax,
+        legend=True,
+        cmap='ocean_r',
+        edgecolor='grey',
+        missing_kwds={
+            "color": "white",
+            "label": "No patents"
+        },
+        legend_kwds={
+            'label': "Number of {} occurrences".format(column_to_show_counts),
+            'shrink': 0.6
+        }
+    )
+
+    ax.set_title('Global distribution of patent {}'.format(column_to_show_counts), fontsize=14)
+    ax.axis('off')
+    plt.tight_layout()
+    if savefigure:
+        plt.savefig('fig/patent/patent_countries_map_{}.pdf'.format(column_to_show_counts), dpi=500)    
+    else:
+        return fig, ax
+    
+
+
+
 
 
 def plot_filing_status_over_time(df_patent,col,figsize=(10, 6),savefigure=True):
@@ -887,7 +1033,12 @@ def plot_filing_status_over_time(df_patent,col,figsize=(10, 6),savefigure=True):
     }
 
     if col =='legal_status_replaced':
-        replace_dict = {'Ceased':'Application Ceased', 'Granted':'Application Granted', 'Pending':'Application Pending', 'Withdrawn':'Application Withdrawn','Abandoned':'Application Abandoned','Expired - Fee Related':'Granted Patent Expired'}
+        replace_dict = {'Ceased':'Application Ceased', 
+                        'Granted':'Application Granted', 
+                        'Pending':'Application Pending', 
+                        'Withdrawn':'Application Withdrawn',
+                        'Abandoned':'Application Abandoned',
+                        'Expired - Fee Related':'Granted Patent Expired'}
         df_patent['legal_status_replaced'] = df_patent['legal_status'].replace(replace_dict)
 
     # ensure datetime
@@ -972,7 +1123,7 @@ def plot_filing_status_over_time(df_patent,col,figsize=(10, 6),savefigure=True):
 
     plt.tight_layout()
     if savefigure:
-        plt.savefig('fig/patent_filing_status_over_time.pdf', dpi=300)
+        plt.savefig('fig/patent/patent_filing_status_over_time.pdf', dpi=300)
     else:
         return fig, ax
 
@@ -1610,10 +1761,41 @@ def plot_model_agreement_distribution(
     
     plt.tight_layout()
     if savefile:
-        plt.savefig(savefile, dpi=300)
-    plt.show()
+        plt.savefig("fig/patent/topics_distribution.pdf")
+    else:
+        return fig, ax
+
+def plot_topics_distribution(df_patent, cat_col,figsize=(10,6),savefigure=False):
+    """
+    Plots the distribution of the number of topics per patent for a given category column.
+    """
+    avg_topics = df_patent['n_topics'].mean()
+    median_topics = df_patent['n_topics'].median()
+
+    print(f"Average number of topics per patent: {avg_topics:.2f}")
+    print(f"Median number of topics per patent: {median_topics:.0f}")
 
 
+
+    fig, ax = plt.subplots(figsize=figsize)
+    ax.hist(
+        df_patent['n_topics'],
+        bins=range(1, df_patent['n_topics'].max() + 2),
+        edgecolor='black'
+    )
+    ax.axvline(avg_topics, linestyle='--', label=f'Mean = {avg_topics:.2f}')
+    ax.axvline(median_topics, linestyle=':', label=f'Median = {median_topics:.0f}')
+
+    ax.set_xlabel('Number of topics per patent')
+    ax.set_ylabel('Number of patents')
+    ax.set_title(f'Distribution of topics per patent ({cat_col.replace("category_", "")})')
+    ax.legend()
+    ax.tight_layout()
+    if savefigure:
+        plt.savefig(f'fig/patent/topics_distribution_{cat_col}.pdf')
+        print(f"Topics distribution plot saved to: fig/patent/topics_distribution_{cat_col}.pdf")
+    else:
+        return fig, ax
 
 #=============================================================================
 # TOPIC PARSING FUNCTIONS 
