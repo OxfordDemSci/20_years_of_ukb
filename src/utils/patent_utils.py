@@ -2885,7 +2885,6 @@ def plot_rcdc_macro_heatmap(
         if not isinstance(raw_topics, list):
             continue
 
-        tot_topics = len(raw_topics) if raw_topics else 1
         for topic in raw_topics:
             if not isinstance(topic, dict):
                 continue
@@ -2896,8 +2895,13 @@ def plot_rcdc_macro_heatmap(
 
             for macro_code, allowed_topic_ids in top_topic_dict_str.items():
                 if topic_id in allowed_topic_ids:
-                    macro_topic_counts[macro_code][topic_id] += 1 if not normalize else 1 / tot_topics
+                    macro_topic_counts[macro_code][topic_id] += 1
                     break
+
+    macro_topic_totals = {
+        macro_code: sum(topic_counts.values())
+        for macro_code, topic_counts in macro_topic_counts.items()
+    }
 
     heatmap_data = []
     for macro_code, macro_label in macro_cluster_names.items():
