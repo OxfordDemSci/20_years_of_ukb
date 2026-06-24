@@ -24,8 +24,8 @@ $PYTHON -m pip install dimcli pyarrow fastparquet tqdm pandas
 ## 3. Syntax check
 
 ```bash
-$PYTHON -m py_compile /well/mills/projects/scientometric/data_copy_script/BMRC_stage1_api_no_acronym.py
-$PYTHON -m py_compile /well/mills/projects/scientometric/data_copy_script/BMRC_stage2_local_no_acronym.py
+$PYTHON -m py_compile /well/mills/projects/scientometric/data_copy_script/BMRC_stage1_string_match_API.py
+$PYTHON -m py_compile /well/mills/projects/scientometric/data_copy_script/BMRC_stage2_local_parquet_match.py
 ```
 
 ## 4. Create Stage 1 sbatch
