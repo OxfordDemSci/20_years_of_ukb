@@ -186,3 +186,5 @@ file/patents_plots_for_slides.html
 data/clinical_trials.csv
 data/grants.csv
 data/policy_documents.csv
+/data/author_analysis
+/data/network_communities_2025
