@@ -183,3 +183,4 @@ models/*
 local/*
 keys/*
 /doc
+.DS_Store
