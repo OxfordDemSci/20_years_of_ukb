@@ -1,9 +1,0 @@
-.DS_Store
-.env
-.venv/
-__pycache__/
-*.py[cod]
-*.jsonl
-*.done
-*.parquet
-*.stats.json
