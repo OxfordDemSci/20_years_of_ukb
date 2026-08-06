@@ -175,7 +175,7 @@ cython_debug/
 scibert_consensus
 file/*
 data/*
-output/*
+output_temp/*
 .idea/*
 fig/*
 logging/*
