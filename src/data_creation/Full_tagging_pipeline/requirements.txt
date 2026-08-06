@@ -1,0 +1,9 @@
+numpy
+pandas
+torch
+transformers
+accelerate
+sentencepiece
+huggingface_hub
+bitsandbytes
+tqdm
