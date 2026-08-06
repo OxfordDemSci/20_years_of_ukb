@@ -63,7 +63,7 @@ def parse_ipc_entry(entry, ns, parent_code='', level=0, path=''):
 
 def main():
     xml_path = '/Users/valler/Downloads/ipc_scheme_20260101/EN_ipc_scheme_20260101.xml'
-    output_path = '/Users/valler/Python/RA/20_years_of_ukb/data/patent/ipc_hierarchy.csv'
+    output_path = '/Users/valler/Python/RA/20_years_of_ukb/data/analysis/non_academic/patent/ipc_hierarchy.csv'
     
     print(f"Parsing IPC XML from: {xml_path}")
     print(f"Output CSV will be saved to: {output_path}")

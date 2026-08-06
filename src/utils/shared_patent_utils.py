@@ -17,8 +17,13 @@ import ast
 import re
 import json
 from collections import Counter, defaultdict
+from pathlib import Path
 from typing import Any, Optional, List, Dict, Tuple, Callable
 import difflib
+
+# Repo root, anchored on this file (utils/ -> src/ -> root), so the shapefile and the
+# fig/ output paths below resolve no matter which directory the caller runs from.
+_ROOT = Path(__file__).resolve().parents[2]
 
 import pandas as pd
 import numpy as np
@@ -939,7 +944,7 @@ def plot_topics_distribution(df_patent, cat_col,figsize=(10,6),savefigure=False)
     ax.legend()
     ax.tight_layout()
     if savefigure:
-        plt.savefig(f'fig/patent/topics_distribution_{cat_col}.pdf')
+        plt.savefig(f'{_ROOT}/fig/patent/topics_distribution_{cat_col}.pdf')
         print(f"Topics distribution plot saved to: fig/patent/topics_distribution_{cat_col}.pdf")
     else:
         return fig, ax
@@ -964,7 +969,7 @@ def map_plotting(country_df, column_to_show_counts,figsize=(12, 8),savefigure=Tr
 
     # load world shapefile 
     world = gpd.read_file(
-        "data/ne_110m_admin_0_countries/ne_110m_admin_0_countries.shp"
+        str(_ROOT / "data/ne_110m_admin_0_countries/ne_110m_admin_0_countries.shp")
     )
     world.columns = [c.lower() for c in world.columns]
     # merge patent counts into map
@@ -997,7 +1002,7 @@ def map_plotting(country_df, column_to_show_counts,figsize=(12, 8),savefigure=Tr
     ax.axis('off')
     plt.tight_layout()
     if savefigure:
-        plt.savefig('fig/patent/patent_countries_map_{}.pdf'.format(column_to_show_counts), dpi=500)    
+        plt.savefig(f'{_ROOT}/fig/patent/patent_countries_map_{column_to_show_counts}.pdf', dpi=500)
     else:
         return fig, ax
     
@@ -1126,7 +1131,7 @@ def plot_filing_status_over_time(df_patent,col,figsize=(10, 6),savefigure=True, 
     if created_fig:
         plt.tight_layout()
         if savefigure:
-            plt.savefig('fig/patent/patent_filing_status_over_time.pdf', dpi=300)
+            plt.savefig(f'{_ROOT}/fig/patent/patent_filing_status_over_time.pdf', dpi=300)
         else:
             return fig, ax
     return fig, ax
@@ -2653,7 +2658,7 @@ def plot_two_level_hierarchy(
 def prepare_rcdc_macro_context(
     df_patent: pd.DataFrame,
     category_col: str = 'category_rcdc',
-    summary_csv: str = 'file/paten_rcdc_macro/cluster_label_summary_louvain.csv',
+    summary_csv: str = str(_ROOT / 'file/paten_rcdc_macro/cluster_label_summary_louvain.csv'),
     macro_cluster_names: Optional[Dict[int, str]] = None,
 ) -> Dict[str, Any]:
     """Prepare shared RCDC macro-cluster lookup tables for downstream plots."""

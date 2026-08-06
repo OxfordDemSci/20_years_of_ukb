@@ -2,11 +2,14 @@
 # Use this code to replace the existing IPC dendrogram plot in patents_analysis.ipynb
 # This version automatically adapts to showing 3 or 4 levels based on available data
 
+from pathlib import Path
+
 import matplotlib.pyplot as plt
 import pandas as pd
 
-# Load IPC hierarchy
-df_ipc = pd.read_csv('data/patent/ipc_hierarchy.csv')
+# Load IPC hierarchy (path anchored on this file: utils/ -> src/ -> repo root)
+_ROOT = Path(__file__).resolve().parents[2]
+df_ipc = pd.read_csv(_ROOT / 'data/analysis/non_academic/patent/ipc_hierarchy.csv')
 
 # Build hierarchy data from topics_list_raw with all levels
 ipc_rows = []

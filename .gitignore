@@ -188,3 +188,5 @@ data/grants.csv
 data/policy_documents.csv
 /data/author_analysis
 /data/network_communities_2025
+/data
+/src/doc
