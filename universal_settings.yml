@@ -1,1 +1,103 @@
-edit me
+# =============================================================================
+# universal_settings.yml — the project's plotting style, in one place
+# =============================================================================
+# Every analysis notebook builds its STYLE dict from this file instead of
+# carrying its own literal:
+#
+#     from utils.shared_style import load_style
+#     STYLE = load_style("03_academic_impact")   # base + that notebook's overrides
+#
+# `style.base` is what all notebooks share. `style.notebooks.<notebook stem>`
+# overrides only the keys that notebook genuinely does differently — the clinical
+# trials notebook, for example, deliberately uses the LCDS palette at dpi 400.
+#
+# TWO CONVENIENCES THE LOADER APPLIES
+# -----------------------------------
+#   roles / *_colors : an INTEGER value means "index into `colors`", so the
+#                      semantic roles follow the palette when the palette changes.
+#                      A string value is taken literally ("#BBBBBB").
+#   figsize*         : two-element lists become tuples, as matplotlib expects.
+#
+# `savedir` is relative to the repo root and only used when `save: true`;
+# `formats` lists the file extensions savefig writes.
+# =============================================================================
+
+style:
+
+  # ---------------------------------------------------------------- shared base
+  base:
+    # four customised colours (the project palette)
+    colors: ["#B80C09", "#D4AF37", "#6E8B3D", "#345995"]
+
+    # figure sizes
+    figsize:       [12, 7]
+    figsize_wide:  [14, 7]
+    figsize_small: [10, 6]
+    figsize_panel: [16, 12]
+
+    # font sizes
+    title_fs:  16
+    label_fs:  13
+    tick_fs:   11
+    annot_fs:  10
+    legend_fs: 11
+
+    # misc
+    dpi: 300
+    cmap: ocean
+    edgecolor: grey
+    save: false                                  # set true to write figures out
+    formats: [pdf]
+    savedir: output/figures/data_analysis
+
+  # --------------------------------------------------- per-notebook differences
+  notebooks:
+
+    01_authors:
+      figsize_map:     [14, 8]
+      figsize_network: [12, 12]
+      savedir: output/figures/data_analysis/01_authors
+      roles:
+        c_primary: 3        # blue
+        c_accent:  0        # red
+        c_gold:    1        # gold
+        c_green:   2        # green
+      gender_colors:
+        female: 0
+        male:   3
+        unknown: "#BBBBBB"
+
+    03_academic_impact:
+      # slightly smaller type: these figures are dense small-multiple grids
+      title_fs:  15
+      label_fs:  12
+      tick_fs:   10
+      annot_fs:   9
+      legend_fs: 10
+      savedir: output/figures/data_analysis/03_academic_impact
+
+    04_non_academic_00_all:
+      savedir: output/figures/data_analysis/04_non_academic
+      roles:
+        c_accent:  0        # red
+        c_gold:    1        # gold
+        c_green:   2        # green
+        c_primary: 3        # blue
+
+    05_non_academic_01_clinical_trials:
+      colors: ["#344874",   # LCDS blue
+               "#FFBB00",   # LCDS gold
+               "#2A9D8F",   # teal
+               "#5B8DB8",   # soft blue
+               "#E76F51",   # coral
+               "#8E6C9E",   # muted purple
+               ]
+      figsize: [10, 7]
+      dpi: 400
+      edgecolor: black
+      savedir: output/figures/data_analysis/04_non_academic/clinical_trials
+      roles:
+        c_accent:  3        # soft blue
+        c_gold:    1        # gold
+        c_green:   2        # teal
+        c_primary: 0        # LCDS blue

@@ -52,7 +52,7 @@ OUTDIR="${OUTDIR:-$HOME/for_counts_out}"
 IDS="${IDS:-$OUTDIR/ukbb_ids.txt}"
 
 FILELIST="${FILELIST:-$OUTDIR/files.txt}"
-NUM_SHARDS="${NUM_SHARDS:-10}"
+NUM_SHARDS="${NUM_SHARDS:-5}"
 LABEL="${LABEL:-background}"
 ID_FILTER="${ID_FILTER:-exclude}"     # exclude = the non-UKBB background arm
 CATEGORY="${CATEGORY:-for}"           # classification system: for|rcdc|uoa|hrcs_hc|...
@@ -132,7 +132,7 @@ EOF
     jid=$(sbatch --parsable --array=0-"$last" \
           --export=ALL,CORPUS="$CORPUS",OUTDIR="$OUTDIR",IDS="$IDS",\
 FILELIST="$FILELIST",NUM_SHARDS="$NUM_SHARDS",LABEL="$LABEL",ID_FILTER="$ID_FILTER",\
-CATEGORY="$CATEGORY" \
+CATEGORY="$CATEGORY",PY_SCRIPT="$PY_SCRIPT" \
           "${BASH_SOURCE[0]}")
     echo "array job $jid (0-$last)"
     # afterok: the merge must not run on a partial set of shards, or the counts are

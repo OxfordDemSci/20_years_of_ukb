@@ -1,22 +1,20 @@
-"""Small shared plotting helpers used by the non-patent analysis notebooks.
+"""Shared plotting style + helpers for the analysis notebooks.
 
-Only the three helpers whose bodies were byte-identical across notebooks live here:
-``apply_style``, ``extended_palette`` and ``savefig``. The per-notebook ``STYLE``
-dictionaries are deliberately NOT centralised — they differ on purpose (01_authors
-uses a 4-colour palette saving to ``fig/authors``; 05_clinical_trials uses a 6-colour
-LCDS palette at dpi 400 with black edges) — so each notebook keeps its own ``STYLE``
-literal and registers it here once with ``use_style(STYLE)``.
+The style itself lives in ``universal_settings.yml`` at the repo root, not in the
+notebooks. Notebooks used to each carry their own ``STYLE = {...}`` literal, which is
+how the palettes and font sizes drifted apart; now every notebook asks this module for
+its section of that one file:
 
-Because the notebooks call ``apply_style()`` / ``savefig(fig, name)`` WITHOUT passing a
-style (relying on the old ``style=STYLE`` default), these functions resolve an omitted
-style to the last one registered via ``use_style`` — preserving the original behaviour
-exactly while removing the duplicated function bodies.
+    from utils.shared_style import load_style
+    STYLE = load_style("03_academic_impact")     # base + that notebook's overrides
 
-Usage (right after the notebook's ``STYLE = {...}`` block):
+``load_style`` merges ``style.base`` with ``style.notebooks.<name>``, registers the
+result as the active style and pushes it into rcParams, so the three original helpers
+(``apply_style``, ``extended_palette``, ``savefig``) keep working when called without an
+explicit ``style=`` argument — which is how the notebooks call them.
 
-    from utils.shared_style import apply_style, extended_palette, savefig, use_style
-    use_style(STYLE)
-    apply_style()            # same as before
+Notebooks that still build a ``STYLE`` dict by hand keep working: register it with
+``use_style(STYLE)`` exactly as before.
 """
 
 from __future__ import annotations
@@ -25,6 +23,11 @@ from pathlib import Path
 
 import matplotlib.pyplot as plt
 import seaborn as sns
+
+# utils/ -> src/ -> repo root. Kept local rather than imported from shared_paths so this
+# module stays usable on its own.
+ROOT = Path(__file__).resolve().parents[2]
+SETTINGS_FILE = ROOT / "universal_settings.yml"
 
 # The style most recently registered by a notebook via use_style(); used whenever a
 # helper is called without an explicit `style=` argument (the common case).
@@ -79,9 +82,65 @@ def extended_palette(n, style=None):
 
 
 def savefig(fig, name, style=None):
-    """Optionally persist a figure to the configured directory."""
+    """Optionally persist a figure to the configured directory.
+
+    `savedir` is anchored on the repo root when relative, so a figure lands in the same
+    place whether the notebook was launched from the root or from src/data_analysis/."""
     style = _resolve(style)
-    if style.get("save"):
-        outdir = Path(style["savedir"]); outdir.mkdir(parents=True, exist_ok=True)
-        fig.savefig(outdir / f"{name}.pdf", dpi=style["dpi"], bbox_inches="tight")
-        print("saved", outdir / f"{name}.pdf")
+    if not style.get("save"):
+        return
+    outdir = Path(style["savedir"])
+    if not outdir.is_absolute():
+        outdir = ROOT / outdir
+    outdir.mkdir(parents=True, exist_ok=True)
+    for ext in style.get("formats") or ["pdf"]:
+        dest = outdir / f"{name}.{ext}"
+        fig.savefig(dest, dpi=style["dpi"], bbox_inches="tight")
+        print("saved", dest)
+
+
+# =============================================================================
+# universal_settings.yml
+# =============================================================================
+def load_settings(path=None) -> dict:
+    """Parse universal_settings.yml (the whole file) into a dict."""
+    import yaml
+    with open(Path(path) if path else SETTINGS_FILE) as fh:
+        return yaml.safe_load(fh) or {}
+
+
+def _resolve_refs(mapping, colors):
+    """Turn integer colour references into palette entries; leave strings alone."""
+    return {k: (colors[v] if isinstance(v, int) and not isinstance(v, bool) else v)
+            for k, v in (mapping or {}).items()}
+
+
+def load_style(notebook, path=None, activate=True) -> dict:
+    """Build one notebook's STYLE from universal_settings.yml.
+
+    `style.base` merged with `style.notebooks.<notebook>`; integer values under `roles`
+    and any `*_colors` mapping are resolved against the palette; `figsize*` lists become
+    tuples. With `activate` (the default) the result is registered via use_style and
+    pushed into rcParams, so `savefig(fig, name)` and `extended_palette(n)` need no
+    further argument.
+    """
+    cfg = (load_settings(path).get("style") or {})
+    known = cfg.get("notebooks") or {}
+    if notebook not in known:
+        raise KeyError(f"universal_settings.yml has no style.notebooks.{notebook} "
+                       f"(known: {sorted(known)})")
+    style = {**(cfg.get("base") or {}), **(known[notebook] or {})}
+
+    colors = list(style.get("colors") or [])
+    style["colors"] = colors
+    for key in [k for k in style if k.endswith("_colors")]:
+        style[key] = _resolve_refs(style[key], colors)
+    style.update(_resolve_refs(style.pop("roles", None), colors))
+    for key, val in style.items():
+        if key.startswith("figsize") and isinstance(val, list):
+            style[key] = tuple(val)
+
+    if activate:
+        use_style(style)
+        apply_style(style)
+    return style

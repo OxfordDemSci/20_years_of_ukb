@@ -47,7 +47,10 @@ DIMENSION_FLAT = DIMENSION / "flat"
 ANALYSIS = DATA / "analysis"
 AUTHOR_ANALYSIS = ANALYSIS / "author_analysis"
 ACADEMIC_IMPACT = ANALYSIS / "academic_impact"
-FOR_COUNTS = ACADEMIC_IMPACT / "for_counts"
+# The category-count job's output directory. Named for the FOR run that came first, but
+# it holds the partials of every classification system (counts.rcdc.*, counts.uoa.*, ...)
+# because they are named per-category and share one merge.
+FOR_COUNTS = ACADEMIC_IMPACT / "for_counts_out"
 
 NON_ACADEMIC = ANALYSIS / "non_academic"
 CLINICAL_TRIALS = NON_ACADEMIC / "clinical_trials"
@@ -58,21 +61,35 @@ POLICY = NON_ACADEMIC / "policy"
 AUTHOR_PAPER_CACHE = AUTHOR_ANALYSIS / "df_author_paper.parsed.pkl"
 FIELD_COUNTS = FOR_COUNTS / "field_counts.parquet"
 FIELD_TOTALS = FOR_COUNTS / "field_totals.parquet"
+FIELD_COVERAGE = FOR_COUNTS / "field_coverage.parquet"
 CT_CSV = CLINICAL_TRIALS / "clinical_trials.csv"
 CT_UKBB_PAPERS = CLINICAL_TRIALS / "ct_ukbb_papers.csv"
 PATENTS_DETAILED = PATENT / "patents_detailed.csv"
 POLICY_CSV = POLICY / "policy_documents.csv"
 
-# -- static reference data + figure output -----------------------------------------
+# -- static reference data ----------------------------------------------------------
 WORLD_SHP = DATA / "ne_110m_admin_0_countries" / "ne_110m_admin_0_countries.shp"
 
-FIG = ROOT / "fig"
-FIG_AUTHORS = FIG / "authors"
-FIG_NETWORK = FIG / "network"
-FIG_PATENT = FIG / "patent"
-FIG_NON_ACADEMIC = FIG / "non_academic"
+# -- deliverables: everything a notebook exports lands under output/ -----------------
+# The notebooks' savedirs are configured in universal_settings.yml; these constants are
+# for code that writes a file directly.
+OUTPUT = ROOT / "output"
+OUTPUT_FIGURES = OUTPUT / "figures"
+FIG_DATA_ANALYSIS = OUTPUT_FIGURES / "data_analysis"
+FIG_DATA_CREATION = OUTPUT_FIGURES / "data_creation"
+OUTPUT_TABLES = OUTPUT / "tables"
 
-FILE = ROOT / "file"
+FIG_AUTHORS = FIG_DATA_ANALYSIS / "01_authors"
+FIG_NETWORK = FIG_DATA_ANALYSIS / "02_network"
+FIG_ACADEMIC_IMPACT = FIG_DATA_ANALYSIS / "03_academic_impact"
+FIG_NON_ACADEMIC = FIG_DATA_ANALYSIS / "04_non_academic"
+FIG_CLINICAL_TRIALS = FIG_NON_ACADEMIC / "clinical_trials"
+
+# Pre-rearrangement figure tree. Still on disk (fig/network, fig/patent, fig/geography)
+# and still the home of the patent figures, so it is kept rather than repointed.
+FIG = ROOT / "fig"
+FIG_PATENT = FIG / "patent"
+FIG_GEOGRAPHY = FIG / "geography"
 
 
 def bootstrap() -> Path:
@@ -91,6 +108,7 @@ def bootstrap() -> Path:
 def ensure_dirs() -> None:
     """Create the output directories that notebooks write into, if missing."""
     for d in (AUTHOR_ANALYSIS, ACADEMIC_IMPACT, FOR_COUNTS, CLINICAL_TRIALS, PATENT,
-              POLICY, DIMENSION_CACHE, DIMENSION_FLAT,
-              FIG_AUTHORS, FIG_NETWORK, FIG_PATENT, FIG_NON_ACADEMIC):
+              POLICY, DIMENSION_CACHE, DIMENSION_FLAT, OUTPUT_TABLES,
+              FIG_AUTHORS, FIG_NETWORK, FIG_NON_ACADEMIC, FIG_CLINICAL_TRIALS,
+              FIG_ACADEMIC_IMPACT, FIG_PATENT):
         d.mkdir(parents=True, exist_ok=True)
