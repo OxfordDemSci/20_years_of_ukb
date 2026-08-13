@@ -2,7 +2,7 @@
 # UKB Showcase+ BERTopic dynamic topic modelling.
 #
 # Input:
-#     Final Showcase+ CSV, one row per publication.
+#     Full Dimensions publication endpoint parquet, one row per publication.
 #
 # Main design:
 #     - Uses title + abstract as text input.
@@ -19,6 +19,7 @@ import json
 import re
 import warnings
 from pathlib import Path
+from types import SimpleNamespace
 from typing import Any, Dict, List, Optional, Sequence, Tuple
 
 import matplotlib as mpl
@@ -38,7 +39,33 @@ from sentence_transformers import SentenceTransformer
 from sklearn.feature_extraction.text import CountVectorizer, ENGLISH_STOP_WORDS
 from umap import UMAP
 
-import config
+from utils import shared_paths as P
+
+
+config = SimpleNamespace(
+    ID_COL=None,
+    TITLE_COL=None,
+    ABSTRACT_COL=None,
+    YEAR_COL=None,
+    DATE_COL=None,
+    MIN_YEAR=2014,
+    INCOMPLETE_YEARS=[2026],
+    RANDOM_STATE=42,
+    TOP_N_TOPICS_FOR_FIGURES=14,
+    EMBEDDING_MODEL_NAME="allenai-specter",
+    BATCH_SIZE_GPU=64,
+    BATCH_SIZE_CPU=32,
+    RUN_TOPIC_GRID=True,
+    MAX_DOCS_FOR_TOPIC_GRID=None,
+    PARAM_GRID=[
+        {"n_neighbors": 15, "min_cluster_size": 25, "min_samples": 5},
+        {"n_neighbors": 25, "min_cluster_size": 35, "min_samples": 10},
+        {"n_neighbors": 35, "min_cluster_size": 45, "min_samples": 10},
+        {"n_neighbors": 45, "min_cluster_size": 55, "min_samples": 15},
+        {"n_neighbors": 25, "min_cluster_size": 60, "min_samples": 20},
+    ],
+    FINAL_PARAMS={"n_neighbors": 45, "min_cluster_size": 55, "min_samples": 15},
+)
 
 warnings.filterwarnings("ignore")
 
@@ -114,15 +141,6 @@ CUSTOM_STOPWORDS = set(ENGLISH_STOP_WORDS) | {
     "conflict",
     "interest",
 }
-
-
-def read_csv_safely(path: Path) -> pd.DataFrame:
-    for enc in ["utf-8", "utf-8-sig", "latin1"]:
-        try:
-            return pd.read_csv(path, encoding=enc, low_memory=False)
-        except UnicodeDecodeError:
-            continue
-    return pd.read_csv(path, low_memory=False)
 
 
 def norm_col(c: str) -> str:
@@ -397,9 +415,9 @@ def score_model(n_topics: int, outlier_rate: float, coherence: float, diversity:
     return coherence + 0.25 * diversity - 0.80 * outlier_rate - topic_penalty
 
 
-def prepare_input(input_csv: Path, output_dir: Path) -> pd.DataFrame:
-    print(f"[1/8] Loading input CSV: {input_csv}")
-    df_raw = read_csv_safely(input_csv)
+def prepare_input(input_parquet: Path, output_dir: Path) -> pd.DataFrame:
+    print(f"[1/8] Loading input parquet: {input_parquet}")
+    df_raw = pd.read_parquet(input_parquet)
     print(f"Loaded rows: {len(df_raw):,}")
 
     id_col = infer_col(df_raw, ID_CANDIDATES, required=False, label="id", override=config.ID_COL)
@@ -899,13 +917,13 @@ def make_native_topics_over_time(
 
 
 def write_manifest(
-    input_csv: Path,
+    input_parquet: Path,
     output_dir: Path,
     params: Dict[str, int],
     n_docs: int,
 ) -> None:
     manifest = {
-        "input_csv": str(input_csv),
+        "input_parquet": str(input_parquet),
         "output_dir": str(output_dir),
         "embedding_model": config.EMBEDDING_MODEL_NAME,
         "selected_params": params,
@@ -926,33 +944,29 @@ def write_manifest(
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Run UKB Showcase+ BERTopic dynamic topic modelling.")
-    parser.add_argument("--input_csv", type=str, default=None, help="Path to final Showcase+ CSV.")
+    parser.add_argument("--input_parquet", type=Path, default=P.SHOWCASE_PLUS, help="Full publication endpoint parquet.")
     parser.add_argument("--output_dir", type=str, default=None, help="Output directory.")
-    parser.add_argument("--no_grid", action="store_true", help="Skip hyperparameter grid and use config.FINAL_PARAMS.")
+    parser.add_argument("--no_grid", action="store_true", help="Skip hyperparameter grid and use the final parameters.")
     return parser.parse_args()
 
 
-def main() -> None:
-    args = parse_args()
+def run_bertopic(
+    input_parquet: Path = P.SHOWCASE_PLUS,
+    output_dir: Path = P.ACADEMIC_IMPACT / "bertopic",
+    run_grid: bool = True,
+) -> BERTopic:
+    input_parquet = Path(input_parquet)
+    output_dir = Path(output_dir)
 
-    input_csv = Path(args.input_csv or config.SHOWCASE_PLUS_CSV_PATH)
-    output_dir = Path(args.output_dir or config.OUTPUT_DIR)
-
-    if "input your path" in str(input_csv):
-        raise ValueError("Please edit config.py or pass --input_csv.")
-
-    if "input your path" in str(output_dir):
-        raise ValueError("Please edit config.py or pass --output_dir.")
-
-    if not input_csv.exists():
-        raise FileNotFoundError(f"Input CSV not found: {input_csv}")
+    if not input_parquet.exists():
+        raise FileNotFoundError(f"Input parquet not found: {input_parquet}")
 
     output_dir.mkdir(parents=True, exist_ok=True)
 
     for sub in ["tables", "figures", "models", "cache"]:
         (output_dir / sub).mkdir(parents=True, exist_ok=True)
 
-    df = prepare_input(input_csv, output_dir)
+    df = prepare_input(input_parquet, output_dir)
 
     docs = df["topic_text"].astype(str).tolist()
     years = df["analysis_year"].astype(int).tolist()
@@ -960,8 +974,8 @@ def main() -> None:
 
     embeddings = get_or_make_embeddings(docs, years, output_dir)
 
-    if args.no_grid or not getattr(config, "RUN_TOPIC_GRID", True):
-        print("[3/8] Skipping grid search; using config.FINAL_PARAMS")
+    if not run_grid or not getattr(config, "RUN_TOPIC_GRID", True):
+        print("[3/8] Skipping grid search; using the final parameters")
         selected_params = dict(config.FINAL_PARAMS)
     else:
         _, selected_params = run_topic_grid(docs, embeddings, output_dir)
@@ -984,7 +998,7 @@ def main() -> None:
     make_native_topics_over_time(topic_model, docs, years, output_dir)
 
     write_manifest(
-        input_csv=input_csv,
+        input_parquet=input_parquet,
         output_dir=output_dir,
         params=selected_params,
         n_docs=len(docs),
@@ -992,6 +1006,16 @@ def main() -> None:
 
     print("[8/8] Done.")
     print(f"Outputs written to: {output_dir}")
+    return topic_model
+
+
+def main() -> None:
+    args = parse_args()
+    run_bertopic(
+        input_parquet=args.input_parquet,
+        output_dir=Path(args.output_dir) if args.output_dir else P.ACADEMIC_IMPACT / "bertopic",
+        run_grid=not args.no_grid,
+    )
 
 
 if __name__ == "__main__":
