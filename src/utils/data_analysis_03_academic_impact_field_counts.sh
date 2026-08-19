@@ -27,7 +27,7 @@
 #
 # CITATION WEIGHTING AND WHY BOTH ARMS RUN HERE
 # ---------------------------------------------
-# WEIGHTS (default 'cit,fcr,top10') adds citation-weighted columns beside the paper
+# WEIGHTS (default 'cit,fcr,top10,top10f,mncs') adds citation-weighted columns beside
 # counts — see the .py docstring for what each one means. Two consequences for this
 # driver:
 #
@@ -36,10 +36,18 @@
 #      --id-filter exclude, UK Biobank with --id-filter include — instead of leaving
 #      the UKBB arm to a separate local run whose citation counts are as-of a
 #      different day and silently higher.
-#   2. top10 needs the top-decile cut-off of each (year, type) BEFORE counting, so
-#      `submit` runs two extra passes first: a citdist array over the whole corpus
-#      (no id filter — "top 10 % of the literature" means the literature), then a
-#      single thresholds job. Drop top10 from WEIGHTS and both passes are skipped.
+#   2. top10 / top10f / mncs need a reference (a decile cut-off, an expected citation
+#      count) computed BEFORE counting, so `submit` runs two extra passes first: a
+#      citdist array over the whole corpus (no id filter — "top 10 % of the
+#      literature" means the literature), then a single thresholds job. Drop those
+#      weights from WEIGHTS and both passes are skipped.
+#
+#      top10 needs only a (year, type) reference. top10f and mncs need one per
+#      CATEGORY — the top tenth OF THAT FIELD, and that field's mean citations — so
+#      citdist runs once per system in CATEGORY. That is the pass that lets the
+#      analysis say "top 10 % of epidemiology" rather than "top 10 % of everything",
+#      and gives a field-normalised score for the years Dimensions has not published
+#      an FCR for.
 #
 # The chain `submit` builds, each step waiting on the last (afterok):
 #      citdist array -> thresholds -> [background array | ukbb array] -> merge
@@ -89,9 +97,10 @@ CATEGORY="${CATEGORY:-for}"           # one system or a comma-separated list:
 category_list() { echo "${CATEGORY//,/ }"; }
 
 # Citation weights, comma-separated; empty string = paper counts only, exactly as
-# before. top10 pulls in the citdist + thresholds passes automatically.
-WEIGHTS="${WEIGHTS:-cit,fcr,top10}"
+# before. The derived weights pull in the citdist + thresholds passes automatically.
+WEIGHTS="${WEIGHTS:-cit,fcr,top10,top10f,mncs}"
 THRESHOLDS="${THRESHOLDS:-$OUTDIR/cit_thresholds.parquet}"
+EXPECTED="${EXPECTED:-$OUTDIR/cit_expected.parquet}"
 PERCENTILE="${PERCENTILE:-10}"
 
 # Both arms off one file list, so their citation counts share one as-of date.
@@ -102,7 +111,14 @@ weight_args() {
   [[ -z "$WEIGHTS" ]] && return 0
   printf -- '--weights %s' "$WEIGHTS"
   [[ "$WEIGHTS" == *top10* ]] && printf -- ' --top-thresholds %s' "$THRESHOLDS"
+  [[ "$WEIGHTS" == *mncs*  ]] && printf -- ' --expected %s' "$EXPECTED"
 }
+
+# top10f and mncs are scored against a reference for the CATEGORY a paper is being
+# counted into, so citdist has to build one per classification system; top10 alone
+# needs only the (year, type) fallback, which every citdist run writes.
+needs_reference() { [[ "$WEIGHTS" == *top10* || "$WEIGHTS" == *mncs* ]]; }
+needs_per_category() { [[ "$WEIGHTS" == *top10f* || "$WEIGHTS" == *mncs* ]]; }
 
 # BMRC gives you Python through modules; a conda env works too. Set PYTHON to skip.
 MODULE_LOAD="${MODULE_LOAD:-Python/3.11.3-GCCcore-12.3.0}"
@@ -131,11 +147,22 @@ if [[ -n "${SLURM_ARRAY_TASK_ID:-}" ]]; then
   echo "${PHASE:-count} shard ${SLURM_ARRAY_TASK_ID}/${NUM_SHARDS} on $(hostname) at $(date)"
   case "${PHASE:-count}" in
     citdist)
-      # No id filter on purpose: the top-decile cut-off is a property of the whole
-      # literature, not of either arm.
-      "$PYTHON" "$PY_SCRIPT" citdist \
-        --file-list "$FILELIST" \
-        --shard "$SLURM_ARRAY_TASK_ID" --num-shards "$NUM_SHARDS" --out "$OUTDIR"
+      # No id filter on purpose: the reference population is the whole literature, not
+      # either arm. One pass per category when a per-category reference is needed —
+      # each pass also rewrites the identical (year, type) fallback, which is cheap
+      # next to a second read of the corpus.
+      if needs_per_category; then
+        for cat in $(category_list); do
+          echo "--- citdist category $cat"
+          "$PYTHON" "$PY_SCRIPT" citdist --category "$cat" \
+            --file-list "$FILELIST" \
+            --shard "$SLURM_ARRAY_TASK_ID" --num-shards "$NUM_SHARDS" --out "$OUTDIR"
+        done
+      else
+        "$PYTHON" "$PY_SCRIPT" citdist \
+          --file-list "$FILELIST" \
+          --shard "$SLURM_ARRAY_TASK_ID" --num-shards "$NUM_SHARDS" --out "$OUTDIR"
+      fi
       ;;
     count)
       for cat in $(category_list); do
@@ -206,16 +233,16 @@ EOF
     # shared configuration travels through the environment (--export=ALL copies the
     # submitting shell) and only the comma-free per-job scalars are named explicitly.
     export CORPUS OUTDIR IDS FILELIST NUM_SHARDS CATEGORY PY_SCRIPT WEIGHTS THRESHOLDS \
-           PERCENTILE UKBB_LABEL
+           PERCENTILE UKBB_LABEL EXPECTED
     watch=""
     dep=""            # what the count arrays wait for; empty until top10 says otherwise
 
     # The cut-offs are a property of the corpus, not of a classification system or an
     # arm, so an existing thresholds file is reused across categories and re-runs.
     # FORCE_THRESHOLDS=1 recomputes them (a new corpus snapshot is the reason to).
-    if [[ "$WEIGHTS" == *top10* && -s "$THRESHOLDS" && "${FORCE_THRESHOLDS:-0}" != 1 ]]; then
+    if needs_reference && [[ -s "$THRESHOLDS" && "${FORCE_THRESHOLDS:-0}" != 1 ]]; then
       echo "reusing $THRESHOLDS (FORCE_THRESHOLDS=1 to recompute)"
-    elif [[ "$WEIGHTS" == *top10* ]]; then
+    elif needs_reference; then
       cid=$(sbatch --parsable --array=0-"$last" --job-name=cit-dist \
             --export=ALL,PHASE=citdist "${BASH_SOURCE[0]}")
       echo "citdist array $cid (0-$last)"
@@ -256,8 +283,15 @@ EOF
   local)
     # Single process, no Slurm. Given the projection cost, this is often the right answer.
     setup_python
-    if [[ "$WEIGHTS" == *top10* && ( ! -s "$THRESHOLDS" || "${FORCE_THRESHOLDS:-0}" == 1 ) ]]; then
-      "$PYTHON" "$PY_SCRIPT" citdist --file-list "$FILELIST" --out "$OUTDIR"
+    if needs_reference && [[ ! -s "$THRESHOLDS" || "${FORCE_THRESHOLDS:-0}" == 1 ]]; then
+      if needs_per_category; then
+        for cat in $(category_list); do
+          "$PYTHON" "$PY_SCRIPT" citdist --category "$cat" --file-list "$FILELIST" \
+            --out "$OUTDIR"
+        done
+      else
+        "$PYTHON" "$PY_SCRIPT" citdist --file-list "$FILELIST" --out "$OUTDIR"
+      fi
       "$PYTHON" "$PY_SCRIPT" thresholds --out "$OUTDIR" --percentile "$PERCENTILE"
     fi
     for cat in $(category_list); do

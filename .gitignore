@@ -184,3 +184,9 @@ local/*
 keys/*
 /doc
 .DS_Store
+# Dimensions API credentials — the key lives here, it must never be committed.
+# config/dsl.ini.example shows the shape without the secret.
+config/dsl.ini
+config/*.ini
+!config/*.ini.example
+src/utils/data_analysis_03_academic_impact_field_counts.sh

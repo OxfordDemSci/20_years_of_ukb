@@ -51,6 +51,12 @@ ACADEMIC_IMPACT = ANALYSIS / "academic_impact"
 # it holds the partials of every classification system (counts.rcdc.*, counts.uoa.*, ...)
 # because they are named per-category and share one merge.
 FOR_COUNTS = ACADEMIC_IMPACT / "for_counts_out"
+# The same tables built the other way: whole-database counts faceted straight out of
+# the Dimensions API instead of counted off the VM corpus copy. Same schema, same
+# filenames, so a notebook switches pathway by changing COUNTS_DIR and nothing else —
+# see data_analysis_03_academic_impact_dimensions_api.py for what each can and cannot
+# answer (the API path has no fractional and no citation-weighted columns).
+FOR_COUNTS_API = ACADEMIC_IMPACT / "for_counts_api"
 
 NON_ACADEMIC = ANALYSIS / "non_academic"
 CLINICAL_TRIALS = NON_ACADEMIC / "clinical_trials"
@@ -107,7 +113,8 @@ def bootstrap() -> Path:
 
 def ensure_dirs() -> None:
     """Create the output directories that notebooks write into, if missing."""
-    for d in (AUTHOR_ANALYSIS, ACADEMIC_IMPACT, FOR_COUNTS, CLINICAL_TRIALS, PATENT,
+    for d in (AUTHOR_ANALYSIS, ACADEMIC_IMPACT, FOR_COUNTS, FOR_COUNTS_API,
+              CLINICAL_TRIALS, PATENT,
               POLICY, DIMENSION_CACHE, DIMENSION_FLAT, OUTPUT_TABLES,
               FIG_AUTHORS, FIG_NETWORK, FIG_NON_ACADEMIC, FIG_CLINICAL_TRIALS,
               FIG_ACADEMIC_IMPACT, FIG_PATENT):

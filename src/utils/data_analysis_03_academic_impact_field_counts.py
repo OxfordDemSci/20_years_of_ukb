@@ -47,13 +47,33 @@ papers" and "how much citation impact" come out of one pass and can be compared:
                                 it is only comparable WITHIN a year and WITHIN one
                                 snapshot — see THE SNAPSHOT TRAP below.
     fcr    field_citation_ratio Dimensions' field- and year-normalised ratio; 1.0 = world
-                                average for that field and year. ~97 % coverage inside
-                                2004-2024. The only weight safe to compare ACROSS years,
-                                and therefore the default headline.
+                                average for that field and year. Published only once a
+                                paper is ~2 years old, so it is ABSENT for the two most
+                                recent years however well indexed they are, and its
+                                coverage differs sharply between arms (97 % vs 73 %).
     top10  derived              1.0 if the paper is in the top decile of its (year, type)
-                                by times_cited, else 0.0 — the PP(top 10 %) indicator.
-                                Needs --top-thresholds; see the citdist/thresholds modes.
+                                by times_cited — a decile of the WHOLE corpus, so a
+                                heavily-cited field holds more than a tenth of it and a
+                                slow-citing field fewer.
+    top10f derived, per-field   the same indicator taken within (year, type, CATEGORY):
+                                the top tenth of the field itself, which is what
+                                PP(top 10 %) means in the bibliometric literature. The
+                                only weight whose value depends on WHICH category it is
+                                being counted into — a paper can be top-decile in
+                                epidemiology and not in genetics.
+    mncs   derived, per-field   times_cited / mean times_cited of the same (year, type,
+                                category) — a mean-normalised citation score built here
+                                rather than taken from the corpus. It is FCR's job done
+                                with our own reference set, which buys two things FCR
+                                cannot: it exists for the newest years, and it is
+                                measured for every paper carrying a citation count
+                                (~99 % of both arms). Validate it against fcr on the
+                                years where both exist before trusting it.
     recent recent_citations     citations in the last two years. Same snapshot caveat.
+
+top10f and mncs both need the per-category reference tables written by `thresholds`;
+pass them with --top-thresholds and --expected. Thin (year, type, category) cells fall
+back to the (year, type) figure, so a small field is never scored against twelve papers.
 
 Each weight emits FOUR columns per (year, type, level, code) cell:
 
@@ -240,24 +260,50 @@ CATEGORIES: Dict[str, CategorySpec] = {
 CIT_COL = "times_cited"
 
 
+class Reference:
+    """A per-(year, type, level, code) reference number with a (year, type) fallback.
+
+    Both derived per-field weights need one of these — a decile cut-off for top10f, an
+    expected citation count for mncs — and both need the same rule when a field-year is
+    too thin to define its own: fall back to the figure for the whole corpus that year
+    rather than score the paper against a dozen neighbours.
+    """
+
+    def __init__(self, per_code: Dict[Tuple[str, str, int, str], float],
+                 global_: Dict[Tuple[int, str], float]) -> None:
+        self.per_code = per_code
+        self.global_ = global_
+
+    def get(self, year: int, typ: str, level: str, code: str) -> Optional[float]:
+        v = self.per_code.get((level, code, year, typ))
+        return self.global_.get((year, typ)) if v is None else v
+
+    def __bool__(self) -> bool:
+        return bool(self.per_code or self.global_)
+
+
 class WeightSpec:
     """One citation weight: the on-disk column it reads and how it turns into a number.
 
-    `derived` weights (top10) do not map a column value straight through; they need the
-    thresholds table, which is why `value()` takes (year, type) as well.
+    kind='column'    the column value passes straight through (cit, fcr, recent).
+    kind='paper'     derived, but one value per paper: the (year, type) decile (top10).
+    kind='category'  derived AND dependent on which category it is being counted into
+                     (top10f, mncs). These are the reason `value()` takes level/code:
+                     one paper carries several of them, one per category it belongs to.
     """
 
-    def __init__(self, name: str, column: str, doc: str, derived: bool = False) -> None:
+    def __init__(self, name: str, column: str, doc: str, kind: str = "column") -> None:
         self.name = name
         self.column = column
         self.doc = doc
-        self.derived = derived
+        self.kind = kind
 
-    def value(self, raw, year: int, typ: str,
-              thresholds: Optional[Dict[Tuple[int, str], float]]) -> Optional[float]:
-        """The paper's weight, or None when this paper has no value for it.
+    @property
+    def per_category(self) -> bool:
+        return self.kind == "category"
 
-        None is NOT zero: it means unmeasured, and it keeps the paper out of the
+    def _raw(self, raw) -> Optional[float]:
+        """None is NOT zero: it means unmeasured, and it keeps the paper out of the
         n_<w>_docs denominator instead of dragging the mean down."""
         if raw is None:
             return None
@@ -265,17 +311,22 @@ class WeightSpec:
             v = float(raw)
         except (TypeError, ValueError):
             return None
-        if v != v:                      # NaN, which parquet doubles carry for missing
-            return None
-        if not self.derived:
+        return None if v != v else v    # NaN is how parquet doubles carry "missing"
+
+    def value(self, raw, year: int, typ: str, ref: Optional[Reference] = None,
+              level: str = "", code: str = "") -> Optional[float]:
+        v = self._raw(raw)
+        if v is None or self.kind == "column":
             return v
-        # top10: 1.0 if the paper reaches its (year, type) top-decile cut-off. Papers in
-        # a (year, type) with no threshold are unmeasured, not zero.
-        if not thresholds:
+        if not ref:
             return None
-        cut = thresholds.get((year, typ))
+        cut = ref.get(year, typ, level, code)
         if cut is None:
             return None
+        if self.name == "mncs":
+            # An expected value of zero means nothing in that cell was cited at all;
+            # the ratio is undefined rather than infinite.
+            return None if cut <= 0 else v / cut
         return 1.0 if v >= cut else 0.0
 
 
@@ -286,7 +337,13 @@ WEIGHTS: Dict[str, WeightSpec] = {
     "recent": WeightSpec("recent", "recent_citations", "citations in the last two years"),
     "top10":  WeightSpec("top10", CIT_COL,
                          "1.0 when the paper is in the top decile of its (year, type)",
-                         derived=True),
+                         kind="paper"),
+    "top10f": WeightSpec("top10f", CIT_COL,
+                         "1.0 when the paper is in the top decile of its (year, type, "
+                         "category) — PP(top 10%) proper", kind="category"),
+    "mncs":   WeightSpec("mncs", CIT_COL,
+                         "citations over the mean of its (year, type, category) — a "
+                         "field-normalised score of our own", kind="category"),
 }
 # The four columns each weight contributes, in the order tally_to_tables writes them.
 WEIGHT_SUFFIXES = ("", "_frac", "_docs", "_docs_frac")
@@ -313,14 +370,31 @@ def weight_columns(names: Sequence[str]) -> List[str]:
     return [f"n_{w}{sfx}" for w in names for sfx in WEIGHT_SUFFIXES]
 
 
-def load_thresholds(path: str) -> Dict[Tuple[int, str], float]:
-    """The top-decile cut-offs written by `thresholds`, keyed (year, type)."""
+def load_reference(path: str, column: str, what: str) -> Reference:
+    """Read a reference table written by `thresholds` into a Reference.
+
+    Rows with an empty `code` are the (year, type) fallback; the rest are per-category.
+    Tables written before per-category references existed have no level/code columns at
+    all, and load as fallback-only — which is exactly what they are."""
     tbl = pq.read_table(path).to_pydict()
-    out = {(int(y), t or MISSING_TYPE): float(c)
-           for y, t, c in zip(tbl["year"], tbl["type"], tbl["threshold"])}
-    if not out:
-        sys.exit(f"--top-thresholds {path} is empty")
-    return out
+    if column not in tbl:
+        sys.exit(f"{path} has no '{column}' column (is it the right table?)")
+    per_code: Dict[Tuple[str, str, int, str], float] = {}
+    global_: Dict[Tuple[int, str], float] = {}
+    levels = tbl.get("level") or [""] * len(tbl["year"])
+    codes = tbl.get("code") or [""] * len(tbl["year"])
+    for lvl, code, year, typ, val in zip(levels, codes, tbl["year"], tbl["type"],
+                                         tbl[column]):
+        if val is None:
+            continue
+        key_typ = typ or MISSING_TYPE
+        if code:
+            per_code[(lvl or "", code, int(year), key_typ)] = float(val)
+        else:
+            global_[(int(year), key_typ)] = float(val)
+    if not per_code and not global_:
+        sys.exit(f"{path} yielded no {what}")
+    return Reference(per_code, global_)
 
 
 # =============================================================================
@@ -529,7 +603,16 @@ class Tally:
         self.n_rows = self.n_kept = self.n_dropped = 0
 
     def add_row(self, year: int, typ: str, cell, spec: CategorySpec, fmt: str,
-                wvals: Sequence[Optional[float]] = ()) -> None:
+                wvals: Sequence[Optional[float]] = (),
+                per_cat: Sequence[Optional[Tuple[WeightSpec, object, Reference]]] = ()
+                ) -> None:
+        """Count one paper.
+
+        `wvals` holds the paper-level weights, one per weight, already resolved.
+        `per_cat` holds (spec, raw value, reference) for the per-category weights, which
+        cannot be resolved until we know which category we are counting into — that
+        resolution happens inside the code loop below.
+        """
         t = self.totals[(year, typ)]
         t[0] += 1
         self.n_kept += 1
@@ -537,7 +620,15 @@ class Tally:
         if self.weights:
             wt = self.wtotals[(year, typ)]
             for i, v in enumerate(wvals):
-                if v is not None:
+                if v is None:
+                    continue
+                if per_cat and per_cat[i] is not None:
+                    # A per-category weight has no single paper-level value; only its
+                    # "was this paper measurable" flag is meaningful here. NaN, not 0,
+                    # so a mean built on it downstream is loudly wrong rather than quietly.
+                    wt[2 * i] = float("nan")
+                    wt[2 * i + 1] += 1.0
+                else:
                     wt[2 * i] += v
                     wt[2 * i + 1] += 1.0
 
@@ -550,14 +641,14 @@ class Tally:
             cov[0] += 1
             # Each level normalised on its own denominator — see COUNTING SEMANTICS.
             w = 1.0 / len(items)
-            for i, v in enumerate(wvals):
-                if v is not None:
-                    cov[1 + i] += v
             for code, label in items:
                 slot = self.codes[(year, typ, level, code)]
                 slot[0] += 1.0
                 slot[1] += w
                 for i, v in enumerate(wvals):
+                    if per_cat and per_cat[i] is not None:
+                        wspec, raw, ref = per_cat[i]
+                        v = wspec.value(raw, year, typ, ref, level, code)
                     if v is None:       # unmeasured: no sum, and no place in the mean
                         continue
                     base = 2 + 4 * i
@@ -565,6 +656,11 @@ class Tally:
                     slot[base + 1] += v * w
                     slot[base + 2] += 1.0
                     slot[base + 3] += w
+                    # Coverage accumulates the FRACTIONAL contribution, so the identity
+                    # "sum over codes of n_<w>_frac == n_<w>_with_level" holds for a
+                    # per-category weight exactly as it does for a paper-level one
+                    # (where the terms are all equal and sum back to v).
+                    cov[1 + i] += v * w
                 if code not in self.labels:
                     self.labels[code] = label
         if not any_tag:
@@ -577,7 +673,7 @@ class Tally:
 
 def count_file(path: str, tally: Tally, spec: CategorySpec, id_set: Optional[Set[str]],
                mode: str, batch_size: int,
-               thresholds: Optional[Dict[Tuple[int, str], float]] = None
+               refs: Optional[Dict[str, Reference]] = None
                ) -> Tuple[int, str, List[str]]:
     """Stream one file into `tally`. Returns (rows_read, category column, weight columns).
 
@@ -633,8 +729,20 @@ def count_file(path: str, tally: Tally, spec: CategorySpec, id_set: Optional[Set
                 if (mode == "exclude" and hit) or (mode == "include" and not hit):
                     tally.note_filtered(y, t)
                     continue
-            wvals = [s.value(col[i], y, t, thresholds) for s, col in zip(specs, wraw)]
-            tally.add_row(y, t, cell, spec, fmt, wvals)
+            # Paper-level weights resolve here; per-category ones can only be resolved
+            # once we know which category we are counting into, so they travel into
+            # add_row as (spec, raw, reference) and are resolved in its code loop.
+            wvals = []
+            per_cat = []
+            for s, col in zip(specs, wraw):
+                ref = (refs or {}).get(s.name)
+                if s.per_category:
+                    wvals.append(s._raw(col[i]))     # only "is it measurable" here
+                    per_cat.append((s, col[i], ref))
+                else:
+                    wvals.append(s.value(col[i], y, t, ref))
+                    per_cat.append(None)
+            tally.add_row(y, t, cell, spec, fmt, wvals, per_cat)
     return rows, cat_col, missing
 
 
@@ -706,15 +814,26 @@ def cmd_count(args: argparse.Namespace) -> None:
         sys.exit(f"--id-filter {args.id_filter} needs --exclude-ids")
 
     weights = parse_weights(args.weights)
-    thresholds = None
-    if "top10" in weights:
-        # Fail here rather than write a table of zeros: without the cut-offs every
-        # paper's top10 value is None, and the column would read as "nothing is highly
-        # cited" instead of "this was never measured".
+    # Fail here rather than write a table of zeros: without its reference table a
+    # derived weight is None for every paper, and the column would read as "nothing is
+    # highly cited" instead of "this was never measured".
+    refs: Dict[str, Reference] = {}
+    if {"top10", "top10f"} & set(weights):
         if not args.top_thresholds:
-            sys.exit("--weights top10 needs --top-thresholds "
-                     "(run the citdist and thresholds modes first)")
-        thresholds = load_thresholds(args.top_thresholds)
+            sys.exit(f"--weights {'/'.join({'top10', 'top10f'} & set(weights))} needs "
+                     f"--top-thresholds (run the citdist and thresholds modes first)")
+        thr = load_reference(args.top_thresholds, "threshold", "thresholds")
+        for w in ("top10", "top10f"):
+            if w in weights:
+                refs[w] = thr
+        if "top10f" in weights and not thr.per_code:
+            sys.exit(f"--weights top10f needs PER-CATEGORY cut-offs, but "
+                     f"{args.top_thresholds} holds only (year, type) rows. Re-run "
+                     f"citdist with --category {args.category} and then thresholds.")
+    if "mncs" in weights:
+        if not args.expected:
+            sys.exit("--weights mncs needs --expected (written by the thresholds mode)")
+        refs["mncs"] = load_reference(args.expected, "mean_cit", "expected citations")
     wnote = ", weights=" + ",".join(weights) if weights else ""
     print(f"[{args.label}/{spec.name}] {len(files)} file(s), id-filter={args.id_filter}"
           f"{f', {len(id_set):,} ids' if id_set else ''}{wnote}", flush=True)
@@ -734,7 +853,7 @@ def cmd_count(args: argparse.Namespace) -> None:
             try:
                 rows, cat_col, missing = count_file(path, tally, spec, id_set,
                                                     args.id_filter, args.batch_size,
-                                                    thresholds)
+                                                    refs)
                 w.writerow([path, rows, cat_col, " ".join(missing),
                             f"{time.time() - t0:.2f}", ""])
                 n_missing_w += bool(missing)
@@ -759,11 +878,18 @@ def cmd_count(args: argparse.Namespace) -> None:
     print(f"[{args.label}/{spec.name}] {n_ok} ok / {n_err} failed | rows {tally.n_rows:,} | "
           f"counted {tally.n_kept:,} | filtered {tally.n_dropped:,} | "
           f"{len(counts):,} count rows | {time.time() - t_all:.0f}s")
-    for wname in weights:
-        tot = sum(v[2 * weights.index(wname)] for v in tally.wtotals.values())
-        docs = sum(v[2 * weights.index(wname) + 1] for v in tally.wtotals.values())
-        print(f"  weight {wname:6s} sum {tot:>18,.1f} over {int(docs):>12,} papers "
-              f"({docs / max(tally.n_kept, 1):.1%} of those counted carried a value)")
+    for i, wname in enumerate(weights):
+        tot = sum(v[2 * i] for v in tally.wtotals.values())
+        docs = sum(v[2 * i + 1] for v in tally.wtotals.values())
+        measured = f"({docs / max(tally.n_kept, 1):.1%} of those counted carried a value)"
+        if WEIGHTS[wname].per_category:
+            # Its value depends on the category, so there is no paper-level sum to show;
+            # the per-category totals are in the counts table.
+            print(f"  weight {wname:6s} per-category   over {int(docs):>12,} papers "
+                  f"{measured}")
+        else:
+            print(f"  weight {wname:6s} sum {tot:>18,.1f} over {int(docs):>12,} papers "
+                  f"{measured}")
     if n_missing_w:
         print(f"  !! {n_missing_w} file(s) lacked a weight column — see "
               f"missing_weight_cols in {log_path}", file=sys.stderr)
@@ -772,21 +898,79 @@ def cmd_count(args: argparse.Namespace) -> None:
 
 
 # =============================================================================
-# MODE: citdist  — the citation distribution, for the top-decile cut-offs
+# MODE: citdist  — the citation distribution, for the cut-offs and the expected means
 # =============================================================================
-# times_cited is a small non-negative integer, so the EXACT distribution fits in a dict:
-# one entry per (year, type, citation count). No sampling, no sketch, no approximation —
-# the 90th percentile that comes out of `thresholds` is the true one. This is a separate
-# pass because the cut-off for a (year, type) must be known before the first paper of
-# that (year, type) is counted.
+# times_cited is a small non-negative integer, so the EXACT distribution is affordable:
+# no sampling, no sketch, and the 90th percentile that comes out of `thresholds` is the
+# true one. This is a separate pass because the cut-off for a cell has to be known
+# before the first paper of that cell is counted.
+#
+# Two populations are accumulated at once:
+#
+#   global      one entry per PAPER, keyed (year, type). The fallback, and what the
+#               paper-level `top10` weight uses.
+#   per-category one entry per (PAPER, CATEGORY), keyed (level, code, year, type). This
+#               is what makes PP(top 10 %) mean "the top tenth of THIS field" — the
+#               figure the bibliometric literature reports — and what gives `mncs` its
+#               reference mean. A paper carrying three fields lands in three of them,
+#               which is correct: it is competing in all three.
+#
+# MEMORY. The per-category histogram is a fixed-width int32 array per cell rather than a
+# dict of counts, because a dict of (cell, citations) tuples over ~30k cells would cost
+# gigabytes. Counts are capped at CIT_CAP: 99.1 % of the corpus sits below 200 citations
+# and the decile cut-off is ~50, so the cap costs nothing at the percentile, and the
+# exact sum is accumulated separately so the MEAN stays exact too. ~30k cells x 501
+# int32 = ~60 MB.
+CIT_CAP = 500
+
+
+class CitAccum:
+    """Exact per-cell citation distribution: capped histogram + exact count and sum."""
+
+    def __init__(self) -> None:
+        self.hist: Dict[tuple, "object"] = {}
+        self.stats: Dict[tuple, List[int]] = defaultdict(lambda: [0, 0])
+
+    def add(self, key: tuple, cit: int) -> None:
+        h = self.hist.get(key)
+        if h is None:
+            h = self.hist[key] = [0] * (CIT_CAP + 1)
+        h[cit if cit < CIT_CAP else CIT_CAP] += 1
+        s = self.stats[key]
+        s[0] += 1
+        s[1] += cit
+
+    def to_tables(self, key_names: Sequence[str]) -> Tuple[pa.Table, pa.Table]:
+        """(histogram, stats) in long form; only non-empty buckets are written."""
+        hk, hc, hn = [], [], []
+        for key, arr in self.hist.items():
+            for cit, n in enumerate(arr):
+                if n:
+                    hk.append(key)
+                    hc.append(cit)
+                    hn.append(n)
+        hist = {name: pa.array([k[i] for k in hk]) for i, name in enumerate(key_names)}
+        hist["times_cited"] = pa.array(hc, pa.int64())
+        hist["n"] = pa.array(hn, pa.int64())
+
+        sk = sorted(self.stats)
+        stats = {name: pa.array([k[i] for k in sk]) for i, name in enumerate(key_names)}
+        stats["n_papers"] = pa.array([self.stats[k][0] for k in sk], pa.int64())
+        stats["sum_cit"] = pa.array([self.stats[k][1] for k in sk], pa.int64())
+        return pa.table(hist), pa.table(stats)
+
+
 def cmd_citdist(args: argparse.Namespace) -> None:
     files = take_shard(collect_files(args), args.shard, args.num_shards)
     out = Path(args.out)
     out.mkdir(parents=True, exist_ok=True)
+    # --category is optional here: without it only the (year, type) fallback is built,
+    # which is all the paper-level top10 weight needs.
+    spec = CATEGORIES[args.category] if args.category else None
 
-    # The threshold population is the WHOLE database, both arms together: "top 10 % of
+    # The reference population is the WHOLE database, both arms together: "top 10 % of
     # the literature" is the point of the indicator. No id filtering happens here.
-    hist: Dict[Tuple[int, str, int], int] = defaultdict(int)
+    glob_acc, cat_acc = CitAccum(), CitAccum()
     n_rows = n_ok = n_err = n_missing = 0
     t_all = time.time()
     log_path = out / f"filelog.citdist{_shard_suffix(args)}.csv"
@@ -801,15 +985,23 @@ def cmd_citdist(args: argparse.Namespace) -> None:
                 if CIT_COL not in names:
                     raise KeyError(f"missing required column '{CIT_COL}'")
                 has_type = TYPE_COL in names
-                cols = [YEAR_COL, CIT_COL] + ([TYPE_COL] if has_type else [])
+                cat_col = spec.resolve_column(names) if spec else None
+                if spec and cat_col is None:
+                    raise KeyError(f"no {spec.name} column (looked for "
+                                   f"{list(spec.columns)})")
+                cols = [YEAR_COL, CIT_COL] + ([TYPE_COL] if has_type else []) \
+                    + ([cat_col] if cat_col else [])
+                fmt = column_format(pf.schema_arrow, cat_col) if cat_col else "text"
                 rows = 0
                 for batch in pf.iter_batches(batch_size=args.batch_size, columns=cols):
                     years = batch.column(cols.index(YEAR_COL)).to_pylist()
                     cits = batch.column(cols.index(CIT_COL)).to_pylist()
                     types = (batch.column(cols.index(TYPE_COL)).to_pylist()
                              if has_type else [MISSING_TYPE] * len(years))
+                    cells = (batch.column(cols.index(cat_col)).to_pylist()
+                             if cat_col else [None] * len(years))
                     rows += len(years)
-                    for year, typ, cit in zip(years, types, cits):
+                    for year, typ, cit, cell in zip(years, types, cits, cells):
                         if cit is None:
                             n_missing += 1
                             continue
@@ -817,7 +1009,13 @@ def cmd_citdist(args: argparse.Namespace) -> None:
                             y = int(year)
                         except (TypeError, ValueError):
                             y = MISSING_YEAR
-                        hist[(y, typ or MISSING_TYPE, int(cit))] += 1
+                        t = typ or MISSING_TYPE
+                        c = int(cit)
+                        glob_acc.add((y, t), c)
+                        if spec:
+                            for level, items in spec.levels(cell, fmt).items():
+                                for code, _ in items:
+                                    cat_acc.add((level, code, y, t), c)
                 w.writerow([path, rows, f"{time.time() - t0:.2f}", ""])
                 n_rows += rows
                 n_ok += 1
@@ -832,71 +1030,141 @@ def cmd_citdist(args: argparse.Namespace) -> None:
                       f"{time.time() - t_all:.0f}s", flush=True)
             fh.flush()
 
-    keys = sorted(hist)
-    dest = out / f"citdist{_shard_suffix(args)}.parquet"
-    pq.write_table(pa.table({
-        "year": pa.array([k[0] for k in keys], pa.int32()),
-        "type": pa.array([k[1] for k in keys], pa.string()),
-        "times_cited": pa.array([k[2] for k in keys], pa.int64()),
-        "n": pa.array([hist[k] for k in keys], pa.int64()),
-    }), dest, compression="zstd")
-    print(f"citdist {n_ok} ok / {n_err} failed | rows {n_rows:,} | "
-          f"{len(keys):,} distinct (year, type, citations) | "
-          f"{n_missing:,} rows with no {CIT_COL} | {time.time() - t_all:.0f}s -> {dest}")
+    sfx = _shard_suffix(args)
+    hist, stats = glob_acc.to_tables(("year", "type"))
+    pq.write_table(hist, out / f"citdist{sfx}.parquet", compression="zstd")
+    pq.write_table(stats, out / f"citstats{sfx}.parquet", compression="zstd")
+    msg = f"{len(glob_acc.hist):,} (year, type) cells"
+    if spec:
+        chist, cstats = cat_acc.to_tables(("level", "code", "year", "type"))
+        pq.write_table(chist, out / f"citdist.{spec.name}{sfx}.parquet",
+                       compression="zstd")
+        pq.write_table(cstats, out / f"citstats.{spec.name}{sfx}.parquet",
+                       compression="zstd")
+        msg += f" + {len(cat_acc.hist):,} ({spec.name}, year, type) cells"
+    print(f"citdist {n_ok} ok / {n_err} failed | rows {n_rows:,} | {msg} | "
+          f"{n_missing:,} rows with no {CIT_COL} | {time.time() - t_all:.0f}s")
 
 
 # =============================================================================
 # MODE: thresholds  — citdist partials -> the top-decile cut-off per (year, type)
 # =============================================================================
+def _cut_off(group, total: int, pct: float) -> Tuple[int, int, float]:
+    """The lowest citation count whose "at least this many" tail stays within `pct` %.
+
+    Citations are a tied, lumpy integer distribution (a fifth of all papers sit at 0),
+    so an exact 10 % is usually unreachable: taking the largest tail that does not
+    exceed it keeps the indicator conservative, and the achieved share is reported so
+    the compromise is visible rather than assumed.
+    """
+    tail, achieved = 0, 0.0
+    cut = int(group.times_cited.max()) + 1
+    for cites, n in zip(group.times_cited, group.n):
+        if (tail + n) / total > pct / 100:
+            break
+        tail += int(n)
+        cut = int(cites)
+        achieved = 100 * tail / total
+    return cut, tail, achieved
+
+
 def cmd_thresholds(args: argparse.Namespace) -> None:
     import pandas as pd
 
     out = Path(args.out)
     src = Path(args.partials) if args.partials else out
-    parts = sorted(src.glob("citdist*.parquet"))
-    if not parts:
-        sys.exit(f"no citdist*.parquet under {src} — run the citdist mode first")
-    dist = (pd.concat([pq.read_table(p).to_pandas() for p in parts], ignore_index=True)
-            .groupby(["year", "type", "times_cited"], as_index=False).n.sum())
-    print(f"  citdist: {len(parts)} partial(s), {int(dist.n.sum()):,} papers")
-
     pct = args.percentile
-    rows = []
-    for (year, typ), g in dist.groupby(["year", "type"]):
-        g = g.sort_values("times_cited", ascending=False)
-        total = int(g.n.sum())
-        if total < args.min_papers:
-            continue
-        # The cut-off is the LOWEST citation count whose "at least this many citations"
-        # tail is still within the top `pct` %. Citations are a tied, lumpy integer
-        # distribution (a fifth of all papers sit at 0), so an exact 10 % is usually
-        # unreachable: taking the largest tail that does not exceed 10 % keeps the
-        # indicator conservative, and achieved_pct records what was actually reached.
-        tail = 0
-        cut = int(g.times_cited.max()) + 1
-        achieved = 0.0
-        for cites, n in zip(g.times_cited, g.n):
-            if (tail + n) / total > pct / 100:
-                break
-            tail += int(n)
-            cut = int(cites)
-            achieved = 100 * tail / total
-        rows.append({"year": int(year), "type": typ, "percentile": pct,
-                     "threshold": cut, "n_papers": total, "n_at_or_above": tail,
-                     "achieved_pct": round(achieved, 3)})
 
-    thr = pd.DataFrame(rows).sort_values(["type", "year"])
-    dest = out / "cit_thresholds.parquet"
-    thr.to_parquet(dest, index=False)
-    thr.to_csv(out / "cit_thresholds.csv", index=False)
-    print(f"wrote {dest}  ({len(thr):,} (year, type) cut-offs, top {pct}%)\n")
-    shown = thr[thr.type == thr.type.mode().iloc[0]] if len(thr) else thr
-    print(f"cut-offs for type='{shown.type.iloc[0] if len(shown) else '-'}' "
-          f"(citations needed to count as top {pct}%):")
+    def read(stem):
+        """Partials for one table, sharded or not. The two spellings are listed
+        explicitly because 'citdist.*.parquet' would also swallow 'citdist.for.parquet'
+        and quietly mix a per-category table into the global one."""
+        parts = sorted(src.glob(f"{stem}.parquet")) + sorted(src.glob(f"{stem}.shard*.parquet"))
+        if not parts:
+            return None
+        return pd.concat([pq.read_table(p).to_pandas() for p in parts],
+                         ignore_index=True)
+
+    # The (year, type) fallback is always built; the per-category tables only exist if
+    # citdist was given a --category.
+    frames = {"": (read("citdist"), read("citstats"))}
+    for cat in sorted(CATEGORIES):
+        d, s = read(f"citdist.{cat}"), read(f"citstats.{cat}")
+        if d is not None and s is not None:
+            frames[cat] = (d, s)
+    if frames[""][0] is None:
+        sys.exit(f"no citdist parquet under {src} — run the citdist mode first")
+
+    thr_rows, exp_rows = [], []
+    for cat, (dist, stats) in frames.items():
+        keys = ["year", "type"] if not cat else ["level", "code", "year", "type"]
+        dist = dist.groupby(keys + ["times_cited"], as_index=False).n.sum()
+        stats = stats.groupby(keys, as_index=False)[["n_papers", "sum_cit"]].sum()
+        print(f"  {cat or '(year,type)':10s} {int(stats.n_papers.sum()):>14,} rows, "
+              f"{len(stats):,} cells")
+
+        for key, g in dist.sort_values("times_cited", ascending=False).groupby(keys):
+            total = int(g.n.sum())
+            if total < args.min_papers:
+                continue     # a percentile of twelve papers is not a percentile
+            cut, tail, achieved = _cut_off(g, total, pct)
+            row = dict(zip(keys, key if isinstance(key, tuple) else (key,)))
+            row.update(category=cat, percentile=pct, threshold=cut, n_papers=total,
+                       n_at_or_above=tail, achieved_pct=round(achieved, 3))
+            thr_rows.append(row)
+
+        for _, r in stats.iterrows():
+            if r.n_papers < args.min_papers:
+                continue
+            row = {k: r[k] for k in keys}
+            row.update(category=cat, n_papers=int(r.n_papers), sum_cit=int(r.sum_cit),
+                       mean_cit=r.sum_cit / r.n_papers)
+            exp_rows.append(row)
+
+    cols = ["category", "level", "code", "year", "type"]
+
+    def frame(rows, extra):
+        df = pd.DataFrame(rows)
+        for c in ("level", "code"):
+            if c not in df.columns:
+                df[c] = ""
+        df[["level", "code"]] = df[["level", "code"]].fillna("")
+        return df[cols + extra].sort_values(cols)
+
+    thr = frame(thr_rows, ["percentile", "threshold", "n_papers", "n_at_or_above",
+                           "achieved_pct"])
+    exp = frame(exp_rows, ["n_papers", "sum_cit", "mean_cit"])
+    for df, name in ((thr, "cit_thresholds"), (exp, "cit_expected")):
+        df.to_parquet(out / f"{name}.parquet", index=False)
+        df.to_csv(out / f"{name}.csv", index=False)
+        per_cat = int((df.code != "").sum())
+        print(f"wrote {out}/{name}.parquet  ({len(df):,} rows: {len(df) - per_cat:,} "
+              f"(year, type) fallback + {per_cat:,} per-category)")
+
+    fallback = thr[thr.code == ""]
+    shown = fallback[fallback.type == "article"]
+    print(f"\n(year, type) cut-offs for articles — citations needed to be top {pct}%:")
     for _, r in shown.tail(args.show).iterrows():
-        print(f"  {r.year}  >= {int(r.threshold):>5,} citations   "
+        print(f"  {int(r.year)}  >= {int(r.threshold):>5,} citations   "
               f"{int(r.n_at_or_above):>10,} / {int(r.n_papers):>12,} papers "
               f"= {r.achieved_pct:5.2f}%")
+
+    # The whole point of the per-category cut-offs is that they differ from each other;
+    # print the spread so a reader can see how much the global one was papering over.
+    per_cat = thr[(thr.code != "") & (thr.type == "article")]
+    if len(per_cat):
+        latest = per_cat[per_cat.year == per_cat.year.max()]
+        for cat, g in latest.groupby("category"):
+            g = g.sort_values("threshold")
+            glob = fallback[(fallback.type == "article")
+                            & (fallback.year == latest.year.max())]
+            gv = int(glob.threshold.iloc[0]) if len(glob) else -1
+            print(f"\n{cat} article cut-offs in {int(latest.year.max())} "
+                  f"(the whole-corpus figure is {gv}):")
+            for _, r in pd.concat([g.head(3), g.tail(3)]).iterrows():
+                print(f"  {r.level:3s} {str(r.code)[:34]:34s} >= {int(r.threshold):>4} "
+                      f"citations   ({int(r.n_papers):>10,} papers, "
+                      f"{r.achieved_pct:4.1f}%)")
 
 
 # =============================================================================
@@ -949,7 +1217,7 @@ def cmd_merge(args: argparse.Namespace) -> None:
     WEIGHTS_FOUND = [w for w in WEIGHTS if f"n_{w}" in value_cols]
 
     totals = _read("totals").groupby(["arm", "category", "year", "type"],
-                                     as_index=False).sum(numeric_only=True)
+                                     as_index=False).sum(numeric_only=True, min_count=1)
     coverage = _read("coverage", required=False)
     if coverage is not None:
         coverage = coverage.groupby(["arm", "category", "year", "type", "level"],
@@ -980,6 +1248,14 @@ def cmd_merge(args: argparse.Namespace) -> None:
             if tot_col not in g.columns:
                 continue
             docs = g[doc_col].sum()
+            # min_count=1 again: a plain .sum() over an all-NaN column returns 0.0, and
+            # "no paper-level total" would print as "zero citations".
+            total = g[tot_col].sum(min_count=1)
+            if docs and total != total:      # NaN total: a per-category weight
+                print(f"    {wname:6s} measured on {int(docs):>12,} papers "
+                      f"({docs / max(papers, 1):.1%}); no paper-level total — its value "
+                      f"depends on which category it is counted into")
+                continue
             if not docs:
                 # Almost always a directory holding one weighted run and one older
                 # unweighted one. The zeros are indistinguishable from "never cited"
@@ -988,9 +1264,9 @@ def cmd_merge(args: argparse.Namespace) -> None:
                       f"are zero because the partials predate --weights, not because "
                       f"the papers went uncited. Re-run this arm before comparing.")
                 continue
-            print(f"    {wname:6s} {g[tot_col].sum():>18,.1f} over {int(docs):>12,} "
+            print(f"    {wname:6s} {total:>18,.1f} over {int(docs):>12,} "
                   f"papers ({docs / max(papers, 1):.1%} measured, mean "
-                  f"{g[tot_col].sum() / max(docs, 1):.2f})")
+                  f"{total / max(docs, 1):.2f})")
 
     # Fractional totals must reconcile with the per-level coverage; if they don't, the
     # per-level normalisation is wrong and every downstream share is wrong with it. The
@@ -1077,9 +1353,10 @@ def main() -> None:
 """)
     sub = p.add_subparsers(dest="cmd", required=True)
 
-    def add_inputs(sp):
-        sp.add_argument("--category", choices=sorted(CATEGORIES), default="for",
-                        help="classification system to count (default: for)")
+    def add_inputs(sp, category=True):
+        if category:
+            sp.add_argument("--category", choices=sorted(CATEGORIES), default="for",
+                            help="classification system to count (default: for)")
         sp.add_argument("--files", nargs="+", help="explicit parquet paths")
         sp.add_argument("--file-list", help="text file, one parquet path per line")
         sp.add_argument("--glob", nargs="+", help="glob pattern(s), e.g. 'dir/*.parquet'")
@@ -1102,7 +1379,10 @@ def main() -> None:
     add_weights(sp)
     sp.add_argument("--top-thresholds",
                     help="cit_thresholds.parquet from the `thresholds` mode; required "
-                         "by --weights top10")
+                         "by --weights top10 / top10f")
+    sp.add_argument("--expected",
+                    help="cit_expected.parquet from the `thresholds` mode; required "
+                         "by --weights mncs")
     sp.add_argument("--exclude-ids", help="parquet/csv/txt of UKBB paper ids")
     sp.add_argument("--id-column", default=ID_COL)
     sp.add_argument("--id-filter", choices=["exclude", "include", "none"],
@@ -1112,8 +1392,14 @@ def main() -> None:
     sp.add_argument("--batch-size", type=int, default=100_000)
     sp.add_argument("--progress", type=int, default=25, help="log every N files; 0=off")
 
-    sp = sub.add_parser("citdist", help="citation histogram per (year, type); for top10")
-    add_inputs(sp)
+    sp = sub.add_parser("citdist",
+                        help="citation distribution per (year, type) and per category")
+    add_inputs(sp, category=False)
+    sp.add_argument("--category", choices=sorted(CATEGORIES), default=None,
+                    help="also build per-category references for this system "
+                         "(needed by --weights top10f / mncs)")
+    # --category is optional here, unlike everywhere else: without it citdist builds
+    # only the (year, type) fallback, which is all the paper-level top10 weight needs.
     sp.add_argument("--batch-size", type=int, default=100_000)
     sp.add_argument("--progress", type=int, default=25, help="log every N files; 0=off")
 

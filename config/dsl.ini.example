@@ -1,0 +1,16 @@
+# Copy to config/dsl.ini and fill in the key. That file is git-ignored.
+#
+# The Dimensions Analytics API authenticates with an API key:
+#   POST {url}/api/auth  {"key": "..."}  ->  token, valid ~2 hours
+# Older accounts issue a username/password instead; both are supported, key wins.
+#
+# This is the same file layout dimcli uses (~/.dimensions/dsl.ini), so if you already
+# have one you can copy it here verbatim.
+
+[instance.live]
+url=https://app.dimensions.ai
+key=YOUR_API_KEY_HERE
+
+# username/password alternative:
+# login=you@example.org
+# password=...

@@ -43,13 +43,33 @@ import pandas as pd
 # The measure columns the count job writes. Everything is derived from these two plus
 # whichever citation weights the partials happen to carry.
 BASE_MEASURES = ("n_papers", "n_frac")
-CITATION_WEIGHTS = ("n_cit", "n_fcr", "n_top10")
+CITATION_WEIGHTS = ("n_cit", "n_fcr", "n_top10", "n_top10f", "n_top10p", "n_top50f",
+                    "n_mncs")
+
+# Top-decile measures, best first. Charts that want "the share of the most-cited tenth"
+# take the best one a given run has rather than naming one and breaking without it.
+TOP_DECILE_WEIGHTS = ("n_top10f", "n_top10", "n_top10p")
+
+# The same idea at the coarser cut: papers at or above their own field-year MEDIAN. Only
+# the API pathway carries it (the median falls out of the whole-database facet for free,
+# where the decile has to be searched for cell by cell), so charts take it if it is there
+# and draw one band fewer if it is not.
+TOP_HALF_WEIGHTS = ("n_top50f",)
 
 WEIGHT_NAMES = {
     "n_cit": "raw citations",
-    "n_fcr": "field-normalised citation ratio (FCR)",
-    "n_top10": "top-decile rate",
+    "n_fcr": "field-normalised citation ratio (FCR, from the corpus)",
+    "n_top10": "top-decile rate (decile of the whole corpus)",
+    "n_top10f": "top-decile rate (decile of the field itself)",
+    "n_top10p": "top-decile rate (PROXY: mncs against a calibrated cut-off)",
+    "n_top50f": "above the field's own median (the better-cited half of the field)",
+    "n_mncs": "mean-normalised citation score (field reference built by the count job)",
 }
+
+# Weights that are already normalised by publication year, and so cannot be biased by
+# citations still accruing — only made noisier. The recency lag is not applied to these,
+# which is what lets them reach a year that the raw-citation weights cannot.
+YEAR_NORMALISED = ("n_fcr", "n_mncs")
 
 # =============================================================================
 # WHAT THE ACTIVITY INDEX IS MEASURED AGAINST
@@ -160,8 +180,10 @@ def load_arm(counts_dir, col_type, arm, level, year_min, year_max, verbose=True)
     blank = raw.code == ""
     measures = [c for c in raw.columns if c.startswith("n_")]
 
+    # min_count=1: a plain .sum() turns an all-NaN column into zeros, which would make
+    # a measure this arm does not have look like a measure whose value is nothing.
     counts = (raw[~blank].groupby(["year", "code", "for_label"], as_index=False)
-              [measures].sum())
+              [measures].sum(min_count=1))
     quality = pd.DataFrame({"tagged": raw.groupby("year").n_papers.sum(),
                             "blank": raw[blank].groupby("year").n_papers.sum()})
     quality = quality.fillna({"blank": 0.0})
@@ -218,7 +240,7 @@ def citation_windows(totals: Dict[str, pd.DataFrame], weights: Sequence[str],
         cov = covs[w]
         ok = cov[(cov.ukbb >= cov_min) & (cov.background >= cov_min)].index
         ok = [int(y) for y in ok if ukbb_year <= y <= year_max]
-        if w != "n_fcr" and ok and lag:
+        if w not in YEAR_NORMALISED and ok and lag:
             ok = [y for y in ok if y <= max(ok) - lag]
         cite_years[w] = ok
 
@@ -289,8 +311,49 @@ def build(counts_dir, col_type, *, level, rcdc_view="all", year_min, year_max,
     background, q_background = load_arm(counts_dir, col_type, "background", level,
                                         year_min, year_max, verbose)
 
-    measures = [c for c in ukbb.columns if c.startswith("n_")]
+    # A MEASURE COUNTS ONLY IF BOTH ARMS CARRY IT.
+    # The whole-database frame is the two arms summed, and a sum treats a missing column
+    # as zero — so a measure present in one arm and absent from the other comes out of
+    # the concat looking like a real whole-database total when it is only that one arm's.
+    # On the Dimensions API pathway this is the normal case rather than an edge case: the
+    # API returns aggregates, so its background arm has no fractional column and no
+    # citation weights at all, while the UK Biobank arm beside it (still counted off the
+    # VM) has both. Dropping them here is what stops the analysis from quietly comparing
+    # UK Biobank with itself.
+    def _carries(frame, col):
+        return col in frame.columns and frame[col].notna().any()
+
+    all_measures = [c for c in ukbb.columns if c.startswith("n_")]
+    measures = [c for c in all_measures if _carries(ukbb, c) and _carries(background, c)]
+    one_armed = [c for c in all_measures if c not in measures]
     weights_present = [w for w in CITATION_WEIGHTS if w in measures]
+
+    # The notebook's CITE_HEADLINE is a REQUEST, not a fact: which weights exist depends
+    # on how the counts were built, and the API pathway has no FCR at all. Honour it when
+    # it is there, substitute the nearest field-normalised measure when it is not, and
+    # hand the answer back so every chart downstream leads with the same one.
+    if weights_present and cite_headline not in weights_present:
+        substitute = next((w for w in ("n_mncs", "n_fcr", "n_cit", "n_top10f", "n_top10")
+                           if w in weights_present), weights_present[0])
+        if verbose:
+            print(f"  !! CITE_HEADLINE={cite_headline} is not in these partials; "
+                  f"leading with {substitute} instead\n     ({WEIGHT_NAMES.get(substitute, substitute)})")
+        cite_headline = substitute
+
+    # The classic activity index is defined on whole counts, so falling back to n_papers
+    # is legitimate rather than a degradation — but it has to be said out loud.
+    frac_ok = "n_frac" in measures
+    frac_col = "n_frac" if frac_ok else "n_papers"
+    # Every citation weight has an absolute and a fractional flavour; when there are no
+    # fractional columns the impact measures use the absolute ones. They are means over
+    # the same papers either way — whole counting just lets a multi-category paper into
+    # each of its categories' means, which is the same convention the counts use.
+    frac_sfx = "_frac" if frac_ok else ""
+    if one_armed and verbose:
+        print(f"  !! only one arm carries {', '.join(one_armed)} — dropped, because the "
+              f"whole-database\n     total for a one-armed measure is just that arm "
+              f"again. Everything below uses\n     {frac_col} where it would have used "
+              f"n_frac.")
     if verbose:
         print(f"  measures: {', '.join(measures)}")
         print(f"  citation weights: {', '.join(weights_present) or 'none — re-run the '
@@ -365,6 +428,12 @@ def build(counts_dir, col_type, *, level, rcdc_view="all", year_min, year_max,
              .groupby(["year", "code", "for_label"], as_index=False)[measures].sum())
     if mask_bad_denom:
         whole = whole[whole.year.isin(good_years)]
+    # A dropped measure is blanked in the per-arm frames too, so a chart that reaches
+    # past `measures` for it gets NaN rather than one arm's number.
+    for _c in one_armed:
+        for _f in (ukbb, background):
+            if _c in _f.columns:
+                _f[_c] = np.nan
 
     # code -> label for the WHOLE vocabulary. FOR codes are numeric ("3215"), so a
     # chart that falls back to the code prints a number at the reader; RCDC hides the
@@ -436,10 +505,11 @@ def build(counts_dir, col_type, *, level, rcdc_view="all", year_min, year_max,
         """The 2-digit ANZSRC division a 4-digit field belongs to."""
         return str(code)[:2]
 
-    def activity_index(win=None, base=None, col="n_frac"):
+    def activity_index(win=None, base=None, col=None):
         """The activity index over `win`, measured against `base`."""
         win = win or after_win
         base = base or activity_base
+        col = col or frac_col
         u = ukbb[ukbb.year.between(*win)].groupby("code")[col].sum()
         w = whole[whole.year.between(*win)].groupby("code")[col].sum()
         u = u.reindex(w.index).fillna(0.0)
@@ -473,7 +543,7 @@ def build(counts_dir, col_type, *, level, rcdc_view="all", year_min, year_max,
     if verbose and parent_level:
         # Print both, because a reader who has seen "51x" needs to know the same field
         # is 14x once the biomedical skew is divided out per field rather than globally.
-        _rank = (ukbb[ukbb.year.between(*after_win)].groupby("code").n_frac.sum()
+        _rank = (ukbb[ukbb.year.between(*after_win)].groupby("code")[frac_col].sum()
                  .sort_values(ascending=False).head(top_n))
         print(f"\nactivity index, {after_win[0]}-{after_win[1]} — base={activity_base} "
               f"({activity_label}):")
@@ -529,12 +599,12 @@ def build(counts_dir, col_type, *, level, rcdc_view="all", year_min, year_max,
         out["activity_x"] = activity_index(win).reindex(w.index)
         for wt in weights_present:
             key = wt[2:]
-            u_docs, w_docs = u[f"{wt}_docs_frac"], w[f"{wt}_docs_frac"]
-            u_mean = u[f"{wt}_frac"] / u_docs.where(u_docs > 0)
-            w_mean = w[f"{wt}_frac"] / w_docs.where(w_docs > 0)
+            u_docs, w_docs = u[f"{wt}_docs{frac_sfx}"], w[f"{wt}_docs{frac_sfx}"]
+            u_mean = u[f"{wt}{frac_sfx}"] / u_docs.where(u_docs > 0)
+            w_mean = w[f"{wt}{frac_sfx}"] / w_docs.where(w_docs > 0)
             out[f"rci_{key}"] = (u_mean / w_mean).where(u_docs >= min_docs)
-            out[f"act_{key}"] = ((u[f"{wt}_frac"] / u[f"{wt}_frac"].sum())
-                                 / (w[f"{wt}_frac"] / w[f"{wt}_frac"].sum()))
+            out[f"act_{key}"] = ((u[f"{wt}{frac_sfx}"] / u[f"{wt}{frac_sfx}"].sum())
+                                 / (w[f"{wt}{frac_sfx}"] / w[f"{wt}{frac_sfx}"].sum()))
             out[f"docs_{key}"] = u_docs
         return out.replace([np.inf, -np.inf], np.nan)
 
@@ -543,8 +613,8 @@ def build(counts_dir, col_type, *, level, rcdc_view="all", year_min, year_max,
         def piv(frame, col):
             return frame.pivot_table(index="year", columns="code", values=col,
                                      aggfunc="sum")
-        u_w, u_d = piv(ukbb, f"{weight}_frac"), piv(ukbb, f"{weight}_docs_frac")
-        w_w, w_d = piv(whole, f"{weight}_frac"), piv(whole, f"{weight}_docs_frac")
+        u_w, u_d = piv(ukbb, f"{weight}{frac_sfx}"), piv(ukbb, f"{weight}_docs{frac_sfx}")
+        w_w, w_d = piv(whole, f"{weight}{frac_sfx}"), piv(whole, f"{weight}_docs{frac_sfx}")
         u_w, u_d = u_w.reindex_like(w_w), u_d.reindex_like(w_d)
         ts = (u_w / u_d.where(u_d > 0)) / (w_w / w_d.where(w_d > 0))
         ts = ts.where(u_d >= min_docs).replace([np.inf, -np.inf], np.nan)
@@ -583,8 +653,8 @@ def build(counts_dir, col_type, *, level, rcdc_view="all", year_min, year_max,
         _u = ukbb[ukbb.year.between(*cite_win)]
         _w = whole[whole.year.between(*cite_win)]
         for wt in weights_present:
-            overall[wt[2:]] = ((_u[f"{wt}_frac"].sum() / _u[f"{wt}_docs_frac"].sum())
-                               / (_w[f"{wt}_frac"].sum() / _w[f"{wt}_docs_frac"].sum()))
+            overall[wt[2:]] = ((_u[f"{wt}{frac_sfx}"].sum() / _u[f"{wt}_docs{frac_sfx}"].sum())
+                               / (_w[f"{wt}{frac_sfx}"].sum() / _w[f"{wt}_docs{frac_sfx}"].sum()))
 
     return dict(
         ukbb=ukbb, background=background, whole=whole,
@@ -597,6 +667,13 @@ def build(counts_dir, col_type, *, level, rcdc_view="all", year_min, year_max,
         SKEWED=skewed,
         MEASURES=measures, WEIGHTS_PRESENT=weights_present, WEIGHT_NAMES=WEIGHT_NAMES,
         VALUE=value, ACTIVITY=activity, AFTER_WIN=after_win,
+        FRAC_OK=frac_ok, FRAC_COL=frac_col, FRAC_SFX=frac_sfx,
+        CITE_HEADLINE=cite_headline,
+        # Which top-decile column this run actually has, if any: n_top10f measured per
+        # field, n_top10 measured against the whole corpus, n_top10p the API proxy.
+        TOP10_COL=next((w for w in TOP_DECILE_WEIGHTS if w in weights_present), None),
+        # Its coarser sibling: at or above the field-year median. None on the VM path.
+        TOP50_COL=next((w for w in TOP_HALF_WEIGHTS if w in weights_present), None),
         ACTIVITY_GLOBAL=activity_global, ACTIVITY_WITHIN=activity_within,
         ACTIVITY_BASE=activity_base, ACTIVITY_LABEL=activity_label,
         PARENT_LEVEL=parent_level, activity_index=activity_index,
