@@ -1,0 +1,14 @@
+metric,availability,operational_definition,temporal_attribution
+Papers,Available,Unique Dimensions publication IDs by publication year,Publication year
+Clinical trials,Available,Paper has at least one clinical_trials__linked_ids; unique IDs retained for supplements,Publication year for paper indicator; earliest linked paper or trial start year in supplements
+Patents,Available,Paper has at least one patents__linked_ids; unique IDs retained for supplements,Publication year for paper indicator; earliest linked paper or patent publication year in supplements
+Policy documents,Available,Paper has at least one policy_documents__linked_ids; unique IDs retained for supplements,Publication year for paper indicator; earliest linked paper or policy year in supplements
+Grants,Available,Paper has at least one grants__linked_ids; unique IDs retained for supplements,Earliest linked paper year; grant start year in supplement
+Datasets,Available,Paper has at least one datasets__linked_ids; unique IDs retained for supplements,Publication year for paper indicator; earliest linked paper or dataset year in supplements
+Cross-sector collaboration,Available,"Education plus Company, Government, Healthcare, or Nonprofit organization type",Publication year
+International collaboration,Available,At least two research-organization countries,Publication year
+Open access,Available,open_access array contains oa_all,Publication year; access status is a current snapshot
+Preprints,Available,Dimensions publication type equals preprint,Publication year
+Altmetric attention,Available as aggregate score,Positive altmetric score; score is a current snapshot,"Publication year, not mention date"
+News mentions,Unavailable,No news-specific count in the input parquet; not inferred,Not applicable
+Citations,Available as current count,Dimensions times_cited,"Publication year, not citation date"

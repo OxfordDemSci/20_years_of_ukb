@@ -1,0 +1,36 @@
+scope,check,passed,observed,expected,interpretation
+source,publication_ids_are_unique,True,0,0,Duplicate publication IDs would double-count papers.
+source,publication_years_are_complete,True,0,0,Every source record requires a publication year.
+source,publication_dates_are_complete,True,0,0,Publication dates are required for milestone dates.
+source,publication_date_years_agree,True,0,0,The date and year fields must identify the same publication cohort.
+corpus,complete_year_corpus_ends_as_specified,True,2013-2025,2013-2025,Primary estimates must exclude the provisional publication year.
+corpus,complete_year_corpus_has_no_future_dates,True,0,0,No analytical record may fall after 2026-08-26.
+corpus,complete_year_publication_ids_are_unique,True,0,0,Each publication contributes once to the complete-year corpus.
+annual,annual_index_is_contiguous,True,13,13,Zero-count years must remain explicit in annual series.
+annual,annual_counts_sum_to_corpus,True,23442,23442,Annual publication counts must partition the analytical corpus.
+annual,cumulative_total_matches_corpus,True,23442,23442,The final cumulative count must equal the analytical corpus size.
+annual,cumulative_publications_are_monotonic,True,True,True,A cumulative publication series cannot decrease.
+indicator,patents_annual_total_matches_flags,True,513,513,Annual aggregation must reproduce publication-level indicator flags.
+indicator,patents_rate_matches_count,True,513; 21.883798,513; 21.883798,Figure 1 rates must use the complete-year corpus denominator.
+indicator,clinical_trials_annual_total_matches_flags,True,194,194,Annual aggregation must reproduce publication-level indicator flags.
+indicator,clinical_trials_rate_matches_count,True,194; 8.275744,194; 8.275744,Figure 1 rates must use the complete-year corpus denominator.
+indicator,policy_documents_annual_total_matches_flags,True,369,369,Annual aggregation must reproduce publication-level indicator flags.
+indicator,policy_documents_rate_matches_count,True,369; 15.740978,369; 15.740978,Figure 1 rates must use the complete-year corpus denominator.
+indicator,datasets_annual_total_matches_flags,True,1532,1532,Annual aggregation must reproduce publication-level indicator flags.
+indicator,datasets_rate_matches_count,True,1532; 65.352786,1532; 65.352786,Figure 1 rates must use the complete-year corpus denominator.
+indicator,cross_sector_annual_total_matches_flags,True,13425,13425,Annual aggregation must reproduce publication-level indicator flags.
+indicator,cross_sector_rate_matches_count,True,13425; 572.690044,13425; 572.690044,Figure 1 rates must use the complete-year corpus denominator.
+indicator,altmetric_annual_total_matches_flags,True,16532,16532,Annual aggregation must reproduce publication-level indicator flags.
+indicator,altmetric_rate_matches_count,True,16532; 705.229929,16532; 705.229929,Figure 1 rates must use the complete-year corpus denominator.
+overlap,conditional_overlap_is_bounded,True,0.718-100.000,0-100,Conditional co-occurrence values are percentages.
+overlap,conditional_overlap_diagonal_is_omitted,True,6,6,Self-comparisons are omitted from Figure 1D.
+endpoint,clinical_trials_ids_are_unique,True,0,0,Linked records must be deduplicated by endpoint ID.
+endpoint,clinical_trials_first_link_total_matches_annual,True,193,193,Endpoint first-link cohorts must reproduce the annual endpoint total.
+endpoint,patents_ids_are_unique,True,0,0,Linked records must be deduplicated by endpoint ID.
+endpoint,patents_first_link_total_matches_annual,True,767,767,Endpoint first-link cohorts must reproduce the annual endpoint total.
+endpoint,policy_documents_ids_are_unique,True,0,0,Linked records must be deduplicated by endpoint ID.
+endpoint,policy_documents_first_link_total_matches_annual,True,449,449,Endpoint first-link cohorts must reproduce the annual endpoint total.
+endpoint,grants_ids_are_unique,True,0,0,Linked records must be deduplicated by endpoint ID.
+endpoint,grants_first_link_total_matches_annual,True,14847,14847,Endpoint first-link cohorts must reproduce the annual endpoint total.
+endpoint,datasets_ids_are_unique,True,0,0,Linked records must be deduplicated by endpoint ID.
+endpoint,datasets_first_link_total_matches_annual,True,5162,5162,Endpoint first-link cohorts must reproduce the annual endpoint total.

@@ -1,0 +1,8 @@
+indicator,Altmetric attention,Cross-sector,International,Patent,Clinical trial,Policy document,Dataset
+Altmetric attention,16532.0,10286.0,8106.0,510.0,187.0,369.0,1256.0
+Cross-sector,10286.0,13425.0,7608.0,342.0,146.0,230.0,894.0
+International,8106.0,7608.0,9926.0,299.0,132.0,211.0,509.0
+Patent,510.0,342.0,299.0,513.0,44.0,39.0,48.0
+Clinical trial,187.0,146.0,132.0,44.0,194.0,37.0,11.0
+Policy document,369.0,230.0,211.0,39.0,37.0,369.0,21.0
+Dataset,1256.0,894.0,509.0,48.0,11.0,21.0,1532.0

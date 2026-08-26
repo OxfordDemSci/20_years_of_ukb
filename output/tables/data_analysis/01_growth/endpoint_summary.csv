@@ -1,0 +1,6 @@
+endpoint,label,linked_papers_2013_2025,link_rows_from_complete_year_papers,unique_records_first_linked_by_2025,event_year_coverage_pct,records_with_conflicting_event_year,median_linked_papers_per_record,earliest_first_link_year,latest_first_link_year
+clinical_trials,Clinical trials,194,252,193,99.48186528497409,0,1.0,2013,2025
+patents,Patents,513,1098,767,100.0,0,1.0,2014,2025
+policy_documents,Policy documents,369,677,449,100.0,0,1.0,2013,2025
+grants,Grants,13252,78073,14847,99.81140971239981,72,2.0,2013,2025
+datasets,Datasets,1532,5162,5162,99.86439364587369,0,1.0,2013,2025

@@ -53,6 +53,48 @@ style:
   # --------------------------------------------------- per-notebook differences
   notebooks:
 
+    01_growth:
+      colors: ["#B80C09", "#D4AF37", "#6E8B3D", "#345995",
+               "#8C5A9E", "#008C95", "#B56A3B", "#4F6D7A"]
+      metric_colors:
+        publications: 3
+        patents: 0
+        clinical_trials: 2
+        policy_documents: 1
+        datasets: 3
+        cross_sector: 4
+        altmetric: 5
+        grants: 6
+        international: 7
+        open_access: 2
+        preprints: 3
+      c_primary_light: "#C8D5E8"
+      figsize_main:  [16, 9]
+      figsize_panel: [18, 11.5]
+      font_family: Helvetica
+      title_fs: 22
+      label_fs: 18
+      tick_fs: 16
+      annot_fs: 14
+      legend_fs: 14
+      body_fs: 14
+      grid_linestyle: "--"
+      axes_linewidth: 1.1
+      tick_length: 6
+      tick_width: 1.2
+      tick_pad: 5
+      minor_tick_length: 3.5
+      minor_tick_width: 0.9
+      dpi: 600
+      save: true
+      formats: [pdf, svg, png]
+      savedir: output/figures/data_analysis/01_growth
+      roles:
+        c_primary: 3        # blue
+        c_accent:  0        # red
+        c_gold:    1        # gold
+        c_green:   2        # green
+
     01_authors:
       figsize_map:     [14, 8]
       figsize_network: [12, 12]

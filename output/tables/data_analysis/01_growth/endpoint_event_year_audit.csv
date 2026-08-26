@@ -1,0 +1,6 @@
+endpoint,events_before_primary_window,events_after_last_complete_year,events_missing_year
+clinical_trials,5,21,1
+patents,0,71,0
+policy_documents,0,19,0
+grants,3927,10,29
+datasets,0,385,8

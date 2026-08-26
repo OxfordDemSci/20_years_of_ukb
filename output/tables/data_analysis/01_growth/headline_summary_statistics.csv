@@ -1,0 +1,16 @@
+metric,value,definition
+All source records,"26,109",Includes provisional 2026 records
+Papers in complete years,"23,442",Unique papers published 2013–2025
+Papers published in 2025,"5,892",Latest complete publication year
+Year-on-year growth in 2025,19.1%,Relative to 2024
+"Publication CAGR, 2018–2025",38.1%,Compound annual growth in annual paper output
+"Log-linear annual growth, 2018–2025",36.9%,OLS on log annual counts; R²=0.974
+Estimated publication doubling time,2.21 years,From 2018–2025 log-linear trend
+Cross-sector collaboration papers,"13,425","Education plus Company, Government, Healthcare, or Nonprofit"
+International collaboration papers,"9,926",At least two research-organization countries
+Papers with Altmetric attention,"16,532",Positive aggregate Altmetric score
+Aggregate Altmetric score,"1,055,023",Current snapshot across complete-year papers
+Altmetric score held by top 1% of papers,45.2%,Concentration of current aggregate score
+Total citations,"670,428",Current Dimensions snapshot
+Citations held by top 1% of papers,32.9%,Concentration of current citation counts
+Citation–Altmetric Spearman correlation,0.624,"Paper-level rank correlation, zero values retained"

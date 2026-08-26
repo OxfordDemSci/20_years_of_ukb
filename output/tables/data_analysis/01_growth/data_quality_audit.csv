@@ -1,0 +1,14 @@
+check,value,interpretation
+input_rows,26109,All parquet records
+unique_publication_ids,26109,Expected to equal input rows
+duplicate_publication_ids,0,Expected zero
+missing_publication_year,0,Expected zero
+missing_publication_date,0,Expected zero
+date_year_mismatches,0,Date year differs from year field
+records_after_data_cutoff,4,Future-dated; excluded with 2026
+records_in_incomplete_2026,2667,Provisional year; excluded from primary analyses
+clinical_trials_array_alignment_mismatches,0,ID and event-date arrays of different lengths
+patents_array_alignment_mismatches,0,ID and event-date arrays of different lengths
+policy_documents_array_alignment_mismatches,0,ID and event-date arrays of different lengths
+grants_array_alignment_mismatches,8,ID and event-date arrays of different lengths
+datasets_array_alignment_mismatches,0,ID and event-date arrays of different lengths

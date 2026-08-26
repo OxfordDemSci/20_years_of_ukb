@@ -22,6 +22,8 @@ from __future__ import annotations
 
 import os
 import sys
+from collections.abc import Mapping
+from hashlib import sha256
 from pathlib import Path
 
 # utils/ -> src/ -> repo root
@@ -36,7 +38,7 @@ DATA = ROOT / "data"
 
 # -- the UK Biobank publication corpus (Dimensions records joined to the showcase) --
 SHOWCASE = DATA / "showcase"
-SHOWCASE_PLUS = SHOWCASE / "showcase_plus_all_endpoint.parquet"
+SHOWCASE_PLUS = SHOWCASE / "showcase_plus" / "showcase_plus_all_endpoints_wide.parquet"
 
 # -- raw Dimensions pulls: per-endpoint caches + the flattened exports --------------
 DIMENSION = DATA / "dimension"
@@ -84,7 +86,10 @@ OUTPUT_FIGURES = OUTPUT / "figures"
 FIG_DATA_ANALYSIS = OUTPUT_FIGURES / "data_analysis"
 FIG_DATA_CREATION = OUTPUT_FIGURES / "data_creation"
 OUTPUT_TABLES = OUTPUT / "tables"
+TABLE_DATA_ANALYSIS = OUTPUT_TABLES / "data_analysis"
 
+FIG_GROWTH = FIG_DATA_ANALYSIS / "01_growth"
+TABLE_GROWTH = TABLE_DATA_ANALYSIS / "01_growth"
 FIG_AUTHORS = FIG_DATA_ANALYSIS / "01_authors"
 FIG_NETWORK = FIG_DATA_ANALYSIS / "02_network"
 FIG_ACADEMIC_IMPACT = FIG_DATA_ANALYSIS / "03_academic_impact"
@@ -111,11 +116,114 @@ def bootstrap() -> Path:
     return ROOT
 
 
+def raw_path(path: Path) -> str:
+    """Return a repository-relative POSIX path for logs, tables, and notebook output."""
+    path = Path(path)
+    if path.is_absolute():
+        try:
+            path = path.relative_to(ROOT)
+        except ValueError:
+            return path.name
+    return path.as_posix()
+
+
 def ensure_dirs() -> None:
     """Create the output directories that notebooks write into, if missing."""
     for d in (AUTHOR_ANALYSIS, ACADEMIC_IMPACT, FOR_COUNTS, FOR_COUNTS_API,
               CLINICAL_TRIALS, PATENT,
               POLICY, DIMENSION_CACHE, DIMENSION_FLAT, OUTPUT_TABLES,
+              FIG_GROWTH, TABLE_GROWTH,
               FIG_AUTHORS, FIG_NETWORK, FIG_NON_ACADEMIC, FIG_CLINICAL_TRIALS,
               FIG_ACADEMIC_IMPACT, FIG_PATENT):
         d.mkdir(parents=True, exist_ok=True)
+
+
+class ArtifactRegistry:
+    """Track and export a notebook's figure, table, workbook, and text artifacts."""
+
+    def __init__(self, table_dir: Path):
+        self.table_dir = Path(table_dir)
+        self.figure_paths: list[Path] = []
+        self.table_paths: list[Path] = []
+
+    @staticmethod
+    def _register(paths: list[Path], path: Path) -> Path:
+        """Record an artifact once, keeping notebook cell reruns idempotent."""
+        path = Path(path)
+        if path not in paths:
+            paths.append(path)
+        return path
+
+    def save_table(self, frame, filename, index=False) -> Path:
+        path = self.table_dir / filename
+        path.parent.mkdir(parents=True, exist_ok=True)
+        frame.to_csv(path, index=index)
+        self._register(self.table_paths, path)
+        print("saved", raw_path(path))
+        return path
+
+    def save_text(self, text: str, filename: str) -> Path:
+        path = self.table_dir / filename
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(text, encoding="utf-8")
+        self._register(self.table_paths, path)
+        print("saved", raw_path(path))
+        return path
+
+    def save_workbook(self, sheets: Mapping[str, object], filename: str) -> Path:
+        import pandas as pd
+
+        path = self.table_dir / filename
+        path.parent.mkdir(parents=True, exist_ok=True)
+        with pd.ExcelWriter(path, engine="openpyxl") as writer:
+            for sheet_name, frame in sheets.items():
+                frame.to_excel(writer, sheet_name=sheet_name[:31], index=False)
+        self._register(self.table_paths, path)
+        print("saved", raw_path(path))
+        return path
+
+    def record_figures(self, paths):
+        paths = list(paths)
+        for path in paths:
+            self._register(self.figure_paths, path)
+        return paths
+
+    @staticmethod
+    def _file_sha256(path: Path) -> str:
+        digest = sha256()
+        with path.open("rb") as handle:
+            for chunk in iter(lambda: handle.read(1024 * 1024), b""):
+                digest.update(chunk)
+        return digest.hexdigest()
+
+    def save_manifest(self, filename: str):
+        import pandas as pd
+
+        rows = [
+            {
+                "kind": "figure",
+                "name": path.stem,
+                "format": path.suffix.lstrip("."),
+                "path": raw_path(path),
+                "size_bytes": path.stat().st_size,
+                "sha256": self._file_sha256(path),
+            }
+            for path in self.figure_paths
+        ]
+        rows.extend(
+            {
+                "kind": "table_or_text",
+                "name": path.stem,
+                "format": path.suffix.lstrip("."),
+                "path": raw_path(path),
+                "size_bytes": path.stat().st_size,
+                "sha256": self._file_sha256(path),
+            }
+            for path in self.table_paths
+        )
+        manifest = pd.DataFrame(rows).sort_values(["kind", "name", "format"])
+        path = self.table_dir / filename
+        path.parent.mkdir(parents=True, exist_ok=True)
+        manifest.to_csv(path, index=False)
+        print("saved", raw_path(path))
+        return manifest, path

@@ -1,4 +1,4 @@
-"""Loader for the UK Biobank publication corpus, `showcase_plus_all_endpoint.parquet`.
+"""Loader for the UK Biobank all-endpoints-wide publication corpus.
 
 This replaces the old `data/df_dimensions.xlsx`. Two differences matter to every
 downstream notebook, and both are handled here rather than in each notebook:
@@ -149,6 +149,9 @@ def load_showcase(columns: Optional[Sequence[str]] = None,
     """
     path = Path(path)
     parse = list(parse)
+
+    if not path.exists():
+        raise FileNotFoundError(f"showcase-plus parquet not found: {P.raw_path(path)}")
 
     if cache is not None:
         cache = Path(cache)
