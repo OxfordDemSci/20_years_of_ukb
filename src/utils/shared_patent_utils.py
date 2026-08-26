@@ -2658,7 +2658,7 @@ def plot_two_level_hierarchy(
 def prepare_rcdc_macro_context(
     df_patent: pd.DataFrame,
     category_col: str = 'category_rcdc',
-    summary_csv: str = str(_ROOT / 'file/paten_rcdc_macro/cluster_label_summary_louvain.csv'),
+    summary_csv: str = str(_ROOT / 'data/analysis/non_academic/patent/paten_rcdc_macro/cluster_label_summary_louvain.csv'),
     macro_cluster_names: Optional[Dict[int, str]] = None,
 ) -> Dict[str, Any]:
     """Prepare shared RCDC macro-cluster lookup tables for downstream plots."""
