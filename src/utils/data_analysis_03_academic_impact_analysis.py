@@ -43,12 +43,20 @@ import pandas as pd
 # The measure columns the count job writes. Everything is derived from these two plus
 # whichever citation weights the partials happen to carry.
 BASE_MEASURES = ("n_papers", "n_frac")
-CITATION_WEIGHTS = ("n_cit", "n_fcr", "n_top10", "n_top10f", "n_top10p", "n_top50f",
-                    "n_mncs")
+CITATION_WEIGHTS = ("n_cit", "n_fcr", "n_top10", "n_top10f", "n_top50f", "n_mncs")
 
+# `n_top10p` — the API proxy that called a paper top-decile when mncs cleared a K
+# calibrated per (year, type) — is DELIBERATELY ABSENT from that list. The `deciles` mode
+# now measures the real cut-off per (year, field) by counting, so the proxy is no longer
+# the best available answer, only the cheapest; and while it was in the list it did
+# damage, because it is the weight with the shortest usable window and the impact window
+# is the intersection over every weight (it alone held the window at 2022 while the
+# measured decile reached 2023). The column is still written by the API script and still
+# sits in the partials — it is simply not read. Put it back here to see it again.
+#
 # Top-decile measures, best first. Charts that want "the share of the most-cited tenth"
 # take the best one a given run has rather than naming one and breaking without it.
-TOP_DECILE_WEIGHTS = ("n_top10f", "n_top10", "n_top10p")
+TOP_DECILE_WEIGHTS = ("n_top10f", "n_top10")
 
 # The same idea at the coarser cut: papers at or above their own field-year MEDIAN. Only
 # the API pathway carries it (the median falls out of the whole-database facet for free,
@@ -61,7 +69,6 @@ WEIGHT_NAMES = {
     "n_fcr": "field-normalised citation ratio (FCR, from the corpus)",
     "n_top10": "top-decile rate (decile of the whole corpus)",
     "n_top10f": "top-decile rate (decile of the field itself)",
-    "n_top10p": "top-decile rate (PROXY: mncs against a calibrated cut-off)",
     "n_top50f": "above the field's own median (the better-cited half of the field)",
     "n_mncs": "mean-normalised citation score (field reference built by the count job)",
 }
@@ -70,6 +77,27 @@ WEIGHT_NAMES = {
 # citations still accruing — only made noisier. The recency lag is not applied to these,
 # which is what lets them reach a year that the raw-citation weights cannot.
 YEAR_NORMALISED = ("n_fcr", "n_mncs")
+
+# =============================================================================
+# WHICH WEIGHTS MAY BECOME A RATIO
+# =============================================================================
+# `rci_<w>` divides UK Biobank's mean weight in a field by the whole database's, pooled
+# over the impact window. That pooling is only safe when each paper has ALREADY been
+# normalised against its own publication year, because the two arms' papers are not
+# spread over the window the same way: UK Biobank's output is still ramping, so over
+# 2014-2023 between 76% and 86% of its papers in its top fields are from the last four
+# years, against 44-49% of the world's. A weight that accrues with age therefore enters
+# the numerator's mean with a far younger population than the denominator's, and the
+# ratio comes out too low — pooled 1.83 against a year-controlled 2.15 for Epidemiology,
+# and 1.90 against 2.66 for Biological Psychology.
+#
+# So `n_cit` (and `n_recent`) get NO rci_/act_ column. They stay in the frames, because
+# a SHARE of a field's citations is a perfectly good measure — the numerator and the
+# denominator are then the same set of papers, and the composition cancels — but they
+# are not turned into a mean-over-mean ratio. Everything below is per-year normalised
+# before it is aggregated: mncs against the field-year mean, top10f/top50f against a
+# field-year cut-off, fcr and top10 against a year (or year-type) reference.
+RCI_WEIGHTS = ("n_fcr", "n_mncs", "n_top10", "n_top10f", "n_top50f")
 
 # =============================================================================
 # WHAT THE ACTIVITY INDEX IS MEASURED AGAINST
@@ -294,7 +322,7 @@ def build(counts_dir, col_type, *, level, rcdc_view="all", year_min, year_max,
       vocabulary  TOP_CODES, TOP_LABELS, FIELD_COLORS, CODE_LABEL, label_of
       guards      GOOD_YEARS, BAD_YEARS, DENOM_OK, WHOLE_DB_OK, DENOM_NOTE, SKEWED
                   CITE_YEARS, CITE_WIN, CITE_OK
-      measures    MEASURES, WEIGHTS_PRESENT, VALUE, ACTIVITY, OVERALL
+      measures    MEASURES, WEIGHTS_PRESENT, RCI_WEIGHTS, VALUE, ACTIVITY, OVERALL, MEAN
       labels      SYSTEM, UNIT, LEVEL, VIEW_NOTE, FILE_TAG
       helpers     share_at, pct, short, impact_table, rci_timeseries
     """
@@ -327,6 +355,9 @@ def build(counts_dir, col_type, *, level, rcdc_view="all", year_min, year_max,
     measures = [c for c in all_measures if _carries(ukbb, c) and _carries(background, c)]
     one_armed = [c for c in all_measures if c not in measures]
     weights_present = [w for w in CITATION_WEIGHTS if w in measures]
+    # The subset that may become an rci_/act_ ratio — see RCI_WEIGHTS above. The rest
+    # stay available as shares and as descriptive means.
+    rci_weights = [w for w in weights_present if w in RCI_WEIGHTS]
 
     # The notebook's CITE_HEADLINE is a REQUEST, not a fact: which weights exist depends
     # on how the counts were built, and the API pathway has no FCR at all. Honour it when
@@ -358,6 +389,11 @@ def build(counts_dir, col_type, *, level, rcdc_view="all", year_min, year_max,
         print(f"  measures: {', '.join(measures)}")
         print(f"  citation weights: {', '.join(weights_present) or 'none — re-run the '
               'count job with --weights cit,fcr,top10'}")
+        _no_ratio = [w for w in weights_present if w not in rci_weights]
+        if _no_ratio:
+            print(f"  no relative ratio for {', '.join(_no_ratio)} — not normalised by "
+                  f"publication year, and the two arms'\n     papers are not spread over "
+                  f"the window alike. Shares and means only (see RCI_WEIGHTS).")
 
     # -- RCDC only: keep one slice of the mixed vocabulary --------------------------
     # Applied to BOTH arms, so numerator and denominator describe the same slice.
@@ -597,7 +633,7 @@ def build(counts_dir, col_type, *, level, rcdc_view="all", year_min, year_max,
         # Same base as everywhere else, recomputed on the impact window so the volume
         # and impact columns describe the same years.
         out["activity_x"] = activity_index(win).reindex(w.index)
-        for wt in weights_present:
+        for wt in rci_weights:
             key = wt[2:]
             u_docs, w_docs = u[f"{wt}_docs{frac_sfx}"], w[f"{wt}_docs{frac_sfx}"]
             u_mean = u[f"{wt}{frac_sfx}"] / u_docs.where(u_docs > 0)
@@ -648,13 +684,18 @@ def build(counts_dir, col_type, *, level, rcdc_view="all", year_min, year_max,
         return (u.reindex(w.index) / w.where(w > 0) * 100).clip(lower=0)
 
     impact = impact_table() if cite_ok else None
-    overall = {}
+    overall, mean = {}, {}
     if cite_ok:
         _u = ukbb[ukbb.year.between(*cite_win)]
         _w = whole[whole.year.between(*cite_win)]
-        for wt in weights_present:
+        for wt in rci_weights:
             overall[wt[2:]] = ((_u[f"{wt}{frac_sfx}"].sum() / _u[f"{wt}_docs{frac_sfx}"].sum())
                                / (_w[f"{wt}{frac_sfx}"].sum() / _w[f"{wt}_docs{frac_sfx}"].sum()))
+        # The descriptive means for every weight, ratio or not: a chart that wants to
+        # SHOW raw citations per paper still needs them, it just must not divide them.
+        for wt in weights_present:
+            mean[wt] = (_u[f"{wt}{frac_sfx}"].sum() / _u[f"{wt}_docs{frac_sfx}"].sum(),
+                        _w[f"{wt}{frac_sfx}"].sum() / _w[f"{wt}_docs{frac_sfx}"].sum())
 
     return dict(
         ukbb=ukbb, background=background, whole=whole,
@@ -666,6 +707,9 @@ def build(counts_dir, col_type, *, level, rcdc_view="all", year_min, year_max,
         WHOLE_DB_OK=whole_db_ok, DENOM_NOTE=denom_note, WHOLE_DB_MSG=whole_db_msg,
         SKEWED=skewed,
         MEASURES=measures, WEIGHTS_PRESENT=weights_present, WEIGHT_NAMES=WEIGHT_NAMES,
+        # The weights that carry an rci_/act_ column, and the pooled (ukbb, whole) means
+        # of every weight whether it does or not.
+        RCI_WEIGHTS=rci_weights, MEAN=mean,
         VALUE=value, ACTIVITY=activity, AFTER_WIN=after_win,
         FRAC_OK=frac_ok, FRAC_COL=frac_col, FRAC_SFX=frac_sfx,
         CITE_HEADLINE=cite_headline,

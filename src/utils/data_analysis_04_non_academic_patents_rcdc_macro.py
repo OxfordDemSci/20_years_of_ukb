@@ -383,4 +383,4 @@ if __name__ == "__main__":
 
 
 
-# python3 data_analysis_06_patents_rcdc_macro.py --input /Users/valler/Python/RA/20_years_of_ukb/data/analysis/non_academic/patent/category/patents_for_macro_rcdc.csv --npmi --threshold 0.01 --repeats 10 --resolution 1
+# python3 data_analysis_04_non_academic_patents_rcdc_macro.py --input /Users/valler/Python/RA/20_years_of_ukb/data/analysis/non_academic/patent/category/patents_for_macro_rcdc.csv --npmi --threshold 0.01 --repeats 10 --resolution 1

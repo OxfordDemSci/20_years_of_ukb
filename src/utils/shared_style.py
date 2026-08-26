@@ -144,3 +144,25 @@ def load_style(notebook, path=None, activate=True) -> dict:
         use_style(style)
         apply_style(style)
     return style
+
+
+def year_ticks(lo, hi, step: int = 2) -> list:
+    """Tick years for a time axis, anchored on the LAST year rather than the first.
+
+    `range(lo, hi + 1, step)` and `MultipleLocator(step)` both anchor at the low end, so
+    whether the final year gets a label is an accident of parity: a 2014-2023 axis at
+    step 2 labels 2014, 2016, 2018, 2020, 2022 and leaves the last point sitting past an
+    unlabelled tick. A reader then takes the axis at its word and reads the series as
+    ending in 2022 — which is exactly the misreading this analysis has to avoid, because
+    the last year is the one every citation measure is arguing about.
+
+    Anchoring at `hi` instead guarantees the endpoint is labelled and costs nothing: the
+    ticks are just as evenly spaced, they simply run backwards from the end.
+
+        year_ticks(2014, 2023)      -> [2015, 2017, 2019, 2021, 2023]
+        year_ticks(2013, 2024, 3)   -> [2015, 2018, 2021, 2024]
+    """
+    lo, hi = int(lo), int(hi)
+    if hi < lo:
+        lo, hi = hi, lo
+    return list(range(hi, lo - 1, -int(step)))[::-1]

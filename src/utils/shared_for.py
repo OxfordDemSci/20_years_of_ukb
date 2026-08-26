@@ -7,7 +7,7 @@ WHY THIS EXISTS
 Dimensions exports have changed the FOR column name between snapshots:
 
     data/df_dimensions.xlsx (retired)                  ->  `category_for_2020`
-    data/showcase/showcase_plus_all_endpoint.parquet   ->  both, identical contents
+    data/showcase/showcase+/showcase_plus_all_endpoint.parquet  ->  both, identical contents
 
 The *contents* are identical in structure — the same 2020 ANZSRC taxonomy, the same
 2-digit / 4-digit codes, the same divisions ('32 Biomedical and Clinical Sciences',

@@ -44,20 +44,42 @@ The subtraction reports every cell it had to clamp at zero — a cell going nega
 means the UK Biobank arm is claiming papers the live index no longer has, which is a
 sign the seam matters for that year, not a rounding error.
 
-FRACTIONAL COUNTS ARE NOT AVAILABLE HERE
-----------------------------------------
-`n_frac` is written as NaN, because splitting a paper's weight across its categories
-needs the per-paper category list and the API only returns totals. The analysis module
-detects an arm with no usable `n_frac` and falls back to whole counting for the
-activity index, saying so when it does. Every citation-weighted column is likewise
-absent from this path: use the VM job for those.
+FRACTIONAL COUNTS ARE NOT AVAILABLE FOR THE BACKGROUND ARM
+----------------------------------------------------------
+`n_frac` is NaN on the background side, because splitting a paper's weight across its
+categories needs the per-paper category list and a facet only returns totals. The UK
+Biobank arm has it (it is fetched per paper), but a measure only one arm carries is
+dropped by the analysis module, which then falls back to whole counting for the activity
+index and says so. Citation weights are a different story and this docstring used to get
+it wrong: `ukbb` fetches `times_cited`, `field_citation_ratio` and `recent_citations` per
+paper, `whole` brings back `citations_avg` and `citations_median` per cell, and
+`percentiles` measures the real per-field cut-offs by counting. What the API cannot give is a
+per-paper FCR for the background arm — only `fcr_gavg`, a geometric mean that cannot be
+summed into a comparable column — so `fcr` is the one weight that ends up one-armed.
 
 MODES
 -----
-    check    authenticate, run one trivial query, print what came back
-    codes    refresh the FOR code list (id <-> code <-> name) from the API
-    counts   the year x field matrix -> partials in the VM schema
-    selftest exercise the table building on synthetic data; no network, no key
+    check      authenticate, run one trivial query, print what came back
+    codes      refresh the FOR code list (id <-> code <-> name) from the API
+    counts     the year x field matrix -> partials in the VM schema
+    whole      whole-database facets + the reference means and medians
+    ukbb        UK Biobank's arm, fetched per paper and scored
+    percentiles the MEASURED per-field cut-offs — top decile AND median in one pass,
+                binary-searched by counting (`deciles` is kept as an alias)
+    background  whole - ukbb, cell by cell
+    all         the four above in the order they have to run
+    calibrate  LEGACY: K for the top10p proxy, superseded by `deciles`
+    selftest   exercise the table building on synthetic data; no network, no key
+
+THE ORDER IS NOT NEGOTIABLE
+---------------------------
+    whole -> ukbb -> percentiles -> ukbb -> background
+
+`whole` first, because its `citations_avg` is the reference every per-paper score is
+normalised against. `percentiles` cannot run before `ukbb`, because it reads the UK Biobank
+cells to decide which thresholds are worth paying for — and `ukbb` then has to run AGAIN
+to score each paper against the cut-offs it just measured. The records are cached, so the
+second `ukbb` costs nothing. `all` does all five steps in that order.
 
 Author: Jiani Y
 Date: 2026-08-16
@@ -405,14 +427,14 @@ def records_to_counts(records: Iterable[dict], codes, category: str, arm: str,
                         # Above the MEDIAN of the same (year, field): the top decile's
                         # coarser sibling, and the one that says how much of UK Biobank's
                         # output is in the better-cited half rather than the best tenth.
-                        # The median comes straight from the whole-database facet
-                        # (citations_median), so it needs no extra queries — but it is
-                        # INTERPOLATED, and citation counts are small integers with heavy
-                        # ties, so ">= median" lands a little off 50% in either direction
-                        # for a low-citation field. Read the band, not its third decimal.
+                        # Measured by `percentiles` where it could be (an integer cut-off
+                        # counted against the live index), and only otherwise the facet's
+                        # interpolated citations_median — see load_field_medians for what
+                        # the difference costs.
                         med = (field_medians or {}).get((year, level, code))
-                        v = ((1.0 if float(cit) >= med else 0.0)
-                             if (med is not None and med == med and cit is not None)
+                        mthr = med[0] if isinstance(med, tuple) else med
+                        v = ((1.0 if float(cit) >= mthr else 0.0)
+                             if (mthr is not None and mthr == mthr and cit is not None)
                              else None)
                     elif w == "top10p":
                         # the proxy: top-decile IF the distribution's shape is the same
@@ -712,35 +734,72 @@ def load_calibration(out: Path) -> Dict[tuple, float]:
 
 
 # =============================================================================
-# MODE: deciles  — the MEASURED per-field top decile, by counting
+# MODE: percentiles  — the MEASURED per-field cut-offs, by counting
 # =============================================================================
-# There is no percentile aggregation beyond citations_median, but a percentile does not
-# need one: the count of papers at or above a citation count is a filter away, so the
-# threshold can be binary-searched exactly.
+# There is no percentile aggregation in the DSL beyond citations_median, but a percentile
+# does not need one: the count of papers at or above a citation count is a filter away, so
+# the cut-off can be binary-searched exactly.
 #
 #     search publications where year=Y and category_for_2020.id="F"
 #           and times_cited>=X return publications limit 1     ->  _stats.total_count
 #
-# About six queries per cell brackets it. That is the real PP(top 10%) — the same thing
-# the VM job computes from its histograms — and it supersedes the top10p proxy wherever
-# it is measured.
+# That is the real PP(top 10%) — the same thing the VM job computes from its histograms —
+# and it supersedes the top10p proxy wherever it is measured.
 #
-# WHICH CELLS. Every (year, field) UK Biobank publishes in is ~570 cells and two hours;
-# restricting to cells where it has at least --min-ukbb papers covers 93% of its
-# paper-cells in a third of that. Cells left unmeasured keep the proxy, and the analysis
+# WHY THE MEDIAN IS MEASURED HERE TOO, RATHER THAN TAKEN FROM THE FACET.
+# `citations_median` does come back with every whole-database facet row, free, and this
+# job used to cut the n_top50f band on it. It is an INTERPOLATED percentile over a
+# distribution of small integers with enormous ties, so it comes back fractional — 1,873
+# of 2,052 L4 cells in the last run — and `times_cited >= 2.02` is really `>= 3`, which
+# throws away every paper sitting exactly ON the median. Worse, nothing measured what
+# share of the field that cut actually kept, so the background arm had to IMPUTE it as
+# half the papers. Measuring it removes both problems at once: an integer cut-off, and
+# `n_at_or_above`, the field's real count above it — exactly what the decile already had.
+#
+# ONE PASS, MANY PERCENTILES. The per-cell queries — the cell's size, its mean, and every
+# `times_cited>=k` probe — are shared across the percentiles being measured, and the
+# percentiles are searched in ASCENDING order so each one's cut-off is a hard upper bound
+# on the next one's bracket (the median cut can never exceed the decile cut). Measuring
+# 10 and 50 together therefore costs about a third more than measuring 10 alone, not
+# twice as much.
+#
+# WHICH CELLS. Every (year, field) UK Biobank publishes in is ~680 cells and five hours;
+# --min-ukbb 10 measures the 254 of them that carry enough UK Biobank papers for a rate to
+# mean anything, which is every cell the notebooks actually draw (they drop thinner ones
+# themselves, at the same floor). Cells left unmeasured keep the proxy, and the analysis
 # counts each paper only in the measure it actually has (that is what the _docs counters
 # are for), so mixing them does not corrupt a mean — it narrows what the mean is over.
 #
-# THE MEDIAN NEEDS NONE OF THIS. `citations_median` comes back with every whole-database
-# facet row, so the 50th percentile is already in api_whole.<category>.parquet for every
-# (year, field) at no query cost — that is what `load_field_medians` reads and what the
-# n_top50f weight is cut on. Only the tail has to be searched for.
+# ALREADY-MEASURED CELLS ARE SKIPPED. The destination is read first and a cell measured at
+# every percentile asked for is not paid for again, so lowering --min-ukbb tops up rather
+# than restarts, and a run killed halfway resumes from its last checkpoint. --remeasure
+# overrides that for when the live index has moved far enough to matter.
+#
+# WHAT A CELL CAN FAIL TO SUPPORT. Citations are lumpy and a recent year is mostly zeros,
+# so a percentile is often unreachable: the cut lands at >=1 citation and keeps 42% of the
+# field, not 50%, because more than half of it is uncited. The row records what it
+# achieved (`achieved_pct`) and what the next cut down would have kept (`prev_pct`), so
+# the gap between them is the tie mass that could not be split. Nothing is rounded into
+# looking exact.
 #
 # ACROSS TYPES, not per type. The VM job thresholds per (year, type, field); here the
 # cell is (year, field) over all types. The field cell is dominated by articles, and
 # splitting it would double the query cost while making the preprint sub-cells too thin
 # to place a decile in at all (see the calibration in §4.3).
-def cmd_deciles(args: argparse.Namespace) -> None:
+def parse_percentiles(raw) -> list:
+    """"10,50" -> [10.0, 50.0], ascending, de-duplicated, validated."""
+    if isinstance(raw, (int, float)):
+        raw = str(raw)
+    try:
+        pcts = sorted({round(float(x), 3) for x in str(raw).split(",") if x.strip()})
+    except ValueError:
+        sys.exit(f"--percentiles wants a comma-separated list of numbers, got {raw!r}")
+    if not pcts or any(not 0 < x < 100 for x in pcts):
+        sys.exit(f"--percentiles must all be strictly between 0 and 100, got {pcts}")
+    return pcts
+
+
+def cmd_percentiles(args: argparse.Namespace) -> None:
     import pandas as pd
 
     out = Path(args.out)
@@ -751,92 +810,215 @@ def cmd_deciles(args: argparse.Namespace) -> None:
     u = pd.read_parquet(counts_path)
     u = u[u.year.between(args.year_min, args.year_max) & (u.n_papers >= args.min_ukbb)]
     cells = sorted({(int(r.year), r.level, r.code) for r in u.itertuples()})
-    print(f"{len(cells):,} (year, field) cells with >= {args.min_ukbb} UK Biobank papers "
-          f"-> ~{len(cells) * 6:,} queries, ~{len(cells) * 6 * args.sleep / 60:.0f} min")
+    pcts = parse_percentiles(getattr(args, "percentiles", None) or args.percentile)
+
+    # RESUME. Every row in the destination cost real queries, so a cell already measured
+    # at every percentile being asked for is skipped rather than paid for twice. That is
+    # what makes a top-up cheap: dropping --min-ukbb from 20 to 10 measures the cells the
+    # lower floor adds, not the ones the higher floor already covered. --remeasure forces
+    # the whole set (the live index moves, so a cut-off does go stale eventually).
+    dest_path = Path(args.out) / f"field_thresholds.{args.category}.csv"
+    n_skipped = 0
+    if dest_path.exists() and not getattr(args, "remeasure", False):
+        done = pd.read_csv(dest_path, dtype={"code": str})
+        if "percentile" not in done.columns:
+            done["percentile"] = 10.0
+        have = {}
+        for r in done.itertuples():
+            have.setdefault((int(r.year), r.level, str(r.code)), set()).add(
+                round(float(r.percentile), 3))
+        wanted = {round(x, 3) for x in pcts}
+        keep = [c for c in cells if not wanted <= have.get(c, set())]
+        n_skipped = len(cells) - len(keep)
+        cells = keep
+        if n_skipped:
+            print(f"{n_skipped:,} cell(s) already measured at percentile(s) "
+                  f"{', '.join(f'{x:g}' for x in pcts)} — skipping them "
+                  f"(--remeasure to redo)")
+    if not cells:
+        print("nothing left to measure")
+        return
+    # One query for the cell (size + mean together), ~7 probes to bracket and bisect the
+    # first percentile, ~4 for each one after it because the previous cut-off caps the
+    # bracket and the probes already made are cached.
+    per_cell = 1 + 8 + 4 * (len(pcts) - 1)
+    print(f"{len(cells):,} (year, field) cell(s) to measure "
+          f"(>= {args.min_ukbb} UK Biobank papers"
+          + (f", {n_skipped:,} already done" if n_skipped else "") + ") "
+          f"x percentile(s) {', '.join(f'{x:g}' for x in pcts)}\n"
+          f"-> ~{len(cells) * per_cell:,} queries, "
+          f"~{len(cells) * per_cell * args.sleep / 60:.0f} min")
 
     codes = load_codes(Path(args.codes))
     id_of = {(r.level, r.code): i for i, r in codes.iterrows()}
     field = CATEGORY_FIELDS[args.category]
     api = Dimensions(load_config(Path(args.config), args.instance), sleep=args.sleep)
-    pct = args.percentile
 
     def total(year, fid, extra=""):
         r = api.query(f"search publications where year={year} and "
                       f'{field}.id="{fid}"{extra} return publications limit 1')
         return int(r.get("_stats", {}).get("total_count", 0))
 
-    rows, t0 = [], time.time()
+    def cell_stats(year, fid):
+        """The cell's size AND its mean citation count, in one query.
+
+        The aggregate query carries `_stats.total_count` like any other search, so
+        asking for the size separately would pay twice for the same filter.
+        """
+        r = api.query(f"search publications where year={year} and "
+                      f'{field}.id="{fid}" return year aggregate citations_avg limit 5')
+        row = next((x for x in r.get("year", []) if int(x["id"]) == year), None)
+        n = int(r.get("_stats", {}).get("total_count", 0) or 0)
+        if not n and row:
+            n = int(row.get("count") or 0)
+        return n, (float(row.get("citations_avg") or 0) if row else 0.0)
+
+    dest = out / f"field_thresholds.{args.category}.csv"
+
+    def merge_write(new_rows):
+        """Fold `new_rows` into the destination CSV and return the whole table.
+
+        MERGE, never overwrite. A second run is normally a top-up — a couple of early
+        years, a lower --min-ukbb, another percentile — and writing only what this run
+        measured would silently throw away every cell the last run paid for. Rows
+        measured again win; the rest survive. The percentile is part of a row's identity,
+        so the decile and the median of one cell do not overwrite each other.
+        """
+        df = pd.DataFrame(new_rows)
+        if dest.exists():
+            old_df = pd.read_csv(dest, dtype={"code": str})
+            if "percentile" not in old_df.columns:
+                old_df["percentile"] = 10.0   # a file from before this mode existed
+            if len(df):
+                keys = ["year", "level", "code", "percentile"]
+                df = (pd.concat([old_df, df.astype({"code": str})], ignore_index=True)
+                      .drop_duplicates(subset=keys, keep="last")
+                      .sort_values(keys).reset_index(drop=True))
+            else:
+                df = old_df
+        if len(df):
+            df.to_csv(dest, index=False)
+        return df
+
+    rows, n_new, t0 = [], 0, time.time()
     for i, (year, level, code) in enumerate(cells, 1):
         fid = id_of.get((level, code))
         if fid is None:
             continue
-        n = total(year, fid)
+        n, mean = cell_stats(year, fid)
         if n < args.min_papers:
             continue
-        target = n * pct / 100.0
-        lo, hi = 1, max(10, int(12 * (1 + n ** 0.0)))   # widened below from the mean
-        # Bracket from the cell's own mean: the threshold sits near 2.4x it, so start
-        # from 6x and only widen if that is still above the target.
-        mean_r = api.query(f"search publications where year={year} and "
-                           f'{field}.id="{fid}" return year aggregate citations_avg limit 5')
-        mrow = next((x for x in mean_r.get("year", []) if int(x["id"]) == year), None)
-        mean = float(mrow.get("citations_avg") or 0) if mrow else 0.0
-        hi = max(10, int(8 * mean) + 2)
-        while total(year, fid, f" and times_cited>={hi}") > target:
-            hi *= 2
-        while lo < hi:
-            mid = (lo + hi) // 2
-            if total(year, fid, f" and times_cited>={mid}") > target:
-                lo = mid + 1
+
+        # Every probe this cell makes, kept: the percentiles walk overlapping ranges of k
+        # and the bisections revisit the same values, so the cache is most of the saving
+        # from measuring them together.
+        seen: Dict[int, int] = {}
+
+        def at(k, _year=year, _fid=fid, _n=n):
+            """How many papers in this cell have at least k citations."""
+            if k <= 0:
+                return _n
+            if k not in seen:
+                seen[k] = total(_year, _fid, f" and times_cited>={k}")
+            return seen[k]
+
+        cap = None          # the cut-off of the previous (coarser) percentile
+        for pct in pcts:
+            target = n * pct / 100.0
+            # Bracket. For the first percentile, from the cell's own mean: the tail
+            # cut-off sits near a few times it, so start at 8x and widen if that is
+            # still above the target. Afterwards the previous cut-off IS the bracket —
+            # a cut that keeps 10% of the field cannot be below one that keeps 50%.
+            if cap is not None:
+                hi = cap
             else:
-                hi = mid
-        n_at = total(year, fid, f" and times_cited>={lo}")
-        rows.append({"category": args.category, "year": year, "level": level,
-                     "code": code, "n_papers": n, "mean_cit": round(mean, 4),
-                     "percentile": pct, "threshold": lo, "n_at_or_above": n_at,
-                     "achieved_pct": round(100 * n_at / n, 3),
-                     "k_vs_mean": round(lo / mean, 4) if mean else None})
+                hi = max(10, int(8 * mean) + 2)
+                while at(hi) > target:
+                    hi *= 2
+            lo = 1
+            while lo < hi:
+                mid = (lo + hi) // 2
+                if at(mid) > target:
+                    lo = mid + 1
+                else:
+                    hi = mid
+            n_at, n_prev = at(lo), at(lo - 1)
+            cap = lo
+            rows.append({"category": args.category, "year": year, "level": level,
+                         "code": code, "n_papers": n, "mean_cit": round(mean, 4),
+                         "percentile": pct, "threshold": lo, "n_at_or_above": n_at,
+                         "achieved_pct": round(100 * n_at / n, 3),
+                         # What the next cut down would have kept. The gap to
+                         # achieved_pct is the tie mass at the cut-off — the reason a
+                         # percentile is usually unreachable exactly, and the honest
+                         # measure of how well this cell supports one at all.
+                         "prev_pct": round(100 * n_prev / n, 3),
+                         "k_vs_mean": round(lo / mean, 4) if mean else None})
         if i % 10 == 0 or i == len(cells):
             print(f"  {i}/{len(cells)} cells, {api.n_queries} queries, "
                   f"{time.time() - t0:.0f}s", flush=True)
+        # Checkpoint. This pass is hours long and every row in it cost real queries, so
+        # it is written down as it goes rather than held until the end, where one dropped
+        # connection would take the whole run with it. A resumed run re-measures only the
+        # cells the checkpoint never reached.
+        if rows and i % max(int(getattr(args, "checkpoint", 25) or 25), 1) == 0:
+            merge_write(rows)
+            n_new += len(rows)
+            rows = []
 
-    df = pd.DataFrame(rows)
-    dest = out / f"field_thresholds.{args.category}.csv"
-    # MERGE, never overwrite. A second run is normally a top-up — a couple of early years,
-    # or a lower --min-ukbb — and writing only what this run measured would silently throw
-    # away every cell the first run paid for. Rows measured again win; the rest survive.
-    n_new = len(df)
-    if dest.exists() and len(df):
-        old = pd.read_csv(dest, dtype={"code": str})
-        keys = ["year", "level", "code"]
-        merged = pd.concat([old, df.astype({"code": str})], ignore_index=True)
-        df = (merged.drop_duplicates(subset=keys, keep="last")
-              .sort_values(keys).reset_index(drop=True))
-        print(f"  merged with {len(old)} cell(s) already in {dest.name} "
-              f"-> {len(df)} total")
-    elif dest.exists():
-        df = pd.read_csv(dest, dtype={"code": str})
-    df.to_csv(dest, index=False)
-    print(f"\nwrote {dest}  ({n_new} cell(s) measured this run, {len(df)} in the file, "
+    n_new += len(rows)
+    df = merge_write(rows)
+    if df.empty:
+        print("\nno cells measured — nothing to write")
+        return
+    print(f"\nwrote {dest}  ({n_new} row(s) measured this run, {len(df)} in the file, "
           f"{api.n_queries} queries, {time.time() - t0:.0f}s)")
-    if len(df):
-        print(f"  achieved percentile: {df.achieved_pct.min():.2f}-{df.achieved_pct.max():.2f}% "
-              f"(median {df.achieved_pct.median():.2f}%)")
-        print(f"  threshold / mean:    {df.k_vs_mean.min():.2f}-{df.k_vs_mean.max():.2f} "
-              f"(median {df.k_vs_mean.median():.2f}) — the proxy assumes this is constant")
-    print("  re-run `ukbb` (records are cached, so it costs nothing) then `background`")
+    for pct, g in df.groupby("percentile"):
+        print(f"\n  percentile {pct:g}  ({len(g):,} cell(s))")
+        print(f"    cut-off:           {g.threshold.min():.0f}-{g.threshold.max():.0f} "
+              f"citations (median {g.threshold.median():.0f})")
+        print(f"    achieved:          {g.achieved_pct.min():.2f}-{g.achieved_pct.max():.2f}% "
+              f"(median {g.achieved_pct.median():.2f}%)")
+        if g.k_vs_mean.notna().any():
+            print(f"    cut-off / mean:    {g.k_vs_mean.min():.2f}-{g.k_vs_mean.max():.2f} "
+                  f"(median {g.k_vs_mean.median():.2f})")
+        # A cell whose achieved share falls well short of the target could not be cut
+        # there at all: the tie it had to split is bigger than the slice asked for,
+        # which in a recent year means most of the field is uncited.
+        short = g[g.achieved_pct < pct - 5]
+        if len(short):
+            print(f"    !! {len(short)} cell(s) fall >5 points short — the cut-off could "
+                  f"not split the ties\n       (worst {short.achieved_pct.min():.1f}% at "
+                  f"cut-off {int(short.loc[short.achieved_pct.idxmin(), 'threshold'])}; "
+                  f"years {short.year.min()}-{short.year.max()}). The count above it is "
+                  f"still exact —\n       what is approximate is calling it the "
+                  f"{pct:g}th percentile.")
+    print("\n  re-run `ukbb` (records are cached, so it costs nothing) then `background`")
 
 
-def load_field_thresholds(out: Path, category: str):
-    """(year, level, code) -> (threshold, n_at_or_above, n_papers) for measured cells."""
+def load_field_cuts(out: Path, category: str, percentile: float = 10.0):
+    """(year, level, code) -> (cut-off, n_at_or_above, n_papers) for measured cells.
+
+    `n_at_or_above` is the whole database's own count above that cut-off, which is what
+    lets the background arm be measured rather than imputed from the percentile.
+    """
     import pandas as pd
     path = out / f"field_thresholds.{category}.csv"
     if not path.exists():
         return {}
     df = pd.read_csv(path, dtype={"code": str})
+    if "percentile" in df.columns:
+        df = df[df.percentile.astype(float).round(3) == round(float(percentile), 3)]
+    elif round(float(percentile), 3) != 10.0:
+        return {}       # a file from before the percentiles mode holds the decile only
     return {(int(r.year), r.level, str(r.code)):
             (float(r.threshold), float(r.n_at_or_above), float(r.n_papers))
             for r in df.itertuples()}
+
+
+def load_field_thresholds(out: Path, category: str, percentile: float = 10.0):
+    """The top-decile cut-offs — the name the rest of this file has always used."""
+    return load_field_cuts(out, category, percentile)
 
 
 # =============================================================================
@@ -906,21 +1088,33 @@ def load_expected(out: Path, category: str) -> Dict[tuple, float]:
 
 
 def load_field_medians(out: Path, category: str):
-    """(year, level, code) -> the field-year MEDIAN citation count, from the facet.
+    """(year, level, code) -> (cut-off, n_at_or_above, n_papers) at the field-year median.
 
-    `citations_median` comes back with every whole-database facet row, so the 50th
-    percentile costs nothing beyond the `whole` mode that has already been run — unlike
-    the top decile, which has to be binary-searched cell by cell (`deciles`). That is
-    why the two cut-offs are sourced differently and why only one of them exists for
-    every (year, field) in the corpus.
+    TWO SOURCES, IN ORDER OF PREFERENCE.
+
+    1. MEASURED, by `percentiles --percentiles 50`: an integer cut-off found by counting,
+       plus the whole database's own count above it. Both arms then use the same rule and
+       nothing is imputed.
+    2. The facet's `citations_median`, which costs nothing but is an INTERPOLATED
+       percentile over small integers with heavy ties — it comes back fractional (0.1,
+       0.88, 2.02), so `>= median` silently means `>= ceil(median)` and no count of the
+       field above it exists. Used only where nothing was measured, and the caller is
+       told which it got.
+
+    The tuple shape is shared with `load_field_cuts` so the two cut-offs are consumed
+    identically; the fallback carries NaN where it has no measured count.
     """
     import pandas as pd
+    measured = load_field_cuts(out, category, 50.0)
+    if measured:
+        return measured
     path = out / f"api_whole.{category}.parquet"
     if not path.exists() or "api_citations_median" not in pd.read_parquet(
             path, columns=None).columns:
         return {}
     df = pd.read_parquet(path)
-    return {(int(r.year), r.level, str(r.code)): float(r.api_citations_median)
+    nan = float("nan")
+    return {(int(r.year), r.level, str(r.code)): (float(r.api_citations_median), nan, nan)
             for r in df.itertuples()
             if r.api_citations_median == r.api_citations_median}
 
@@ -954,13 +1148,19 @@ def cmd_ukbb(args: argparse.Namespace) -> None:
         print(f"  top-decile MEASURED in {len(field_thresholds)} (year, field) cells")
     field_medians = load_field_medians(out, args.category)
     if field_medians:
+        _measured = any(v[1] == v[1] for v in field_medians.values()
+                        if isinstance(v, tuple))
         print(f"  field-year MEDIAN available in {len(field_medians)} cells "
-              f"(from the whole-database facet, no extra queries)")
+              + ("(MEASURED by `percentiles`, integer cut-off)" if _measured else
+                 "(the facet's INTERPOLATED citations_median — run `percentiles "
+                 "--percentiles 50`\n   for a measured cut-off and a counted "
+                 "background arm)"))
     if calibration:
         print(f"  top-decile PROXY on: {len(calibration)} calibrated (year, type) cells")
-    else:
-        print("  no top10_calibration.csv — run the `calibrate` mode to add the "
-              "top-decile proxy (the analysis works without it)")
+    elif not field_thresholds:
+        print("  no measured cut-offs and no calibration — run `deciles` (then `ukbb` "
+              "again) for\n  the real per-field top decile. The legacy `calibrate` "
+              "proxy is no longer read by the notebooks.")
     counts, totals = records_to_counts(records, codes, args.category, "ukbb",
                                        args.year_min, args.year_max, expected,
                                        calibration, field_thresholds, field_medians)
@@ -1013,14 +1213,24 @@ def cmd_background(args: argparse.Namespace) -> None:
     if "u_n_top10p" in bg.columns:
         bg["n_top10p"] = bg.n_papers * (args.percentile / 100.0) - bg.u_n_top10p
         bg["n_top10p_docs"] = bg.n_papers - bg.u_n_top10p_docs
-    # Half of a field-year's papers are at or above its median — that is what a median
-    # IS — so the whole arm's figure needs no measurement either, and subtracting UK
-    # Biobank's leaves the rest of the world's. The one caveat is ties: the facet's
-    # median is interpolated and citation counts are small integers, so in a field where
-    # a fifth of the papers sit on the median value itself the true "at or above" share
-    # is a few points off 50. It biases the RATIO by that much and the notebook's
-    # median band, which divides by n_papers rather than by this, not at all.
-    if "u_n_top50f" in bg.columns:
+    # The median cut, measured the same way as the decile wherever `percentiles` ran at
+    # 50: n_at_or_above is the field's own count above the cut-off, so this arm is counted
+    # rather than assumed. Where it was not measured the old imputation stands — half a
+    # field-year's papers are at or above its median, which is what a median IS — but the
+    # facet's median is interpolated and its ties make the true share a few points off 50,
+    # so the fallback is flagged rather than silent.
+    med_cuts = load_field_cuts(out, args.category, 50.0)
+    if med_cuts and "u_n_top50f" in bg.columns:
+        key = list(zip(bg.year.astype(int), bg.level, bg.code.astype(str)))
+        bg["w_top50f"] = [med_cuts.get(k, (None, float("nan"), None))[1] for k in key]
+        bg["n_top50f"] = bg.w_top50f - bg.u_n_top50f
+        bg["n_top50f_docs"] = bg.n_papers.where(bg.w_top50f.notna()) - bg.u_n_top50f_docs
+        print(f"  median cut MEASURED in {int(bg.w_top50f.notna().sum()):,} cell(s) — the "
+              f"above-median arm is counted, not imputed")
+        bg = bg.drop(columns=["w_top50f"])
+    elif "u_n_top50f" in bg.columns:
+        print("  !! no measured median cut (run `percentiles --percentiles 50`) — the "
+              "above-median\n     arm falls back to imputing half the field")
         _has_med = bg.api_citations_median.notna()
         bg["n_top50f"] = (bg.n_papers * 0.5).where(_has_med) - bg.u_n_top50f
         bg["n_top50f_docs"] = bg.n_papers.where(_has_med) - bg.u_n_top50f_docs
@@ -1074,13 +1284,39 @@ def cmd_background(args: argparse.Namespace) -> None:
 
 
 def cmd_all(args: argparse.Namespace) -> None:
+    """whole -> [calibrate] -> ukbb -> percentiles -> ukbb -> background.
+
+    The second `ukbb` is not a mistake and not a retry: `percentiles` measures the
+    per-field cut-offs from the cells the first pass found, and only a second pass can
+    score each paper against them. It re-reads the cached records, so it costs no queries.
+    """
     cmd_whole(args)
     print()
-    if not (Path(args.out) / "top10_calibration.csv").exists() or args.recalibrate:
-        cmd_calibrate(args)
-    print()
+    # The top10p proxy is legacy — `deciles` measures the real thing — so the calibration
+    # is opt-in now rather than automatic. The analysis module no longer reads the column.
+    if args.calibrate or args.recalibrate:
+        if not (Path(args.out) / "top10_calibration.csv").exists() or args.recalibrate:
+            cmd_calibrate(args)
+            print()
     cmd_ukbb(args)
     print()
+    if args.skip_deciles:
+        print("skipping `percentiles` (--skip-percentiles): this run will have NO measured "
+              "cut-offs,\nand charts 8-10 of the notebook will sit out.\n")
+    else:
+        # `--min-papers` means two different things to the two modes it reaches here:
+        # calibrate's floor is per (year, type) over the whole corpus (1,000), the
+        # percentile pass's is per (year, field) and has to be far lower (200) or most
+        # fields never get a cut-off. One flag cannot be both, so it gets its own.
+        import copy
+        dargs = copy.copy(args)
+        dargs.min_papers = args.deciles_min_papers
+        cmd_percentiles(dargs)
+        print()
+        print("re-running `ukbb` to score each paper against the cut-offs just "
+              "measured\n(the records are cached, so this costs no queries)\n")
+        cmd_ukbb(args)
+        print()
     cmd_background(args)
 
 
@@ -1163,8 +1399,15 @@ def main() -> None:
   %(prog)s counts --out data/analysis/academic_impact/for_counts_api \\
       --ukbb-counts data/analysis/academic_impact/for_counts_out
 
-  # 3. the hybrid: both arms from the same index on the same day, ~72 queries
+  # 3. the hybrid: both arms from the same index on the same day.
+  #    whole -> ukbb -> percentiles -> ukbb -> background, in that order (see the module).
+  #    ~73 queries for the counts, plus ~3,600 for the measured cut-offs (~3 h at
+  #    --min-ukbb 10; a re-run skips what is already measured).
   %(prog)s all --category for
+  %(prog)s all --category for --skip-percentiles   # counts only, ~3 minutes
+
+  # 3b. the cut-offs on their own, once `ukbb` has run (both percentiles in one pass)
+  %(prog)s percentiles --category for --percentiles 10,50
 
   # 4. the same records serve RCDC too — they were fetched with both classifications
   %(prog)s whole --category rcdc && %(prog)s ukbb --category rcdc \\
@@ -1217,14 +1460,29 @@ def main() -> None:
     sp.add_argument("--percentile", type=float, default=10.0)
     sp.add_argument("--min-papers", type=int, default=1000)
 
-    sp = sub.add_parser("deciles",
-                        help="MEASURED per-field top decile, by counting (see the module)")
-    common(sp); window(sp)
-    sp.add_argument("--percentile", type=float, default=10.0)
-    sp.add_argument("--min-ukbb", type=int, default=20,
-                    help="only measure cells where UK Biobank has this many papers")
-    sp.add_argument("--min-papers", type=int, default=200,
-                    help="skip a field-year thinner than this in the whole database")
+    for _name in ("percentiles", "deciles"):     # `deciles` is the old name, kept working
+        sp = sub.add_parser(_name,
+                            help="MEASURED per-field cut-offs (decile AND median), by "
+                                 "counting — see the module")
+        common(sp); window(sp)
+        sp.add_argument("--percentiles", default="10,50",
+                        help="comma-separated percentiles to measure in one pass "
+                             "(default: 10,50 — the top decile and the median). They "
+                             "share every per-cell query, so the second costs about a "
+                             "third of the first")
+        sp.add_argument("--percentile", type=float, default=10.0,
+                        help="LEGACY single percentile; --percentiles supersedes it")
+        sp.add_argument("--min-ukbb", type=int, default=10,
+                        help="only measure cells where UK Biobank has this many papers "
+                             "(default 10: the floor the notebooks read at, so one pass "
+                             "covers every cell they draw)")
+        sp.add_argument("--remeasure", action="store_true",
+                        help="re-measure cells already in the file instead of resuming")
+        sp.add_argument("--min-papers", type=int, default=200,
+                        help="skip a field-year thinner than this in the whole database")
+        sp.add_argument("--checkpoint", type=int, default=25,
+                        help="write the measured rows to disk every N cells, so a run "
+                             "that dies keeps what it has already paid for")
 
     sp = sub.add_parser("whole", help="whole-database facets + the reference means")
     common(sp); window(sp)
@@ -1242,14 +1500,36 @@ def main() -> None:
     common(sp); window(sp)
     sp.add_argument("--percentile", type=float, default=10.0)
 
-    sp = sub.add_parser("all", help="whole, calibrate, ukbb, background")
+    sp = sub.add_parser("all",
+                        help="whole -> ukbb -> deciles -> ukbb -> background, in order")
     common(sp); window(sp)
     sp.add_argument("--ids",
                     default="data/analysis/academic_impact/for_counts_out/ukbb_ids.txt")
     sp.add_argument("--batch", type=int, default=ID_BATCH)
     sp.add_argument("--refresh", action="store_true")
+    sp.add_argument("--skip-percentiles", "--skip-deciles", action="store_true",
+                    dest="skip_deciles",
+                    help="leave out the measured per-field cut-offs (~3,000 queries, "
+                         "~110 min). The run then has no top-decile or median column")
+    sp.add_argument("--percentiles", default="10,50",
+                    help="percentiles the measuring pass should cover (default: 10,50)")
+    sp.add_argument("--checkpoint", type=int, default=25,
+                    help="percentiles: write measured rows to disk every N cells")
+    sp.add_argument("--min-ukbb", type=int, default=10,
+                    help="percentiles: only measure cells with this many UK Biobank "
+                         "papers (default 10, matching the notebooks' floor)")
+    sp.add_argument("--remeasure", action="store_true",
+                    help="percentiles: re-measure cells already in the file")
+    sp.add_argument("--deciles-min-papers", type=int, default=200,
+                    help="deciles: skip a (year, field) thinner than this in the whole "
+                         "database. Separate from --min-papers, which is calibrate's "
+                         "per-(year, type) floor")
+    sp.add_argument("--calibrate", action="store_true",
+                    help="LEGACY: also compute K for the top10p proxy. `deciles` "
+                         "measures the real cut-off, and the analysis no longer reads "
+                         "the proxy column")
     sp.add_argument("--recalibrate", action="store_true",
-                    help="redo the top-decile calibration even if it is already there")
+                    help="redo the legacy calibration even if it is already there")
     sp.add_argument("--types", default="article,preprint")
     sp.add_argument("--percentile", type=float, default=10.0)
     sp.add_argument("--min-papers", type=int, default=1000)
@@ -1261,7 +1541,8 @@ def main() -> None:
 
     args = p.parse_args()
     {"check": cmd_check, "codes": cmd_codes, "counts": cmd_counts,
-     "calibrate": cmd_calibrate, "deciles": cmd_deciles, "whole": cmd_whole,
+     "calibrate": cmd_calibrate, "percentiles": cmd_percentiles,
+     "deciles": cmd_percentiles, "whole": cmd_whole,
      "ukbb": cmd_ukbb,
      "background": cmd_background, "all": cmd_all,
      "selftest": cmd_selftest}[args.cmd](args)
