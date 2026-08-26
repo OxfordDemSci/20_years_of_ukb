@@ -1,0 +1,17 @@
+parameter,value
+input,data/showcase/showcase_plus/showcase_plus_all_endpoints_wide.parquet
+source_records,26109
+primary_records,23442
+first_year,2013
+last_complete_year,2025
+provisional_years_excluded,2026
+author_identity,Dimensions researcher_id
+unresolved_identity,paper-local key; no cross-paper linkage
+name_gender_dictionary,gender_guesser; offline
+hyperauthor_threshold,100
+leiden_resolution,1.0
+leiden_seed,48652
+network_layout,igraph Large Graph Layout (LGL)
+network_layout_iterations,100
+network_backbone_repeated_tie_limit,80000
+map_geometry,Natural Earth 1:110m Admin 0 Countries

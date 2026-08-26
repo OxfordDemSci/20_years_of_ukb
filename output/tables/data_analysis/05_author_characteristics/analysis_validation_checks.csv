@@ -1,0 +1,20 @@
+check,passed,observed,expected
+unique_source_publication_ids,True,26109,26109
+complete_year_window,True,2013-2025,2013-2025
+unique_author_paper_pairs,True,274603,274603
+authorship_credit_sums_to_one,True,1.1102230246251565e-16,<=1e-9
+country_credit_never_exceeds_one,True,1.0,<=1
+institution_credit_never_exceeds_one,True,1.0000000000000002,<=1
+institution_credit_conserved,True,2.220446049250313e-16,<=1e-9
+country_credit_conserved,True,1.1102230246251565e-16,<=1e-9
+fractional_credits_nonnegative,True,nonnegative,nonnegative
+ukb_h_index_bounded_by_papers,True,77,<= n_ukb_papers
+author_credit_concentration_monotonic,True,"20.5, 44.0, 57.5, 76.9, 91.3",nondecreasing; 0-100
+author_productivity_bands_exhaustive,True,69237,69237
+gender_shares_bounded,True,0-100,0-100
+network_years_complete,True,13,13
+network_author_coverage,True,69237,69237
+community_membership_complete,True,69237,69237
+network_adjacency_symmetric,True,0,0
+network_adjacency_zero_diagonal,True,0.0,0
+network_edge_count_matches_adjacency,True,3929125,3929125

@@ -1,0 +1,20 @@
+metric,definition
+Resolved author,An authorship carrying a Dimensions researcher_id; only these IDs are linked longitudinally.
+Unresolved authorship,An author-paper slot without a researcher_id. It receives a paper-local key and is never merged across papers by name.
+UKB h-index,Largest h for which an author or institution has h UK Biobank papers cited at least h times in the source snapshot.
+UKB g-index,Largest g for which the g most-cited UK Biobank papers received at least g squared citations in total.
+Fractional publication credit,"Each paper contributes one unit split equally among parsed authors, then equally among each author's distinct affiliations or countries."
+Author-credit concentration,Cumulative share of resolved-author fractional publication credit held by authors ranked at or above a stated top-percent threshold.
+Author productivity band,"Mutually exclusive grouping of resolved authors by their number of UK Biobank publications: 1, 2-4, 5-9 or 10+."
+Modal author assignment,"An author's most frequent FOR, institution or country after each paper is split equally across that paper's multiple assignments; ties are deterministic."
+Author home assignment,"Current organization metadata when its GRID record resolves; otherwise the author's modal observed affiliation, with the source flagged."
+Female-name share,Female-category author-paper pairs divided by female- plus male-category pairs; unknown and androgynous names are reported but excluded from this denominator.
+Expanded name rule,gender_guesser female/mostly_female and male/mostly_male calls grouped as Female and Male; all other calls Unknown.
+Strict name rule,Only exact female and male dictionary calls are classified; mostly_* and androgynous calls remain Unknown.
+Effective entities,Exponentiated Shannon entropy of annual fractional country or institution credit.
+Institutional concentration,Share of annual observed institutional fractional credit assigned to that year's leading one or ten institutions.
+Coauthor tie,An undirected link between two resolved authors appearing on at least one common paper.
+Fractional collaboration strength,"For a paper with n resolved authors, each coauthor edge receives 1/(n-1), so each author's collaboration credit from that paper sums to one."
+Giant component,Largest connected component of the cumulative resolved-author coauthorship graph.
+Hyperauthorship sensitivity,Parallel network calculation excluding papers with more than 100 resolved authors.
+Leiden community,"Weighted Leiden modularity partition of the final fractional coauthor graph (resolution 1, seed 48652)."

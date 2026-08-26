@@ -90,14 +90,12 @@ CT_CSV = CLINICAL_TRIALS / "clinical_trials.csv"
 CT_UKBB_PAPERS = CLINICAL_TRIALS / "ct_ukbb_papers.csv"
 PATENTS_DETAILED = PATENT / "patents_detailed.csv"
 POLICY_CSV = POLICY / "policy_documents.csv"
-# Read as a bare "altmetric.csv" / "output/..." relative to the notebook's cwd until
-# 2026-08-26, so both resolved differently depending on where the kernel was launched.
-ALTMETRIC_CSV = NON_ACADEMIC / "altmetric.csv"
-# The Altmetric export above is NOT in the repo and has no provenance record. This
-# is the substitute rebuilt from the corpus + the policy pull: same column names,
-# so a real export can be dropped in later and the notebook switches by path alone.
-# It is NOT equivalent — it carries no news mentions, and its "Policy mentions" are
-# Dimensions policy citations. See data_analysis_04_non_academic_altmetric_from_corpus.py.
+# API snapshot collected from the showcase_plus publication PIDs.
+ALTMETRIC_CSV = DATA / "altmetric" / "altmetric.csv"
+# Offline fallback rebuilt from the corpus + the policy pull. It is NOT equivalent
+# to the API snapshot above: it carries no news mentions, and its "Policy mentions"
+# are Dimensions policy citations. See
+# data_analysis_04_non_academic_altmetric_from_corpus.py.
 ALTMETRIC_DERIVED = NON_ACADEMIC / "altmetric_from_corpus.csv"
 COLLAB_FLAGGED = ROOT / "output" / "non_academic_flagged_full_company.xlsx"
 
@@ -120,6 +118,8 @@ TABLE_DATA_ANALYSIS = OUTPUT_TABLES / "data_analysis"
 FIG_GROWTH = FIG_DATA_ANALYSIS / "01_growth"
 TABLE_GROWTH = TABLE_DATA_ANALYSIS / "01_growth"
 FIG_AUTHORS = FIG_DATA_ANALYSIS / "01_authors"
+FIG_AUTHOR_CHARACTERISTICS = FIG_DATA_ANALYSIS / "05_author_characteristics"
+TABLE_AUTHOR_CHARACTERISTICS = TABLE_DATA_ANALYSIS / "05_author_characteristics"
 FIG_CONTENT = FIG_DATA_ANALYSIS / "02_content"
 FIG_NETWORK = FIG_DATA_ANALYSIS / "02_network"
 FIG_ACADEMIC_IMPACT = FIG_DATA_ANALYSIS / "03_academic_impact"
@@ -163,7 +163,8 @@ def ensure_dirs() -> None:
               CONTENT, BERTOPIC_CACHE, CLINICAL_TRIALS, PATENT,
               POLICY, DIMENSION_CACHE, DIMENSION_FLAT, OUTPUT_TABLES,
               FIG_GROWTH, TABLE_GROWTH,
-              FIG_AUTHORS, FIG_CONTENT, FIG_NETWORK, FIG_NON_ACADEMIC,
+              FIG_AUTHORS, FIG_AUTHOR_CHARACTERISTICS,
+              TABLE_AUTHOR_CHARACTERISTICS, FIG_CONTENT, FIG_NETWORK, FIG_NON_ACADEMIC,
               FIG_CLINICAL_TRIALS, FIG_ACADEMIC_IMPACT, FIG_PATENT):
         d.mkdir(parents=True, exist_ok=True)
 

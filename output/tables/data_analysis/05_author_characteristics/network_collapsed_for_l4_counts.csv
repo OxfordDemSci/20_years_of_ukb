@@ -1,0 +1,430 @@
+plot_node,modal_for_l4,n_authors,group_authors,author_share,rank
+Community 1,Genetics,3481,6891,0.5051516470758961,1
+Community 1,Epidemiology,1130,6891,0.16398200551443912,2
+Community 1,Clinical Sciences,620,6891,0.08997242780438253,3
+Community 1,Biological Psychology,564,6891,0.08184588593818024,4
+Community 1,Cardiovascular Medicine and Haematology,336,6891,0.048759251197213756,5
+Community 1,Medical Biochemistry and Metabolomics,105,6891,0.015237265999129298,6
+Community 1,Biochemistry and Cell Biology,81,6891,0.011754462342185459,7
+Community 1,Pharmacology and Pharmaceutical Sciences,64,6891,0.009287476418516906,8
+Community 1,Unclassified,59,6891,0.008561892323320273,9
+Community 1,Medical Physiology,39,6891,0.0056595559425337396,10
+Community 1,Nutrition and Dietetics,39,6891,0.0056595559425337396,11
+Community 1,Public Health,38,6891,0.005514439123494413,12
+Community 1,Paediatrics,37,6891,0.005369322304455086,13
+Community 1,Immunology,33,6891,0.00478885502829778,14
+Community 1,Reproductive Medicine,33,6891,0.00478885502829778,15
+Community 1,Health Services and Systems,29,6891,0.004208387752140473,16
+Community 1,Evolutionary Biology,25,6891,0.0036279204759831663,17
+Community 1,Bioinformatics and Computational Biology,23,6891,0.003337686837904513,18
+Community 1,Ophthalmology and Optometry,22,6891,0.0031925700188651864,19
+Community 1,Oncology and Carcinogenesis,20,6891,0.002902336380786533,20
+Community 1,Machine Learning,16,6891,0.0023218691046292266,21
+Community 1,Dentistry,12,6891,0.0017414018284719198,22
+Community 1,Ecology,12,6891,0.0017414018284719198,23
+Community 1,Medical Biotechnology,11,6891,0.0015962850094325932,24
+Community 1,Anthropology,10,6891,0.0014511681903932665,25
+Community 1,Ecological Applications,10,6891,0.0014511681903932665,26
+Community 1,Agricultural Biotechnology,8,6891,0.0011609345523146133,27
+Community 1,Allied Health and Rehabilitation Science,5,6891,0.0007255840951966333,28
+Community 1,Applied and Developmental Psychology,5,6891,0.0007255840951966333,29
+Community 1,Statistics,5,6891,0.0007255840951966333,30
+Community 1,Demography,4,6891,0.0005804672761573066,31
+Community 1,Sports Science and Exercise,4,6891,0.0005804672761573066,32
+Community 1,Clinical and Health Psychology,3,6891,0.00043535045711797995,33
+Community 1,Analytical Chemistry,2,6891,0.0002902336380786533,34
+Community 1,Neurosciences,2,6891,0.0002902336380786533,35
+Community 1,Applied Economics,1,6891,0.00014511681903932666,36
+Community 1,Biomedical Engineering,1,6891,0.00014511681903932666,37
+Community 1,Food Sciences,1,6891,0.00014511681903932666,38
+Community 1,Social and Personality Psychology,1,6891,0.00014511681903932666,39
+Community 10,Clinical Sciences,350,1599,0.2188868042526579,1
+Community 10,Genetics,333,1599,0.20825515947467166,2
+Community 10,Epidemiology,274,1599,0.1713570981863665,3
+Community 10,Biological Psychology,170,1599,0.10631644777986242,4
+Community 10,Neurosciences,100,1599,0.06253908692933083,5
+Community 10,Unclassified,99,1599,0.06191369606003752,6
+Community 10,Biochemistry and Cell Biology,83,1599,0.05190744215134459,7
+Community 10,Health Services and Systems,45,1599,0.028142589118198873,8
+Community 10,Medical Biochemistry and Metabolomics,40,1599,0.025015634771732333,9
+Community 10,Bioinformatics and Computational Biology,39,1599,0.024390243902439025,10
+Community 10,Statistics,12,1599,0.0075046904315197,11
+Community 10,Reproductive Medicine,11,1599,0.0068792995622263915,12
+Community 10,Cardiovascular Medicine and Haematology,10,1599,0.006253908692933083,13
+Community 10,Ophthalmology and Optometry,9,1599,0.005628517823639775,14
+Community 10,Oncology and Carcinogenesis,7,1599,0.004377736085053158,15
+Community 10,Medicinal and Biomolecular Chemistry,5,1599,0.0031269543464665416,16
+Community 10,Immunology,4,1599,0.0025015634771732333,17
+Community 10,Analytical Chemistry,3,1599,0.001876172607879925,18
+Community 10,Machine Learning,3,1599,0.001876172607879925,19
+Community 10,Econometrics,1,1599,0.0006253908692933083,20
+Community 10,Pharmacology and Pharmaceutical Sciences,1,1599,0.0006253908692933083,21
+Community 11,Ophthalmology and Optometry,593,1580,0.37531645569620253,1
+Community 11,Genetics,280,1580,0.17721518987341772,2
+Community 11,Clinical Sciences,149,1580,0.09430379746835443,3
+Community 11,Epidemiology,102,1580,0.06455696202531645,4
+Community 11,Health Services and Systems,61,1580,0.03860759493670886,5
+Community 11,Cardiovascular Medicine and Haematology,57,1580,0.036075949367088606,6
+Community 11,Biomedical Engineering,39,1580,0.024683544303797468,7
+Community 11,Oncology and Carcinogenesis,37,1580,0.02341772151898734,8
+Community 11,Public Health,35,1580,0.022151898734177215,9
+Community 11,Biological Psychology,25,1580,0.015822784810126583,10
+Community 11,Machine Learning,24,1580,0.015189873417721518,11
+Community 11,Nutrition and Dietetics,24,1580,0.015189873417721518,12
+Community 11,Unclassified,22,1580,0.013924050632911392,13
+Community 11,Biochemistry and Cell Biology,20,1580,0.012658227848101266,14
+Community 11,Bioinformatics and Computational Biology,18,1580,0.01139240506329114,15
+Community 11,Medical Physiology,18,1580,0.01139240506329114,16
+Community 11,Reproductive Medicine,14,1580,0.008860759493670886,17
+Community 11,Medical Biochemistry and Metabolomics,12,1580,0.007594936708860759,18
+Community 11,Allied Health and Rehabilitation Science,11,1580,0.006962025316455696,19
+Community 11,Neurosciences,10,1580,0.006329113924050633,20
+Community 11,Civil Engineering,8,1580,0.005063291139240506,21
+Community 11,Applied and Developmental Psychology,7,1580,0.004430379746835443,22
+Community 11,Agricultural Biotechnology,4,1580,0.002531645569620253,23
+Community 11,Dentistry,3,1580,0.0018987341772151898,24
+Community 11,Pharmacology and Pharmaceutical Sciences,3,1580,0.0018987341772151898,25
+Community 11,"Graphics, Augmented Reality and Games",2,1580,0.0012658227848101266,26
+Community 11,Computer Vision and Multimedia Computation,1,1580,0.0006329113924050633,27
+Community 11,Human-Centred Computing,1,1580,0.0006329113924050633,28
+Community 12,Biological Psychology,396,1564,0.2531969309462916,1
+Community 12,Clinical Sciences,389,1564,0.24872122762148338,2
+Community 12,Epidemiology,164,1564,0.10485933503836317,3
+Community 12,Health Services and Systems,116,1564,0.0741687979539642,4
+Community 12,Genetics,109,1564,0.06969309462915602,5
+Community 12,Public Health,104,1564,0.06649616368286446,6
+Community 12,Nutrition and Dietetics,68,1564,0.043478260869565216,7
+Community 12,Cardiovascular Medicine and Haematology,52,1564,0.03324808184143223,8
+Community 12,Cognitive and Computational Psychology,24,1564,0.015345268542199489,9
+Community 12,Biochemistry and Cell Biology,19,1564,0.012148337595907928,10
+Community 12,Pharmacology and Pharmaceutical Sciences,16,1564,0.010230179028132993,11
+Community 12,Unclassified,12,1564,0.0076726342710997444,12
+Community 12,Clinical and Health Psychology,10,1564,0.00639386189258312,13
+Community 12,Dentistry,9,1564,0.005754475703324808,14
+Community 12,Social and Personality Psychology,9,1564,0.005754475703324808,15
+Community 12,Oncology and Carcinogenesis,8,1564,0.005115089514066497,16
+Community 12,Applied Computing,7,1564,0.004475703324808184,17
+Community 12,Public Law,7,1564,0.004475703324808184,18
+Community 12,Reproductive Medicine,7,1564,0.004475703324808184,19
+Community 12,"Agriculture, Land and Farm Management",6,1564,0.0038363171355498722,20
+Community 12,Applied and Developmental Psychology,6,1564,0.0038363171355498722,21
+Community 12,Immunology,5,1564,0.00319693094629156,22
+Community 12,"Graphics, Augmented Reality and Games",3,1564,0.0019181585677749361,23
+Community 12,Neurosciences,3,1564,0.0019181585677749361,24
+Community 12,Statistics,3,1564,0.0019181585677749361,25
+Community 12,Allied Health and Rehabilitation Science,2,1564,0.0012787723785166241,26
+Community 12,Medical Biochemistry and Metabolomics,2,1564,0.0012787723785166241,27
+Community 12,Ophthalmology and Optometry,2,1564,0.0012787723785166241,28
+Community 12,Policy and Administration,2,1564,0.0012787723785166241,29
+Community 12,Human Resources and Industrial Relations,1,1564,0.0006393861892583121,30
+Community 12,Machine Learning,1,1564,0.0006393861892583121,31
+Community 12,Midwifery,1,1564,0.0006393861892583121,32
+Community 12,Social Work,1,1564,0.0006393861892583121,33
+Community 2,Oncology and Carcinogenesis,1113,3646,0.3052660449808009,1
+Community 2,Genetics,985,3646,0.2701590784421284,2
+Community 2,Epidemiology,623,3646,0.17087218869994514,3
+Community 2,Clinical Sciences,369,3646,0.10120680197476686,4
+Community 2,Cardiovascular Medicine and Haematology,119,3646,0.032638507953922105,5
+Community 2,Nutrition and Dietetics,117,3646,0.03208996160175535,6
+Community 2,Health Services and Systems,102,3646,0.027975863960504662,7
+Community 2,Public Health,43,3646,0.011793746571585299,8
+Community 2,Medical Biochemistry and Metabolomics,25,3646,0.006856829402084476,9
+Community 2,Biochemistry and Cell Biology,23,3646,0.006308283049917718,10
+Community 2,Unclassified,20,3646,0.005485463521667581,11
+Community 2,Reproductive Medicine,17,3646,0.004662643993417444,12
+Community 2,Bioinformatics and Computational Biology,16,3646,0.004388370817334065,13
+Community 2,Medical Physiology,14,3646,0.0038398244651673065,14
+Community 2,Pharmacology and Pharmaceutical Sciences,11,3646,0.0030170049369171695,15
+Community 2,Statistics,10,3646,0.0027427317608337905,16
+Community 2,Dentistry,9,3646,0.0024684585847504115,17
+Community 2,Immunology,9,3646,0.0024684585847504115,18
+Community 2,Ophthalmology and Optometry,7,3646,0.0019199122325836533,19
+Community 2,"Agriculture, Land and Farm Management",3,3646,0.0008228195282501371,20
+Community 2,Biological Psychology,3,3646,0.0008228195282501371,21
+Community 2,Machine Learning,3,3646,0.0008228195282501371,22
+Community 2,Sports Science and Exercise,2,3646,0.0005485463521667581,23
+Community 2,Analytical Chemistry,1,3646,0.00027427317608337906,24
+Community 2,Distributed Computing and Systems Software,1,3646,0.00027427317608337906,25
+Community 2,Software Engineering,1,3646,0.00027427317608337906,26
+Community 3,Genetics,1101,3236,0.34023485784919655,1
+Community 3,Epidemiology,675,3236,0.20859085290482077,2
+Community 3,Cardiovascular Medicine and Haematology,541,3236,0.16718170580964153,3
+Community 3,Clinical Sciences,310,3236,0.0957972805933251,4
+Community 3,Bioinformatics and Computational Biology,85,3236,0.02626699629171817,5
+Community 3,Biochemistry and Cell Biology,77,3236,0.02379480840543881,6
+Community 3,Medical Biochemistry and Metabolomics,52,3236,0.016069221260815822,7
+Community 3,Ophthalmology and Optometry,40,3236,0.012360939431396786,8
+Community 3,Oncology and Carcinogenesis,35,3236,0.010815822002472188,9
+Community 3,Health Services and Systems,34,3236,0.010506798516687269,10
+Community 3,Unclassified,29,3236,0.00896168108776267,11
+Community 3,Biological Psychology,27,3236,0.00834363411619283,12
+Community 3,Sports Science and Exercise,27,3236,0.00834363411619283,13
+Community 3,Immunology,23,3236,0.007107540173053152,14
+Community 3,Public Health,23,3236,0.007107540173053152,15
+Community 3,Medical Physiology,17,3236,0.005253399258343634,16
+Community 3,Reproductive Medicine,17,3236,0.005253399258343634,17
+Community 3,Medical Biotechnology,15,3236,0.0046353522867737945,18
+Community 3,Medical Microbiology,13,3236,0.0040173053152039555,19
+Community 3,Nutrition and Dietetics,13,3236,0.0040173053152039555,20
+Community 3,Pharmacology and Pharmaceutical Sciences,12,3236,0.003708281829419036,21
+Community 3,"Graphics, Augmented Reality and Games",11,3236,0.003399258343634116,22
+Community 3,Applied Computing,10,3236,0.0030902348578491965,23
+Community 3,Statistics,10,3236,0.0030902348578491965,24
+Community 3,Dentistry,8,3236,0.002472187886279357,25
+Community 3,Machine Learning,8,3236,0.002472187886279357,26
+Community 3,Allied Health and Rehabilitation Science,6,3236,0.001854140914709518,27
+Community 3,Fluid Mechanics and Thermal Engineering,5,3236,0.0015451174289245982,28
+Community 3,Anthropology,4,3236,0.0012360939431396785,29
+Community 3,Information Systems,4,3236,0.0012360939431396785,30
+Community 3,Data Management and Data Science,3,3236,0.000927070457354759,31
+Community 3,Ecology,1,3236,0.00030902348578491963,32
+Community 4,Biological Psychology,1355,2581,0.5249903138318481,1
+Community 4,Genetics,344,2581,0.13328167376985664,2
+Community 4,Clinical Sciences,240,2581,0.09298721425803952,3
+Community 4,Epidemiology,154,2581,0.05966679581557536,4
+Community 4,Unclassified,115,2581,0.044556373498643935,5
+Community 4,Machine Learning,102,2581,0.0395195660596668,6
+Community 4,Cardiovascular Medicine and Haematology,35,2581,0.013560635412630763,7
+Community 4,Pharmacology and Pharmaceutical Sciences,30,2581,0.01162340178225494,8
+Community 4,Health Services and Systems,18,2581,0.006974041069352964,9
+Community 4,Social and Personality Psychology,18,2581,0.006974041069352964,10
+Community 4,Statistics,17,2581,0.0065865943432778,11
+Community 4,Applied and Developmental Psychology,13,2581,0.005036807438977141,12
+Community 4,Specialist Studies In Education,13,2581,0.005036807438977141,13
+Community 4,Biomedical Engineering,12,2581,0.004649360712901976,14
+Community 4,Ophthalmology and Optometry,12,2581,0.004649360712901976,15
+Community 4,Computer Vision and Multimedia Computation,11,2581,0.004261913986826811,16
+Community 4,Neurosciences,11,2581,0.004261913986826811,17
+Community 4,Nutrition and Dietetics,10,2581,0.0038744672607516468,18
+Community 4,Data Management and Data Science,9,2581,0.003487020534676482,19
+Community 4,Public Health,9,2581,0.003487020534676482,20
+Community 4,Bioinformatics and Computational Biology,8,2581,0.0030995738086013174,21
+Community 4,Medical Physiology,5,2581,0.0019372336303758234,22
+Community 4,Paediatrics,5,2581,0.0019372336303758234,23
+Community 4,Applied Ethics,4,2581,0.0015497869043006587,24
+Community 4,Clinical and Health Psychology,4,2581,0.0015497869043006587,25
+Community 4,Immunology,4,2581,0.0015497869043006587,26
+Community 4,Software Engineering,4,2581,0.0015497869043006587,27
+Community 4,Medical Biochemistry and Metabolomics,3,2581,0.001162340178225494,28
+Community 4,Reproductive Medicine,3,2581,0.001162340178225494,29
+Community 4,Allied Health and Rehabilitation Science,2,2581,0.0007748934521503294,30
+Community 4,Artificial Intelligence,2,2581,0.0007748934521503294,31
+Community 4,"Graphics, Augmented Reality and Games",2,2581,0.0007748934521503294,32
+Community 4,Materials Engineering,2,2581,0.0007748934521503294,33
+Community 4,Anthropology,1,2581,0.0003874467260751647,34
+Community 4,Atmospheric Sciences,1,2581,0.0003874467260751647,35
+Community 4,Building,1,2581,0.0003874467260751647,36
+Community 4,Distributed Computing and Systems Software,1,2581,0.0003874467260751647,37
+Community 4,Zoology,1,2581,0.0003874467260751647,38
+Community 5,Genetics,1009,2201,0.45842798727850975,1
+Community 5,Epidemiology,842,2201,0.3825533848250795,2
+Community 5,Health Services and Systems,163,2201,0.0740572467060427,3
+Community 5,Immunology,54,2201,0.02453430258973194,4
+Community 5,Medical Microbiology,53,2201,0.02407996365288505,5
+Community 5,Oncology and Carcinogenesis,26,2201,0.011812812358019082,6
+Community 5,Clinical Sciences,23,2201,0.010449795547478418,7
+Community 5,Cardiovascular Medicine and Haematology,16,2201,0.007269422989550204,8
+Community 5,Public Health,15,2201,0.0068150840527033164,9
+Community 6,Clinical Sciences,591,1963,0.3010697911360163,1
+Community 6,Cardiovascular Medicine and Haematology,480,1963,0.2445236882322975,2
+Community 6,Genetics,231,1963,0.11767702496179318,3
+Community 6,Epidemiology,141,1963,0.0718288334182374,4
+Community 6,Health Services and Systems,105,1963,0.05348955680081508,5
+Community 6,Unclassified,48,1963,0.02445236882322975,6
+Community 6,Machine Learning,46,1963,0.023433520122261846,7
+Community 6,Biological Psychology,42,1963,0.021395822720326033,8
+Community 6,Public Health,35,1963,0.01782985226693836,9
+Community 6,Computer Vision and Multimedia Computation,34,1963,0.017320427916454408,10
+Community 6,Biomedical Engineering,28,1963,0.014263881813550688,11
+Community 6,Medical and Biological Physics,28,1963,0.014263881813550688,12
+Community 6,Reproductive Medicine,26,1963,0.013245033112582781,13
+Community 6,"Graphics, Augmented Reality and Games",18,1963,0.009169638308711156,14
+Community 6,Oncology and Carcinogenesis,13,1963,0.006622516556291391,15
+Community 6,Data Management and Data Science,11,1963,0.0056036678553234845,16
+Community 6,Nutrition and Dietetics,9,1963,0.004584819154355578,17
+Community 6,Pharmacology and Pharmaceutical Sciences,9,1963,0.004584819154355578,18
+Community 6,Allied Health and Rehabilitation Science,7,1963,0.003565970453387672,19
+Community 6,Human Resources and Industrial Relations,7,1963,0.003565970453387672,20
+Community 6,Medical Biochemistry and Metabolomics,6,1963,0.003056546102903719,21
+Community 6,Ophthalmology and Optometry,6,1963,0.003056546102903719,22
+Community 6,Applied and Developmental Psychology,5,1963,0.0025471217524197657,23
+Community 6,Communications Engineering,5,1963,0.0025471217524197657,24
+Community 6,Medical Microbiology,5,1963,0.0025471217524197657,25
+Community 6,Fluid Mechanics and Thermal Engineering,4,1963,0.0020376974019358125,26
+Community 6,Paediatrics,4,1963,0.0020376974019358125,27
+Community 6,Human Geography,3,1963,0.0015282730514518594,28
+Community 6,Statistics,3,1963,0.0015282730514518594,29
+Community 6,Bioinformatics and Computational Biology,2,1963,0.0010188487009679063,30
+Community 6,Distributed Computing and Systems Software,2,1963,0.0010188487009679063,31
+Community 6,Neurosciences,2,1963,0.0010188487009679063,32
+Community 6,Sports Science and Exercise,2,1963,0.0010188487009679063,33
+Community 6,Artificial Intelligence,1,1963,0.0005094243504839531,34
+Community 6,Dentistry,1,1963,0.0005094243504839531,35
+Community 6,Information Systems,1,1963,0.0005094243504839531,36
+Community 6,Medical Physiology,1,1963,0.0005094243504839531,37
+Community 6,Veterinary Sciences,1,1963,0.0005094243504839531,38
+Community 7,Genetics,870,1754,0.4960091220068415,1
+Community 7,Cardiovascular Medicine and Haematology,166,1754,0.09464082098061574,2
+Community 7,Epidemiology,153,1754,0.08722919042189281,3
+Community 7,Clinical Sciences,115,1754,0.06556442417331813,4
+Community 7,Biochemistry and Cell Biology,103,1754,0.05872291904218928,5
+Community 7,Bioinformatics and Computational Biology,64,1754,0.036488027366020526,6
+Community 7,Health Services and Systems,39,1754,0.022234891676168756,7
+Community 7,Medical Biotechnology,26,1754,0.014823261117445839,8
+Community 7,Immunology,24,1754,0.013683010262257697,9
+Community 7,Pharmacology and Pharmaceutical Sciences,22,1754,0.012542759407069556,10
+Community 7,Biological Psychology,20,1754,0.011402508551881414,11
+Community 7,Ophthalmology and Optometry,20,1754,0.011402508551881414,12
+Community 7,Oncology and Carcinogenesis,19,1754,0.010832383124287344,13
+Community 7,Reproductive Medicine,19,1754,0.010832383124287344,14
+Community 7,Medical Biochemistry and Metabolomics,17,1754,0.009692132269099202,15
+Community 7,Dentistry,16,1754,0.009122006841505131,16
+Community 7,Medical Physiology,15,1754,0.00855188141391106,17
+Community 7,Agricultural Biotechnology,11,1754,0.006271379703534778,18
+Community 7,Microbiology,11,1754,0.006271379703534778,19
+Community 7,Public Health,8,1754,0.004561003420752566,20
+Community 7,Allied Health and Rehabilitation Science,5,1754,0.0028506271379703536,21
+Community 7,Machine Learning,3,1754,0.0017103762827822121,22
+Community 7,Statistics,3,1754,0.0017103762827822121,23
+Community 7,Nutrition and Dietetics,2,1754,0.0011402508551881414,24
+Community 7,Anthropology,1,1754,0.0005701254275940707,25
+Community 7,Sports Science and Exercise,1,1754,0.0005701254275940707,26
+Community 7,Unclassified,1,1754,0.0005701254275940707,27
+Community 8,Clinical Sciences,656,1748,0.37528604118993136,1
+Community 8,Genetics,322,1748,0.18421052631578946,2
+Community 8,Epidemiology,272,1748,0.15560640732265446,3
+Community 8,Cardiovascular Medicine and Haematology,91,1748,0.05205949656750572,4
+Community 8,Biochemistry and Cell Biology,52,1748,0.029748283752860413,5
+Community 8,Oncology and Carcinogenesis,49,1748,0.02803203661327231,6
+Community 8,Biological Psychology,40,1748,0.02288329519450801,7
+Community 8,Immunology,27,1748,0.015446224256292907,8
+Community 8,Medical Biochemistry and Metabolomics,26,1748,0.014874141876430207,9
+Community 8,Neurosciences,26,1748,0.014874141876430207,10
+Community 8,Health Services and Systems,20,1748,0.011441647597254004,11
+Community 8,Nutrition and Dietetics,20,1748,0.011441647597254004,12
+Community 8,Medical Microbiology,18,1748,0.010297482837528604,13
+Community 8,Bioinformatics and Computational Biology,17,1748,0.009725400457665904,14
+Community 8,Machine Learning,17,1748,0.009725400457665904,15
+Community 8,Medical Physiology,16,1748,0.009153318077803204,16
+Community 8,Microbiology,16,1748,0.009153318077803204,17
+Community 8,Pharmacology and Pharmaceutical Sciences,13,1748,0.007437070938215103,18
+Community 8,Public Health,12,1748,0.006864988558352402,19
+Community 8,Reproductive Medicine,11,1748,0.006292906178489702,20
+Community 8,Biomedical Engineering,8,1748,0.004576659038901602,21
+Community 8,Unclassified,7,1748,0.004004576659038902,22
+Community 8,Ophthalmology and Optometry,5,1748,0.002860411899313501,23
+Community 8,Applied Computing,2,1748,0.0011441647597254005,24
+Community 8,Computer Vision and Multimedia Computation,2,1748,0.0011441647597254005,25
+Community 8,Sports Science and Exercise,2,1748,0.0011441647597254005,26
+Community 8,Statistics,1,1748,0.0005720823798627002,27
+Community 9,Epidemiology,495,1609,0.307644499689248,1
+Community 9,Clinical Sciences,337,1609,0.20944686140459912,2
+Community 9,Genetics,301,1609,0.18707271597265382,3
+Community 9,Cardiovascular Medicine and Haematology,78,1609,0.048477315102548164,4
+Community 9,Biological Psychology,59,1609,0.036668738346799255,5
+Community 9,Biochemistry and Cell Biology,49,1609,0.030453697949036667,6
+Community 9,Bioinformatics and Computational Biology,49,1609,0.030453697949036667,7
+Community 9,Health Services and Systems,38,1609,0.023617153511497825,8
+Community 9,Reproductive Medicine,29,1609,0.018023617153511497,9
+Community 9,Unclassified,22,1609,0.013673088875077687,10
+Community 9,Medical Biochemistry and Metabolomics,21,1609,0.01305158483530143,11
+Community 9,Public Health,17,1609,0.010565568676196395,12
+Community 9,Oncology and Carcinogenesis,16,1609,0.009944064636420136,13
+Community 9,Allied Health and Rehabilitation Science,13,1609,0.008079552517091361,14
+Community 9,Statistics,12,1609,0.0074580484773151025,15
+Community 9,Midwifery,11,1609,0.006836544437538844,16
+Community 9,Nutrition and Dietetics,10,1609,0.006215040397762586,17
+Community 9,Clinical and Health Psychology,8,1609,0.004972032318210068,18
+Community 9,Dentistry,6,1609,0.0037290242386575512,19
+Community 9,Immunology,6,1609,0.0037290242386575512,20
+Community 9,Medical Physiology,6,1609,0.0037290242386575512,21
+Community 9,Applied Computing,4,1609,0.002486016159105034,22
+Community 9,Human Geography,3,1609,0.0018645121193287756,23
+Community 9,Paediatrics,3,1609,0.0018645121193287756,24
+Community 9,Pharmacology and Pharmaceutical Sciences,3,1609,0.0018645121193287756,25
+Community 9,Sports Science and Exercise,3,1609,0.0018645121193287756,26
+Community 9,Applied Economics,2,1609,0.001243008079552517,27
+Community 9,Medical Microbiology,2,1609,0.001243008079552517,28
+Community 9,Ophthalmology and Optometry,2,1609,0.001243008079552517,29
+Community 9,Cognitive and Computational Psychology,1,1609,0.0006215040397762585,30
+Community 9,"Education Policy, Sociology and Philosophy",1,1609,0.0006215040397762585,31
+Community 9,Evolutionary Biology,1,1609,0.0006215040397762585,32
+Community 9,Human Resources and Industrial Relations,1,1609,0.0006215040397762585,33
+Other communities,Clinical Sciences,9019,38865,0.23205969381191302,1
+Other communities,Epidemiology,7387,38865,0.19006818474205583,2
+Other communities,Genetics,5403,38865,0.1390196835198765,3
+Other communities,Cardiovascular Medicine and Haematology,3226,38865,0.08300527466872508,4
+Other communities,Biological Psychology,2486,38865,0.06396500707577511,5
+Other communities,Oncology and Carcinogenesis,1639,38865,0.042171619709249965,6
+Other communities,Nutrition and Dietetics,1226,38865,0.031545091985076545,7
+Other communities,Biochemistry and Cell Biology,983,38865,0.025292679789013253,8
+Other communities,Public Health,976,38865,0.02511256914962048,9
+Other communities,Health Services and Systems,892,38865,0.022951241476907244,10
+Other communities,Ophthalmology and Optometry,641,38865,0.016492988550109354,11
+Other communities,Immunology,595,38865,0.015309404348385437,12
+Other communities,Medical Biochemistry and Metabolomics,534,38865,0.013739868776534157,13
+Other communities,Bioinformatics and Computational Biology,486,38865,0.012504824392126593,14
+Other communities,Unclassified,485,38865,0.012479094300784768,15
+Other communities,Pharmacology and Pharmaceutical Sciences,377,38865,0.009700244435867747,16
+Other communities,Reproductive Medicine,247,38865,0.006355332561430593,17
+Other communities,Machine Learning,233,38865,0.005995111282645053,18
+Other communities,Medical Physiology,202,38865,0.005197478451048501,19
+Other communities,Biomedical Engineering,181,38865,0.004657146532870192,20
+Other communities,Neurosciences,151,38865,0.0038852437926154637,21
+Other communities,Dentistry,140,38865,0.003602212787855397,22
+Other communities,Statistics,116,38865,0.0029846905956516148,23
+Other communities,Allied Health and Rehabilitation Science,110,38865,0.002830310047600669,24
+Other communities,Archaeology,107,38865,0.002753119773575196,25
+Other communities,Pollution and Contamination,102,38865,0.002624469316866075,26
+Other communities,Microbiology,97,38865,0.0024958188601569534,27
+Other communities,Clinical and Health Psychology,86,38865,0.0022127878553968865,28
+Other communities,Applied and Developmental Psychology,64,38865,0.001646725845876753,29
+Other communities,Data Management and Data Science,51,38865,0.0013122346584330375,30
+Other communities,Medical Microbiology,50,38865,0.0012865045670912131,31
+Other communities,Applied Computing,45,38865,0.0011578541103820917,32
+Other communities,Paediatrics,44,38865,0.0011321240190402676,33
+Other communities,Medical Biotechnology,34,38865,0.000874823105622025,34
+Other communities,"Graphics, Augmented Reality and Games",33,38865,0.0008490930142802007,35
+Other communities,Animal Production,32,38865,0.0008233629229383764,36
+Other communities,Demography,30,38865,0.0007719027402547279,37
+Other communities,Food Sciences,25,38865,0.0006432522835456066,38
+Other communities,Anthropology,23,38865,0.0005917921008619581,39
+Other communities,Computer Vision and Multimedia Computation,23,38865,0.0005917921008619581,40
+Other communities,Ecological Applications,23,38865,0.0005917921008619581,41
+Other communities,Chemical Engineering,21,38865,0.0005403319181783095,42
+Other communities,Sports Science and Exercise,21,38865,0.0005403319181783095,43
+Other communities,Atmospheric Sciences,15,38865,0.00038595137012736397,44
+Other communities,Analytical Chemistry,14,38865,0.00036022127878553966,45
+Other communities,Medical and Biological Physics,13,38865,0.0003344911874437154,46
+Other communities,Artificial Intelligence,11,38865,0.0002830310047600669,47
+Other communities,Cybersecurity and Privacy,11,38865,0.0002830310047600669,48
+Other communities,Social and Personality Psychology,11,38865,0.0002830310047600669,49
+Other communities,Human-Centred Computing,10,38865,0.00025730091341824265,50
+Other communities,Design,9,38865,0.00023157082207641837,51
+Other communities,Environmental Management,9,38865,0.00023157082207641837,52
+Other communities,Medicinal and Biomolecular Chemistry,8,38865,0.0002058407307345941,53
+Other communities,Zoology,8,38865,0.0002058407307345941,54
+Other communities,"Banking, Finance and Investment",7,38865,0.00018011063939276983,55
+Other communities,Gender Studies,7,38865,0.00018011063939276983,56
+Other communities,Applied Ethics,6,38865,0.00015438054805094558,57
+Other communities,Cognitive and Computational Psychology,6,38865,0.00015438054805094558,58
+Other communities,Distributed Computing and Systems Software,6,38865,0.00015438054805094558,59
+Other communities,Human Geography,6,38865,0.00015438054805094558,60
+Other communities,Applied Economics,5,38865,0.00012865045670912132,61
+Other communities,Information Systems,5,38865,0.00012865045670912132,62
+Other communities,Midwifery,5,38865,0.00012865045670912132,63
+Other communities,Nursing,5,38865,0.00012865045670912132,64
+Other communities,"Atomic, Molecular and Optical Physics",4,38865,0.00010292036536729706,65
+Other communities,Electrical Engineering,4,38865,0.00010292036536729706,66
+Other communities,Library and Information Studies,4,38865,0.00010292036536729706,67
+Other communities,Architecture,3,38865,7.719027402547279e-05,68
+Other communities,Business Systems In Context,3,38865,7.719027402547279e-05,69
+Other communities,Ecology,3,38865,7.719027402547279e-05,70
+Other communities,Econometrics,3,38865,7.719027402547279e-05,71
+Other communities,Human Resources and Industrial Relations,3,38865,7.719027402547279e-05,72
+Other communities,Law In Context,3,38865,7.719027402547279e-05,73
+Other communities,Manufacturing Engineering,3,38865,7.719027402547279e-05,74
+Other communities,Policy and Administration,3,38865,7.719027402547279e-05,75
+Other communities,Classical Physics,2,38865,5.146018268364853e-05,76
+Other communities,Curriculum and Pedagogy,2,38865,5.146018268364853e-05,77
+Other communities,Evolutionary Biology,2,38865,5.146018268364853e-05,78

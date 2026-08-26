@@ -1,0 +1,23 @@
+metric,value,interpretation
+Source parquet records,26109.0,includes provisional years
+Records after 2025,2667.0,excluded from primary analysis
+Complete-year papers,23442.0,2013-2025
+Papers with parsed authors,23407.0,author-based denominator
+Papers without parsed authors,35.0,retained in source audit only
+Parsed author-paper pairs,274603.0,deduplicated within paper
+Resolved author-paper pairs,242663.0,Dimensions researcher ID present
+Unresolved author-paper pairs,31940.0,paper-local IDs; never merged by name
+Unique resolved authors,69237.0,author table rows
+Author homes from current organization,62116.0,GRID-resolved current organization
+Author homes from modal affiliation,7121.0,fallback includes authors with no resolved home
+Current-organization affiliation backfills,8525.0,used only when no paper affiliation was listed
+Authorship rows with no affiliation,14287.0,excluded only from affiliation analyses
+Geolocated fractional paper credit,22915.97,out of papers with parsed authors
+Institutional fractional paper credit,23090.55,out of papers with parsed authors
+Duplicate institution metadata variants collapsed,52.0,same author-paper institution; counted once for credit
+Name-classified author-paper pairs,166938.0,expanded dictionary rule
+Unknown/androgynous name pairs,107665.0,kept and reported
+Papers missing FOR L2,20.0,kept as unclassified
+Papers with >=2 FOR L2 divisions,9024.0,multi-label; no primary field assumed
+Largest parsed author team,2119.0,network sensitivity threshold is 100
+Papers with parsed list shorter than authors_count,0.0,possible source truncation

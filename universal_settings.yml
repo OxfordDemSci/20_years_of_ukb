@@ -109,6 +109,47 @@ style:
         male:   3
         unknown: "#BBBBBB"
 
+    05_author_characteristics:
+      colors: ["#B80C09", "#D4AF37", "#6E8B3D", "#345995",
+               "#8C5A9E", "#008C95", "#B56A3B", "#4F6D7A"]
+      domain_colors:
+        author_metrics: 3
+        name_gender: 0
+        geography: 3
+        institutions: 1
+        networks: 2
+      gender_colors:
+        Female: 0
+        Male: 3
+        Unknown: "#B7B7B7"
+      figsize_main: [18.5, 10.4]
+      figsize_panel: [15.5, 9.2]
+      font_family: Helvetica
+      title_fs: 20
+      label_fs: 15
+      tick_fs: 13
+      annot_fs: 11
+      legend_fs: 11
+      body_fs: 12
+      grid_linestyle: "--"
+      axes_linewidth: 1.1
+      tick_length: 5.5
+      tick_width: 1.1
+      tick_pad: 4
+      minor_tick_length: 3
+      minor_tick_width: 0.8
+      dpi: 600
+      cmap: Blues
+      edgecolor: black
+      save: true
+      formats: [pdf, svg, png]
+      savedir: output/figures/data_analysis/05_author_characteristics
+      roles:
+        c_primary: 3
+        c_accent: 0
+        c_gold: 1
+        c_green: 2
+
     02_content:
       # Topic-modelling figures: streamgraphs and ridge waves over many topics, so the
       # palette is extended by extended_palette(n) rather than the four base colours.

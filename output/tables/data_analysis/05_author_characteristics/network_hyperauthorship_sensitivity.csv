@@ -1,0 +1,6 @@
+metric,label,all_papers,teams_at_most_100,retained_percent
+n_nodes,Resolved authors,69237.0,64132.0,92.62677470138799
+n_edges,Unique coauthor ties,3929125.0,1087246.0,27.67145356790634
+median_degree,Median coauthor count,17.0,15.0,88.23529411764706
+giant_fraction,Giant-component share,0.8534598552796915,0.8390974864342294,98.31715941217232
+mean_fractional_strength,Mean normalized strength,3.4984185695648193,3.3728716373443604,96.4113232958263
