@@ -151,8 +151,11 @@ style:
         c_green: 2
 
     02_content:
-      # Topic-modelling figures: streamgraphs and ridge waves over many topics, so the
-      # palette is extended by extended_palette(n) rather than the four base colours.
+      # Topic-modelling and category-flow figures: streamgraphs, ridge waves and bump
+      # charts over many categories, so the palette is extended by extended_palette(n)
+      # rather than the four base colours.
+      save: true
+      formats: [pdf, svg, png]
       savedir: output/figures/data_analysis/02_content
 
     04_non_academic_03_altmetric:
