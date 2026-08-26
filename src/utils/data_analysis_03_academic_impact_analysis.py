@@ -1,12 +1,16 @@
-"""Data layer for the 03_academic_impact_* notebooks (both of them).
+"""Data layer for the 03_academic_impact_* notebooks.
 
 WHY THIS MODULE EXISTS
 ----------------------
-The academic-impact analysis is run twice over the same count tables, once per
-classification system:
+The academic-impact analysis is run over the same count tables once per classification
+system:
 
-    03_academic_impact_01_for_analysis.ipynb    ANZSRC Fields of Research
-    03_academic_impact_02_rcdc_analysis.ipynb   NIH Research/Condition/Disease
+    src/data_analysis/03_academic_impact_01_for_analysis.ipynb   ANZSRC Fields of Research
+    doc/archive/03_academic_impact_02_rcdc_analysis.ipynb        NIH Research/Condition/Disease
+
+The RCDC notebook was archived on 2026-08-26 and is no longer run, but the RCDC arm is
+still fully supported here (see CATEGORY_SPECS) — which is the point: everything below is
+written for two callers, so the archived one can be brought back without touching it.
 
 Only the charts differ between them. Everything up to the charts — resolving which
 partials belong to which arm, dropping unusable years, building the whole-database
@@ -35,6 +39,8 @@ this module hands over frames and the guards that say what those frames can supp
 
 from __future__ import annotations
 
+import json
+from pathlib import Path
 from typing import Dict, Iterable, List, Optional, Sequence
 
 import numpy as np
@@ -51,8 +57,9 @@ CITATION_WEIGHTS = ("n_cit", "n_fcr", "n_top10", "n_top10f", "n_top50f", "n_mncs
 # the best available answer, only the cheapest; and while it was in the list it did
 # damage, because it is the weight with the shortest usable window and the impact window
 # is the intersection over every weight (it alone held the window at 2022 while the
-# measured decile reached 2023). The column is still written by the API script and still
-# sits in the partials — it is simply not read. Put it back here to see it again.
+# measured decile reached 2023). The API script no longer writes the column either, so
+# putting it back here is not enough on its own — the counts would have to be rebuilt
+# with a run that emits it.
 #
 # Top-decile measures, best first. Charts that want "the share of the most-cited tenth"
 # take the best one a given run has rather than naming one and breaking without it.
@@ -76,7 +83,15 @@ WEIGHT_NAMES = {
 # Weights that are already normalised by publication year, and so cannot be biased by
 # citations still accruing — only made noisier. The recency lag is not applied to these,
 # which is what lets them reach a year that the raw-citation weights cannot.
-YEAR_NORMALISED = ("n_fcr", "n_mncs")
+#
+# top10f/top50f belong here for the same reason mncs does, and used not to be listed:
+# both are scored against a cut-off MEASURED WITHIN THEIR OWN (year, field), so a young
+# year is compared against a young year's bar. The lag exists to stop a paper being
+# judged on citations it has not had time to collect; a per-year cut-off has already
+# done that. Leaving them out cost the whole impact window its last year for nothing —
+# the window is the intersection over every weight, so the two of them dragged 2024 off
+# every chart while the cut-offs for 2024 sat measured in field_thresholds.csv.
+YEAR_NORMALISED = ("n_fcr", "n_mncs", "n_top10f", "n_top50f")
 
 # =============================================================================
 # WHICH WEIGHTS MAY BECOME A RATIO
@@ -85,18 +100,19 @@ YEAR_NORMALISED = ("n_fcr", "n_mncs")
 # over the impact window. That pooling is only safe when each paper has ALREADY been
 # normalised against its own publication year, because the two arms' papers are not
 # spread over the window the same way: UK Biobank's output is still ramping, so over
-# 2014-2023 between 76% and 86% of its papers in its top fields are from the last four
-# years, against 44-49% of the world's. A weight that accrues with age therefore enters
+# 2015-2025 between 64% and 78% of its papers in its top fields are from the last four
+# years, against 40-49% of the world's. A weight that accrues with age therefore enters
 # the numerator's mean with a far younger population than the denominator's, and the
-# ratio comes out too low — pooled 1.83 against a year-controlled 2.15 for Epidemiology,
-# and 1.90 against 2.66 for Biological Psychology.
+# ratio comes out too low — pooled 1.48 against a year-controlled 1.73 for Epidemiology,
+# and 1.54 against 2.13 for Biological Psychology.
 #
 # So `n_cit` (and `n_recent`) get NO rci_/act_ column. They stay in the frames, because
 # a SHARE of a field's citations is a perfectly good measure — the numerator and the
 # denominator are then the same set of papers, and the composition cancels — but they
 # are not turned into a mean-over-mean ratio. Everything below is per-year normalised
 # before it is aggregated: mncs against the field-year mean, top10f/top50f against a
-# field-year cut-off, fcr and top10 against a year (or year-type) reference.
+# field-year cut-off, fcr and top10 against a year (or year-type) reference. That is also
+# why all three sit in YEAR_NORMALISED above and so escape the recency lag.
 RCI_WEIGHTS = ("n_fcr", "n_mncs", "n_top10", "n_top10f", "n_top50f")
 
 # =============================================================================
@@ -116,8 +132,8 @@ RCI_WEIGHTS = ("n_fcr", "n_mncs", "n_top10", "n_top10f", "n_top50f")
 #                    obvious fix and it is worth knowing that it does LESS than it looks:
 #                    dropping categories rescales every field's index by ONE constant
 #                    (UK Biobank's share of its mass inside the universe, over the
-#                    database's). Measured on FOR 2014-2024 with divisions 31/32/42/52
-#                    that constant is 1.86 — identical to four decimals for every field.
+#                    database's). Measured on FOR 2015-2025 with divisions 31/32/42/52
+#                    that constant is 2.70 — identical to four decimals for every field.
 #                    Nothing is re-ranked. What moves is where parity sits, which is not
 #                    nothing: it makes "1.0" mean "as concentrated as HEALTH research".
 #
@@ -234,6 +250,141 @@ def load_side_table(counts_dir, col_type, arm, prefix, keys, year_min, year_max)
 
 
 # =============================================================================
+# THE SAME WEIGHTS, ONE ROW PER PAPER
+# =============================================================================
+# Everything above is CELL-level: one row per (year, field), which is all a share or a
+# ratio of means ever needs. The author-level notebook needs the same quantities one row
+# per PAPER, because a paper is what an author has — and it must not compute them its own
+# way, which is exactly what it used to do:
+#
+#   it read `times_cited` and `field_citation_ratio` off the frozen parquet (a different
+#   snapshot from the one every other 03 number comes from), and it called a paper
+#   top-decile when its FCR cleared `nanpercentile(FCR, 90)` POOLED OVER EVERY YEAR AND
+#   FIELD AT ONCE. That cut-off is mostly an age variable: it made 30.8% of 2014's papers
+#   top-decile and 5.4% of 2024's. It is the artefact D9/D10/D20 exist to prevent, and it
+#   biased an entry-cohort figure towards whoever published earliest.
+#
+# So the definitions live here, next to the cell-level ones they have to match, and the
+# arithmetic below is deliberately the same as the count job's per-record loop in
+# data_analysis_03_academic_impact_dimensions_api.py (see `cmd_count`):
+#
+#   mncs    = times_cited / the facet's mean for this (year, field)
+#   top10f  = 1.0 if times_cited >= the MEASURED cut-off for this (year, field)
+#   top50f  = the same against that cell's measured median
+#
+# TWO THINGS THAT LOOK LIKE DETAILS AND ARE NOT
+#
+#   1. A paper carries several fields, and the count job scores it once PER FIELD with
+#      weight 1/len(fields). Collapsed to one number per paper that is the MEAN over the
+#      paper's fields — not the max, and not `any()`. `any()` would say a paper is
+#      top-decile if it cleared the bar in any one of its fields, which inflates
+#      multi-field papers against the cell-level figures the rest of 03 reports.
+#   2. A cell whose cut-off was never MEASURED is NaN, never 0. The API measures a cell
+#      only where UK Biobank has >= API_MIN_UKBB papers in it, so "not measured" and
+#      "measured, did not clear it" are different facts and a zero would merge them.
+#      mncs has no such hole: the facet's mean exists for every cell.
+def paper_impact(counts_dir, col_type: str = "for", *, level: str = "L4",
+                 year_min: int, year_max: int, verbose: bool = True) -> pd.DataFrame:
+    """One row per UK Biobank paper, carrying the 03 pathway's citation weights.
+
+    API pathway only — it is the one that keeps a per-paper record cache. Reads three
+    files, all written by data_analysis_03_academic_impact_dimensions_api.py:
+
+        api_ukbb_records.json         the papers, with the citation snapshot on them
+        api_whole.{col_type}.parquet  `mean_cit`, the reference mncs divides by
+        field_thresholds.{col_type}.csv  the measured decile / median cut-offs
+
+    Returns papers published in [year_min, year_max] that carry >= 1 code at `level`,
+    with columns: id, year, type, times_cited, field_citation_ratio, recent_citations,
+    codes, n_codes, n_mncs, n_top10f, n_top50f.
+
+    Raises FileNotFoundError if the record cache is absent, rather than falling back to
+    the parquet — a silent fallback there is the whole defect this function replaces.
+    """
+    counts_dir = Path(counts_dir)
+    recs_path = counts_dir / "api_ukbb_records.json"
+    if not recs_path.exists():
+        raise FileNotFoundError(
+            f"no per-paper record cache at {recs_path}. paper_impact() is API-pathway "
+            f"only: the VM pathway counts off the corpus and keeps no per-paper rows. "
+            f"Build it with `dimensions_api.py ukbb`.")
+
+    cat_col = f"category_{'for_2020' if col_type == 'for' else col_type}"
+    width = {"L2": 2, "L4": 4, "L1": None}.get(level)
+
+    def codes_of(rec) -> list:
+        """The codes at `level` on one record. Dimensions writes the category name as
+        '4202 Epidemiology', so the code is the leading token — and a record may carry
+        only its 2-digit division, which is not an L4 code."""
+        out = set()
+        for c in (rec.get(cat_col) or []):
+            head = str(c.get("name", "")).split()
+            if not head:
+                continue
+            if width is None:                      # flat vocabulary (RCDC): the whole name
+                out.add(str(c.get("name", "")).strip())
+            elif len(head[0]) == width and head[0].isdigit():
+                out.add(head[0])
+        return sorted(out)
+
+    # -- the two reference tables, keyed the way the count job keys them --------------
+    whole = pd.read_parquet(counts_dir / f"api_whole.{col_type}.parquet",
+                            columns=["year", "level", "code", "mean_cit"])
+    mean_cit = (whole[whole.level == level]
+                .set_index(["year", "code"])["mean_cit"].to_dict())
+
+    thr = pd.read_csv(counts_dir / f"field_thresholds.{col_type}.csv", dtype={"code": str})
+    if "percentile" not in thr.columns:            # a file from before the percentiles mode
+        thr["percentile"] = 10.0
+    thr = thr[thr.level == level]
+    cut = {p: (thr.loc[thr.percentile == p]
+               .set_index(["year", "code"])["threshold"].to_dict())
+           for p in (10.0, 50.0)}
+
+    def _band(cit, year, codes, table):
+        """Fractional share of this paper's MEASURED cells whose cut-off it clears."""
+        hits = [1.0 if cit >= t else 0.0
+                for t in (table.get((year, c)) for c in codes) if t is not None]
+        return float(np.mean(hits)) if hits else np.nan
+
+    rows = []
+    for rec in json.loads(recs_path.read_text()):
+        year = rec.get("year")
+        if not year or not (year_min <= year <= year_max):
+            continue
+        codes = codes_of(rec)
+        if not codes:
+            continue
+        cit = rec.get("times_cited")
+        cit = float(cit) if cit is not None else np.nan
+        refs = [m for m in (mean_cit.get((year, c)) for c in codes) if m]
+        rows.append({
+            "id": rec["id"],
+            "year": int(year),
+            "type": rec.get("type") or "",
+            "times_cited": cit,
+            "field_citation_ratio": rec.get("field_citation_ratio"),
+            "recent_citations": rec.get("recent_citations"),
+            "codes": codes,
+            "n_codes": len(codes),
+            "n_mncs": float(np.mean([cit / m for m in refs])) if (refs and cit == cit)
+                      else np.nan,
+            "n_top10f": _band(cit, year, codes, cut[10.0]) if cit == cit else np.nan,
+            "n_top50f": _band(cit, year, codes, cut[50.0]) if cit == cit else np.nan,
+        })
+
+    papers = pd.DataFrame(rows)
+    if verbose:
+        unit = CATEGORY_SPECS[col_type]["unit"]
+        print(f"  paper_impact  {len(papers):,} papers {year_min}-{year_max} carrying "
+              f">=1 {level} {unit} ({papers.n_codes.mean():.2f} {unit}s/paper, "
+              f"{papers.explode('codes').codes.nunique()} distinct)")
+        for w in ("n_mncs", "n_top10f", "n_top50f"):
+            print(f"    {w:<10s} measured for {papers[w].notna().mean():6.1%} of them")
+    return papers
+
+
+# =============================================================================
 # CITATION WINDOWS — which years can carry a citation claim
 # =============================================================================
 # Paper counts are complete the moment a paper is indexed; citation numbers are not,
@@ -242,14 +393,20 @@ def load_side_table(counts_dir, col_type, arm, prefix, keys, year_min, year_max)
 #   COVERAGE  the column is simply absent. Dimensions computes field_citation_ratio
 #             only once a publication year has settled, so FCR is missing outright for
 #             the newest years — not low, ABSENT.
-#   ACCRUAL   the column is there but the papers have not been cited yet. A 2024 paper
-#             averages ~1 citation against ~17 for 2014, so a citation-mass comparison
-#             in the last year or two measures indexing lag, not impact. FCR is
-#             normalised by year and is immune; times_cited and the top-decile
-#             indicator built from it are not.
+#   ACCRUAL   the column is there but the papers have not been cited yet. A 2025 paper
+#             averages ~2 citations against ~18 for 2015, so a citation-mass comparison
+#             in the last year or two measures indexing lag, not impact.
 #
-# Coverage decides which years EXIST for a weight; `lag` then trims the raw-citation
-# weights. Both are read off the totals tables, so a fresher snapshot moves the
+#             WHICH WEIGHTS THIS REACHES is narrower than it looks, and YEAR_NORMALISED
+#             is the list that decides: mncs, top10f and top50f are each scored against
+#             a reference measured inside their OWN (year, field), so a young paper is
+#             judged against a young year's bar and accrual cancels. Only n_cit is
+#             exposed, and n_cit never becomes a ratio (see RCI_WEIGHTS) — as a share
+#             or a mean its numerator and denominator are the same year's papers. That
+#             is why the notebooks run with lag=0 and still reach the newest year.
+#
+# Coverage decides which years EXIST for a weight; `lag` then trims whatever is not in
+# YEAR_NORMALISED. Both are read off the totals tables, so a fresher snapshot moves the
 # windows by itself.
 def citation_windows(totals: Dict[str, pd.DataFrame], weights: Sequence[str],
                      ukbb_year: int, year_max: int, cov_min: float, lag: int,

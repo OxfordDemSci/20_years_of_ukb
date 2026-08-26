@@ -34,12 +34,21 @@ So the API path is the fast way to a whole-database denominator, and the VM path
 the only way to the fractional and citation-weighted columns. `counts` below writes
 its output in exactly the schema the VM job writes, so the notebooks can read either.
 
-THE SNAPSHOT SEAM (read before trusting a number)
--------------------------------------------------
+ONE INDEX, BOTH ARMS (read before trusting a number)
+----------------------------------------------------
 The background arm is built here as (API whole-database count) - (our UK Biobank
-count). The subtrahend comes from the VM snapshot and the minuend from the live index,
-so the two disagree by however much Dimensions has indexed since the snapshot was
-taken. For older years that is nothing; for the most recent year it can be percent.
+count), and BOTH sides come from the live index: `whole` facets it, `ukbb` fetches the
+same index per paper. The VM contributes only the ID LIST that says which publications
+are UK Biobank's (`--ids`, default `for_counts_out/ukbb_ids.txt`) — no VM count enters
+the arithmetic. That is what makes the subtraction exact rather than approximate, and
+it is why the notebooks' skew and blank-label guards sit inert.
+
+The seam that DOES remain is temporal: a mode re-run later reads a fresher index than
+the modes that ran before it. Within one year that cancels (both arms of it come from
+one read, and every share divides one by the other), but a step between two years
+measured on different days carries a little of it. `all --refresh` removes it by
+rebuilding everything in one pass.
+
 The subtraction reports every cell it had to clamp at zero — a cell going negative
 means the UK Biobank arm is claiming papers the live index no longer has, which is a
 sign the seam matters for that year, not a rounding error.
@@ -112,6 +121,14 @@ RECORD_FIELDS = ("id", "year", "type", "times_cited", "field_citation_ratio",
 
 # `where id in [...]` accepts 512 entries; 1000 is rejected outright.
 ID_BATCH = 512
+
+# The last year every mode carries by default. It has to be the last COMPLETE publication
+# year, never the current one: a part-year has most of its papers and almost none of its
+# citations, so it draws as a collapse. It also has to match ANALYSIS_MAX in the notebooks
+# — a default below it silently rebuilds the tables without the year they analyse, which
+# is exactly how 2025 went missing after the 2024 run. Bump both together when a year
+# closes.
+DEFAULT_YEAR_MAX = 2025
 
 # The citation aggregates the facet carries. citations_avg is not decoration: it is the
 # reference mean that turns a paper's citation count into a field-normalised score, and
@@ -608,13 +625,14 @@ def cmd_counts(args: argparse.Namespace) -> None:
     bg["ukbb_papers"] = bg.ukbb_papers.fillna(0.0)
     bg["n_papers"] = bg.n_papers - bg.ukbb_papers
 
-    # A negative cell means the UK Biobank snapshot holds papers the live index does
-    # not report in that field-year: the seam between the two sources, not noise.
+    # A negative cell means the UK Biobank arm holds papers the live index does not
+    # report in that field-year — i.e. the two reads happened on different days, since
+    # both arms otherwise come from one index. Not noise.
     neg = bg[bg.n_papers < 0]
     if len(neg):
         worst = neg.nsmallest(5, "n_papers")
         print(f"\n  !! {len(neg)} cell(s) went negative when the UK Biobank arm was "
-              f"subtracted — the live index and the VM snapshot disagree there.\n"
+              f"subtracted — the two reads of the live index disagree there.\n"
               f"     Clamped to zero. Worst:")
         for _, r in worst.iterrows():
             print(f"       {r.year} {r.level} {str(r.code):5s} {str(r.for_label)[:34]:34s} "
@@ -764,8 +782,8 @@ def load_calibration(out: Path) -> Dict[tuple, float]:
 # twice as much.
 #
 # WHICH CELLS. Every (year, field) UK Biobank publishes in is ~680 cells and five hours;
-# --min-ukbb 10 measures the 254 of them that carry enough UK Biobank papers for a rate to
-# mean anything, which is every cell the notebooks actually draw (they drop thinner ones
+# --min-ukbb 10 measures the ~300 of them (302 over 2015-2025) that carry enough UK
+# Biobank papers for a rate to mean anything, which is every cell the notebooks actually draw (they drop thinner ones
 # themselves, at the same floor). Cells left unmeasured keep the proxy, and the analysis
 # counts each paper only in the measure it actually has (that is what the _docs counters
 # are for), so mixing them does not corrupt a mean — it narrows what the mean is over.
@@ -1435,7 +1453,7 @@ def main() -> None:
     sp = sub.add_parser("counts", help="year x field counts -> partials in the VM schema")
     common(sp)
     sp.add_argument("--year-min", type=int, default=2004)
-    sp.add_argument("--year-max", type=int, default=2024)
+    sp.add_argument("--year-max", type=int, default=DEFAULT_YEAR_MAX)
     sp.add_argument("--out", default="data/analysis/academic_impact/for_counts_api")
     sp.add_argument("--ukbb-counts",
                     default="data/analysis/academic_impact/for_counts_out",
@@ -1449,7 +1467,7 @@ def main() -> None:
 
     def window(sp):
         sp.add_argument("--year-min", type=int, default=2004)
-        sp.add_argument("--year-max", type=int, default=2024)
+        sp.add_argument("--year-max", type=int, default=DEFAULT_YEAR_MAX)
         sp.add_argument("--out", default="data/analysis/academic_impact/for_counts_api")
 
     sp = sub.add_parser("calibrate",

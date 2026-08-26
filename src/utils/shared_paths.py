@@ -64,7 +64,9 @@ FOR_COUNTS = ACADEMIC_IMPACT / "for_counts_out"
 # the Dimensions API instead of counted off the VM corpus copy. Same schema, same
 # filenames, so a notebook switches pathway by changing COUNTS_DIR and nothing else —
 # see data_analysis_03_academic_impact_dimensions_api.py for what each can and cannot
-# answer (the API path has no fractional and no citation-weighted columns).
+# answer. The API path DOES carry citation weights (times_cited, mncs, and the measured
+# per-field decile and median); what it cannot give is a fractional count on the
+# background side, or a per-paper FCR there — a facet returns totals, not per-paper rows.
 FOR_COUNTS_API = ACADEMIC_IMPACT / "for_counts_api"
 
 # Analysis 02 (content / topic modelling). Registered here so 02's "five places" all
