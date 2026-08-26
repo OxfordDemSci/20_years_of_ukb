@@ -38,7 +38,14 @@ DATA = ROOT / "data"
 
 # -- the UK Biobank publication corpus (Dimensions records joined to the showcase) --
 SHOWCASE = DATA / "showcase"
-SHOWCASE_PLUS = SHOWCASE / "showcase_plus" / "showcase_plus_all_endpoints_wide.parquet"
+SHOWCASE_PLUS_CANDIDATES = (
+    SHOWCASE / "showcase_plus" / "showcase_plus_all_endpoints_wide.parquet",
+    SHOWCASE / "showcase+" / "showcase_plus_all_endpoint.parquet",
+)
+SHOWCASE_PLUS = next(
+    (path for path in SHOWCASE_PLUS_CANDIDATES if path.exists()),
+    SHOWCASE_PLUS_CANDIDATES[0],
+)
 
 # -- raw Dimensions pulls: per-endpoint caches + the flattened exports --------------
 DIMENSION = DATA / "dimension"
@@ -60,6 +67,13 @@ FOR_COUNTS = ACADEMIC_IMPACT / "for_counts_out"
 # answer (the API path has no fractional and no citation-weighted columns).
 FOR_COUNTS_API = ACADEMIC_IMPACT / "for_counts_api"
 
+# Analysis 02 (content / topic modelling). Registered here so 02's "five places" all
+# exist — the 02 notebooks do not read these yet (they still carry Colab-era literals and
+# are left untouched for now); wire them up when those notebooks are next opened.
+CONTENT = ANALYSIS / "content"
+BERTOPIC_CACHE = CONTENT / "cache"
+TOPIC_ASSIGNMENTS = CONTENT / "showcase_plus_id_topics.csv"
+
 NON_ACADEMIC = ANALYSIS / "non_academic"
 CLINICAL_TRIALS = NON_ACADEMIC / "clinical_trials"
 PATENT = NON_ACADEMIC / "patent"
@@ -74,9 +88,22 @@ CT_CSV = CLINICAL_TRIALS / "clinical_trials.csv"
 CT_UKBB_PAPERS = CLINICAL_TRIALS / "ct_ukbb_papers.csv"
 PATENTS_DETAILED = PATENT / "patents_detailed.csv"
 POLICY_CSV = POLICY / "policy_documents.csv"
+# Read as a bare "altmetric.csv" / "output/..." relative to the notebook's cwd until
+# 2026-08-26, so both resolved differently depending on where the kernel was launched.
+ALTMETRIC_CSV = NON_ACADEMIC / "altmetric.csv"
+# The Altmetric export above is NOT in the repo and has no provenance record. This
+# is the substitute rebuilt from the corpus + the policy pull: same column names,
+# so a real export can be dropped in later and the notebook switches by path alone.
+# It is NOT equivalent — it carries no news mentions, and its "Policy mentions" are
+# Dimensions policy citations. See data_analysis_04_non_academic_altmetric_from_corpus.py.
+ALTMETRIC_DERIVED = NON_ACADEMIC / "altmetric_from_corpus.csv"
+COLLAB_FLAGGED = ROOT / "output" / "non_academic_flagged_full_company.xlsx"
 
 # -- static reference data ----------------------------------------------------------
 WORLD_SHP = DATA / "ne_110m_admin_0_countries" / "ne_110m_admin_0_countries.shp"
+# FOR id <-> code <-> name (80003 <-> 32 <-> 'Biomedical and Clinical Sciences'). It sits
+# in doc/ rather than data/ because it ships with the repo and the methodology cites it.
+FOR_2020_CODES = ROOT / "doc" / "category_for_2020_codes.csv"
 
 # -- deliverables: everything a notebook exports lands under output/ -----------------
 # The notebooks' savedirs are configured in universal_settings.yml; these constants are
@@ -91,6 +118,7 @@ TABLE_DATA_ANALYSIS = OUTPUT_TABLES / "data_analysis"
 FIG_GROWTH = FIG_DATA_ANALYSIS / "01_growth"
 TABLE_GROWTH = TABLE_DATA_ANALYSIS / "01_growth"
 FIG_AUTHORS = FIG_DATA_ANALYSIS / "01_authors"
+FIG_CONTENT = FIG_DATA_ANALYSIS / "02_content"
 FIG_NETWORK = FIG_DATA_ANALYSIS / "02_network"
 FIG_ACADEMIC_IMPACT = FIG_DATA_ANALYSIS / "03_academic_impact"
 FIG_NON_ACADEMIC = FIG_DATA_ANALYSIS / "04_non_academic"
@@ -130,11 +158,11 @@ def raw_path(path: Path) -> str:
 def ensure_dirs() -> None:
     """Create the output directories that notebooks write into, if missing."""
     for d in (AUTHOR_ANALYSIS, ACADEMIC_IMPACT, FOR_COUNTS, FOR_COUNTS_API,
-              CLINICAL_TRIALS, PATENT,
+              CONTENT, BERTOPIC_CACHE, CLINICAL_TRIALS, PATENT,
               POLICY, DIMENSION_CACHE, DIMENSION_FLAT, OUTPUT_TABLES,
               FIG_GROWTH, TABLE_GROWTH,
-              FIG_AUTHORS, FIG_NETWORK, FIG_NON_ACADEMIC, FIG_CLINICAL_TRIALS,
-              FIG_ACADEMIC_IMPACT, FIG_PATENT):
+              FIG_AUTHORS, FIG_CONTENT, FIG_NETWORK, FIG_NON_ACADEMIC,
+              FIG_CLINICAL_TRIALS, FIG_ACADEMIC_IMPACT, FIG_PATENT):
         d.mkdir(parents=True, exist_ok=True)
 
 

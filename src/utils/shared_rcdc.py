@@ -15,7 +15,7 @@ different views of the same counts.
 
 The split is a STOP LIST, deliberately explicit rather than a heuristic, so it can be read,
 argued with and extended. It was first written for the clinical-trials notebook
-(05_non_academic_01_clinical_trials, §3.4) against the 157 tags those trials carry; the
+(04_non_academic_01_clinical_trials, §3.4) against the 157 tags those trials carry; the
 academic corpus carries ~320, so the terms that vocabulary adds are grouped separately
 below and marked, to keep the provenance of each decision visible.
 
@@ -43,7 +43,7 @@ from typing import Iterable, List
 # =============================================================================
 # THE STOP LIST — every tag here is NOT a disease
 # =============================================================================
-# Group 1: from 05_non_academic_01_clinical_trials §3.4, unchanged.
+# Group 1: from 04_non_academic_01_clinical_trials §3.4, unchanged.
 _STOP_TRIALS = {
     # research-activity / portfolio labels
     "Clinical Research", "Clinical Trials and Supportive Activities", "Prevention",

@@ -34,7 +34,7 @@ are instant and offline), and writes three new columns back to the clinical-tria
   mesh_leaf | mesh_leaf_ids | mesh_ancestors | mesh_intervention   (stringified lists, like
                                                     the other list-columns in the file)
 
-`mesh_leaf_ids` holds the MeSH descriptor D-numbers for the leaf terms; src/utils/data_analysis_05_clinical_trials_data_analysis_05_clinical_trials_mesh_tree.py
+`mesh_leaf_ids` holds the MeSH descriptor D-numbers for the leaf terms; src/utils/data_analysis_04_non_academic_clinical_trials_mesh_tree.py
 turns those into ICD-10 chapters via MeSH's own hierarchy (no keyword guessing).
 
 The original `mesh_terms` column is left untouched, so the two can be compared.
@@ -88,7 +88,7 @@ def _ids(module: dict, key: str) -> List[str]:
     """MeSH descriptor ids (D-numbers) from one bucket — e.g. 'D029424' for COPD.
 
     These are what make a principled ICD mapping possible: a descriptor id resolves to MeSH
-    tree numbers (see src/utils/data_analysis_05_clinical_trials_data_analysis_05_clinical_trials_mesh_tree.py), whereas the term STRING only supports keyword
+    tree numbers (see src/utils/data_analysis_04_non_academic_clinical_trials_mesh_tree.py), whereas the term STRING only supports keyword
     guessing. CTgov returns them alongside every term, so keeping them costs nothing.
     """
     return [m["id"] for m in (module.get(key) or []) if m.get("id")]
@@ -169,7 +169,7 @@ def enrich_clinical_trials(csv: Path = CT_CSV, cache: Path = CTGOV_CACHE,
         return df["id"].map(b[col]).apply(lambda x: x if isinstance(x, list) else [])
 
     df["mesh_leaf"] = take("cond_leaf")
-    df["mesh_leaf_ids"] = take("cond_leaf_ids")      # D-numbers -> data_analysis_05_clinical_trials_mesh_tree.py -> ICD chapter
+    df["mesh_leaf_ids"] = take("cond_leaf_ids")      # D-numbers -> data_analysis_04_non_academic_clinical_trials_mesh_tree.py -> ICD chapter
     df["mesh_ancestors"] = take("cond_ancestors")
     df["mesh_intervention"] = take("intervention")
 

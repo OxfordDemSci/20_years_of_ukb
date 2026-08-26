@@ -102,7 +102,7 @@ WHY THIS IS CHEAP (READ THIS BEFORE SIZING THE SLURM JOB)
 ---------------------------------------------------------
 230 GB is the size of the *files*, not the size of the *work*. Parquet stores each
 column as a contiguous chunk, so a projected read seeks straight past everything else.
-Measured on data/showcase/showcase_plus_all_endpoint.parquet (26,109 rows, 72 columns):
+Measured on data/showcase/showcase+/showcase_plus_all_endpoint.parquet (26,109 rows, 72 columns):
 id+year+type+category_for_2020 = 214 KB = 0.16 % of the 130 MB file. RCDC is ~50 KB
 more. Run `probe` FIRST to confirm that on the real data — it reads only the parquet
 footer and prints the projected byte cost, so you size the array job from measurement.
@@ -151,7 +151,7 @@ PARSING: REGEX, NOT ast.literal_eval
 ------------------------------------
 The cell is JSON with a rigid shape, so a single regex over the raw string yields the
 same (code, label) pairs ~50x faster than ast.literal_eval per row. `selfcheck` asserts
-the FOR fast-path matches shared_for_utils on real rows. Some newer corpus exports store
+the FOR fast-path matches shared_for on real rows. Some newer corpus exports store
 the column as a nested struct instead of text; both shapes are handled.
 
 READ-ONLY BY CONSTRUCTION
@@ -1294,13 +1294,16 @@ def cmd_merge(args: argparse.Namespace) -> None:
 
 
 # =============================================================================
-# MODE: selfcheck  — the FOR regex must agree with shared_for_utils
+# MODE: selfcheck  — the FOR regex must agree with shared_for
 # =============================================================================
 def cmd_selfcheck(args: argparse.Namespace) -> None:
     sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
-    from utils import shared_for_utils as for_utils  # noqa: E402
+    from utils import shared_for as for_utils  # noqa: E402
 
-    path = args.files[0] if args.files else "data/showcase/showcase_plus_all_endpoint.parquet"
+    from utils import shared_paths as _P  # noqa: E402
+    # Was a literal "data/showcase/showcase_plus_all_endpoint.parquet", which stopped
+    # resolving when the corpus moved under showcase+/ (decisions_shared.md D1).
+    path = args.files[0] if args.files else str(_P.SHOWCASE_PLUS)
     pf = pq.ParquetFile(path)
     for_col = CATEGORIES["for"].resolve_column(pf.schema_arrow.names)
     cells = next(pf.iter_batches(batch_size=args.n, columns=[for_col])).column(0).to_pylist()
@@ -1319,7 +1322,7 @@ def cmd_selfcheck(args: argparse.Namespace) -> None:
             if bad <= 5:
                 print(f"  MISMATCH\n    fast {sorted(fast2)} {sorted(fast4)}"
                       f"\n    slow {sorted(slow2)} {sorted(slow4)}\n    {cell!r:.200}")
-    print(f"selfcheck {path}: {len(cells)} cells, {bad} mismatch(es) vs shared_for_utils")
+    print(f"selfcheck {path}: {len(cells)} cells, {bad} mismatch(es) vs shared_for")
     sys.exit(1 if bad else 0)
 
 
@@ -1417,7 +1420,7 @@ def main() -> None:
     sp.add_argument("--out", default="out")
     sp.add_argument("--partials", help="where the partials are (default: --out)")
 
-    sp = sub.add_parser("selfcheck", help="assert the FOR regex matches shared_for_utils")
+    sp = sub.add_parser("selfcheck", help="assert the FOR regex matches shared_for")
     sp.add_argument("--files", nargs="+")
     sp.add_argument("--n", type=int, default=5000)
 
