@@ -1,0 +1,7 @@
+role,value
+authorship,/Users/valler/Python/RA/20_years_of_ukb/data/showcase/showcase+/showcase_plus_all_endpoint.parquet
+citation snapshot,/Users/valler/Python/RA/20_years_of_ukb/data/analysis/academic_impact/for_counts_api/api_ukbb_records.json
+field reference (mncs),/Users/valler/Python/RA/20_years_of_ukb/data/analysis/academic_impact/for_counts_api/api_whole.for.parquet
+measured cut-offs (top10f / top50f),/Users/valler/Python/RA/20_years_of_ukb/data/analysis/academic_impact/for_counts_api/field_thresholds.for.csv
+analysis window,2015-2025
+level,L4
