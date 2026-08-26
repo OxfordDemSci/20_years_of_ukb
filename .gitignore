@@ -174,7 +174,10 @@ cython_debug/
 .pypirc
 scibert_consensus
 file/*
-data/*
+# Keep data documentation while ignoring generated and downloaded data files.
+data/**
+!data/**/
+!data/**/*.md
 output_temp/*
 .idea/*
 fig/*
