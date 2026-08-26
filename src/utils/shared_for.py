@@ -48,6 +48,10 @@ than being silently unified, because they answer different questions:
   * `primary_for_levels(cell, lookup)`        first-listed L2/L4 as a single label, for
                                               topic naming  (01_analysis_03_network_over_time)
 
+`for_long(df)` is the fourth shape: the L2xL4 long table, one row per (paper, division,
+field), carrying codes as well as labels. The 02 content notebooks each held their own copy
+of that explosion; it lives here now.
+
 Author: Jiani Y
 Date: 2026-07-13
 """
@@ -210,6 +214,58 @@ def add_for_columns(df: pd.DataFrame, col: Optional[str] = None,
     df["for_l4"] = levels.apply(lambda t: t[1])
     df["n_for_l2"] = df["for_l2"].apply(len)
     return df
+
+
+def for_long(df: pd.DataFrame, col: Optional[str] = None, id_col: str = "id",
+             carry: Tuple[str, ...] = ("year",),
+             parent_from_code: bool = True,
+             lookup: Optional[Dict[str, str]] = None) -> pd.DataFrame:
+    """One row per (paper, L2 division, L4 field) — codes AND labels, both levels.
+
+    `add_for_columns` returns label lists and drops the codes, which is enough for a
+    coverage count but not for anything that has to name a division or walk the hierarchy.
+    This is the L2xL4 explosion the 02 content notebooks each carried inline; it lives here
+    so the pairing rule is written once.
+
+    parent_from_code=True   an L4's division is `code[:2]`, so every L4 gets a parent
+                            whether or not the 2-digit code was tagged on the paper.
+    parent_from_code=False  an L4 pairs only with 2-digit codes actually present on the
+                            paper — the `l4c.startswith(l2c)` rule 02_content_2/3 used, and
+                            the reason a paper tagged '3212' but not '32' would vanish.
+
+    The two agree exactly on the current corpus (0 of 37,719 pairs differ), so the switch is
+    there to keep that a checked claim rather than an assumption.
+
+    Papers carrying no L4 field produce no rows: this is a table of pairs, not of papers.
+    """
+    col = resolve_for_column(df, col)
+    div_lut = lookup if lookup is not None else build_for_lookup(df, col)
+    carry = tuple(carry)
+    missing = [c for c in (id_col, *carry) if c not in df.columns]
+    if missing:
+        raise KeyError(f"for_long: frame has no column(s) {missing}")
+
+    rows = []
+    for rec in df[[id_col, *carry, col]].itertuples(index=False, name=None):
+        ident, *carried, cell = rec
+        l2, l4 = {}, {}
+        for c in parse_listcol(cell):
+            if not isinstance(c, dict):
+                continue
+            code, label, level = split_for_name(c.get("name"))
+            if level == "L2":
+                l2[code] = label
+            elif level == "L4":
+                l4[code] = label
+        for l4_code, l4_label in l4.items():
+            parents = ({l4_code[:2]: div_lut.get(l4_code[:2])} if parent_from_code
+                       else {k: v for k, v in l2.items() if l4_code.startswith(k)})
+            for l2_code, l2_label in parents.items():
+                rows.append((ident, *carried, l2_code, l2_label, l4_code, l4_label))
+
+    return pd.DataFrame(
+        rows, columns=[id_col, *carry, "l2_code", "l2_label", "l4_code", "l4_label"]
+    )
 
 
 def primary_for_levels(cell, lookup: Optional[Dict[str, str]] = None) -> Tuple[str, str]:
