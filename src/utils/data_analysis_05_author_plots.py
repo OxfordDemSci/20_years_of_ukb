@@ -158,8 +158,8 @@ def plot_headline_figure(core: A.CoreTables, network: A.NetworkTables, style, wo
         right=0.985,
         bottom=0.085,
         top=0.965,
-        wspace=0.14,
-        width_ratios=[1.62, 1],
+        wspace=0.11,
+        width_ratios=[1.50, 1],
     )
     left = outer[0].subgridspec(
         2,
@@ -171,8 +171,8 @@ def plot_headline_figure(core: A.CoreTables, network: A.NetworkTables, style, wo
     network_row = left[0].subgridspec(
         1,
         2,
-        width_ratios=[0.34, 1],
-        wspace=0.04,
+        width_ratios=[0.48, 1],
+        wspace=0.015,
     )
     lower_row = left[1].subgridspec(
         1,
@@ -209,7 +209,7 @@ def plot_headline_figure(core: A.CoreTables, network: A.NetworkTables, style, wo
         linewidth=0.65,
     )
     labels = [
-        f"Top {percentage:g}% of authors"
+        f"Top {percentage:g}%"
         for percentage in concentration["top_author_percent"]
     ]
     ax_b.set_yticks(y, labels)
@@ -1046,7 +1046,7 @@ def _draw_component_network(ax, network, style, *, compact=False, meta_ax=None):
     legend_kwargs = (
         {
             "loc": "upper left",
-            "bbox_to_anchor": (0.0, 0.88),
+            "bbox_to_anchor": (0.0, 0.66),
             "borderaxespad": 0,
             "ncol": 1,
             "fontsize": style["legend_fs"] - 1,
@@ -1071,9 +1071,11 @@ def _draw_component_network(ax, network, style, *, compact=False, meta_ax=None):
     summary_target = ax if meta_ax is None else meta_ax
     if meta_ax is not None:
         summary_text = (
-            f"Giant component\n{layout['giant_size']:,} authors ({giant_share:.1f}%)"
+            f"{len(positions):,} resolved authors\n"
+            f"{layout['total_ties']:,} coauthor ties\n"
+            f"{giant_share:.1f}% in giant component"
         )
-        summary_x, summary_y = 0.0, 0.68
+        summary_x, summary_y = 0.0, 0.42
         summary_ha, summary_va = "left", "top"
         summary_bbox = None
     else:
