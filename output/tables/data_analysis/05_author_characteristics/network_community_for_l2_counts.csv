@@ -1,0 +1,2472 @@
+community,modal_for_l2,n_authors,group_authors,author_share,rank
+1,Biological Sciences,4386,6891,0.6364823683064867,1
+1,Biomedical and Clinical Sciences,1898,6891,0.275431722536642,2
+1,Health Sciences,436,6891,0.06327093310114643,3
+1,Psychology,113,6891,0.016398200551443913,4
+1,"Agricultural, Veterinary and Food Sciences",26,6891,0.003773037295022493,5
+1,Information and Computing Sciences,15,6891,0.0021767522855899,6
+1,Human Society,9,6891,0.00130605137135394,7
+1,Mathematical Sciences,4,6891,0.0005804672761573066,8
+1,Environmental Sciences,3,6891,0.00043535045711797995,9
+1,Economics,1,6891,0.00014511681903932666,10
+2,Biomedical and Clinical Sciences,2284,3646,0.6264399341744378,1
+2,Biological Sciences,1062,3646,0.29127811300054857,2
+2,Health Sciences,281,3646,0.07707076247942951,3
+2,Mathematical Sciences,10,3646,0.0027427317608337905,4
+2,Information and Computing Sciences,4,3646,0.0010970927043335162,5
+2,"Agricultural, Veterinary and Food Sciences",3,3646,0.0008228195282501371,6
+2,Built Environment and Design,1,3646,0.00027427317608337906,7
+2,Engineering,1,3646,0.00027427317608337906,8
+3,Biological Sciences,1440,3236,0.44499381953028433,1
+3,Biomedical and Clinical Sciences,1392,3236,0.43016069221260816,2
+3,Health Sciences,350,3236,0.10815822002472188,3
+3,Information and Computing Sciences,28,3236,0.00865265760197775,4
+3,Psychology,11,3236,0.003399258343634116,5
+3,Mathematical Sciences,9,3236,0.002781211372064277,6
+3,"History, Heritage and Archaeology",4,3236,0.0012360939431396785,7
+3,Economics,1,3236,0.00030902348578491963,8
+3,Engineering,1,3236,0.00030902348578491963,9
+4,Biomedical and Clinical Sciences,898,2581,0.3479271600154979,1
+4,Psychology,801,2581,0.3103448275862069,2
+4,Biological Sciences,496,2581,0.19217357613328168,3
+4,Health Sciences,205,2581,0.07942657884540875,4
+4,Information and Computing Sciences,125,2581,0.048430840759395584,5
+4,Physical Sciences,25,2581,0.009686168151879117,6
+4,Mathematical Sciences,13,2581,0.005036807438977141,7
+4,Engineering,10,2581,0.0038744672607516468,8
+4,Education,7,2581,0.0027121270825261525,9
+4,Earth Sciences,1,2581,0.0003874467260751647,10
+5,Biological Sciences,1813,2201,0.8237164925034075,1
+5,Biomedical and Clinical Sciences,215,2201,0.09768287142208087,2
+5,Health Sciences,173,2201,0.07860063607451158,3
+6,Biomedical and Clinical Sciences,1304,1963,0.6642893530310748,1
+6,Health Sciences,242,1963,0.12328069281711666,2
+6,Biological Sciences,213,1963,0.10850738665308202,3
+6,Information and Computing Sciences,166,1963,0.08456444218033622,4
+6,Engineering,22,1963,0.011207335710646969,5
+6,Psychology,11,1963,0.0056036678553234845,6
+6,"Commerce, Management, Tourism and Services",3,1963,0.0015282730514518594,7
+6,"Agricultural, Veterinary and Food Sciences",1,1963,0.0005094243504839531,8
+6,Unclassified,1,1963,0.0005094243504839531,9
+7,Biological Sciences,1131,1754,0.644811858608894,1
+7,Biomedical and Clinical Sciences,533,1754,0.30387685290763966,2
+7,Health Sciences,72,1754,0.04104903078677309,3
+7,"Agricultural, Veterinary and Food Sciences",11,1754,0.006271379703534778,4
+7,Mathematical Sciences,4,1754,0.002280501710376283,5
+7,Psychology,3,1754,0.0017103762827822121,6
+8,Biomedical and Clinical Sciences,1063,1748,0.6081235697940504,1
+8,Biological Sciences,542,1748,0.3100686498855835,2
+8,Health Sciences,115,1748,0.06578947368421052,3
+8,Psychology,17,1748,0.009725400457665904,4
+8,Information and Computing Sciences,11,1748,0.006292906178489702,5
+9,Biomedical and Clinical Sciences,717,1609,0.44561839651957735,1
+9,Biological Sciences,463,1609,0.2877563704164077,2
+9,Health Sciences,370,1609,0.22995649471721566,3
+9,Environmental Sciences,24,1609,0.014916096954630205,4
+9,Psychology,22,1609,0.013673088875077687,5
+9,Economics,3,1609,0.0018645121193287756,6
+9,Information and Computing Sciences,3,1609,0.0018645121193287756,7
+9,Mathematical Sciences,3,1609,0.0018645121193287756,8
+9,Human Society,2,1609,0.001243008079552517,9
+9,"Commerce, Management, Tourism and Services",1,1609,0.0006215040397762585,10
+9,Education,1,1609,0.0006215040397762585,11
+10,Biomedical and Clinical Sciences,868,1599,0.5428392745465916,1
+10,Biological Sciences,571,1599,0.35709818636647905,2
+10,Health Sciences,99,1599,0.06191369606003752,3
+10,Psychology,22,1599,0.013758599124452783,4
+10,Mathematical Sciences,15,1599,0.009380863039399626,5
+10,Environmental Sciences,10,1599,0.006253908692933083,6
+10,Chemical Sciences,8,1599,0.0050031269543464665,7
+10,Information and Computing Sciences,6,1599,0.00375234521575985,8
+11,Biomedical and Clinical Sciences,1012,1580,0.640506329113924,1
+11,Biological Sciences,366,1580,0.23164556962025318,2
+11,Health Sciences,140,1580,0.08860759493670886,3
+11,Information and Computing Sciences,26,1580,0.016455696202531647,4
+11,Engineering,18,1580,0.01139240506329114,5
+11,Psychology,13,1580,0.008227848101265823,6
+11,"Agricultural, Veterinary and Food Sciences",4,1580,0.002531645569620253,7
+11,Mathematical Sciences,1,1580,0.0006329113924050633,8
+12,Biomedical and Clinical Sciences,818,1564,0.5230179028132992,1
+12,Health Sciences,296,1564,0.18925831202046037,2
+12,Psychology,235,1564,0.15025575447570333,3
+12,Biological Sciences,202,1564,0.12915601023017903,4
+12,"Agricultural, Veterinary and Food Sciences",6,1564,0.0038363171355498722,5
+12,Law and Legal Studies,5,1564,0.00319693094629156,6
+12,"Commerce, Management, Tourism and Services",1,1564,0.0006393861892583121,7
+12,Information and Computing Sciences,1,1564,0.0006393861892583121,8
+13,Biomedical and Clinical Sciences,746,1240,0.6016129032258064,1
+13,Biological Sciences,369,1240,0.29758064516129035,2
+13,Health Sciences,112,1240,0.09032258064516129,3
+13,Mathematical Sciences,6,1240,0.004838709677419355,4
+13,Information and Computing Sciences,3,1240,0.0024193548387096775,5
+13,"Agricultural, Veterinary and Food Sciences",2,1240,0.0016129032258064516,6
+13,Environmental Sciences,2,1240,0.0016129032258064516,7
+14,Biomedical and Clinical Sciences,770,1219,0.6316652994257588,1
+14,Health Sciences,348,1219,0.28547990155865466,2
+14,Biological Sciences,60,1219,0.04922067268252666,3
+14,Environmental Sciences,16,1219,0.013125512715340444,4
+14,Psychology,9,1219,0.007383100902378999,5
+14,Information and Computing Sciences,7,1219,0.005742411812961444,6
+14,Engineering,4,1219,0.003281378178835111,7
+14,"Agricultural, Veterinary and Food Sciences",3,1219,0.002461033634126333,8
+14,Earth Sciences,1,1219,0.0008203445447087777,9
+14,Mathematical Sciences,1,1219,0.0008203445447087777,10
+15,Biomedical and Clinical Sciences,461,1209,0.3813068651778329,1
+15,Biological Sciences,451,1209,0.3730355665839537,2
+15,Psychology,206,1209,0.17038875103391232,3
+15,Health Sciences,85,1209,0.07030603804797353,4
+15,Mathematical Sciences,5,1209,0.0041356492969396195,5
+15,"Commerce, Management, Tourism and Services",1,1209,0.0008271298593879239,6
+16,Biological Sciences,740,1160,0.6379310344827587,1
+16,Biomedical and Clinical Sciences,240,1160,0.20689655172413793,2
+16,Health Sciences,109,1160,0.0939655172413793,3
+16,Engineering,30,1160,0.02586206896551724,4
+16,Information and Computing Sciences,22,1160,0.01896551724137931,5
+16,Psychology,12,1160,0.010344827586206896,6
+16,Mathematical Sciences,5,1160,0.004310344827586207,7
+16,Physical Sciences,2,1160,0.0017241379310344827,8
+17,Biomedical and Clinical Sciences,706,1139,0.6198419666374012,1
+17,Health Sciences,235,1139,0.20632133450395082,2
+17,Biological Sciences,172,1139,0.15100965759438104,3
+17,Environmental Sciences,18,1139,0.015803336259877086,4
+17,Information and Computing Sciences,7,1139,0.006145741878841089,5
+17,Psychology,1,1139,0.000877963125548727,6
+18,Biomedical and Clinical Sciences,602,1058,0.5689981096408318,1
+18,Health Sciences,329,1058,0.31096408317580343,2
+18,Biological Sciences,99,1058,0.09357277882797732,3
+18,Psychology,6,1058,0.005671077504725898,4
+18,Earth Sciences,5,1058,0.004725897920604915,5
+18,Information and Computing Sciences,5,1058,0.004725897920604915,6
+18,Mathematical Sciences,5,1058,0.004725897920604915,7
+18,Education,3,1058,0.002835538752362949,8
+18,Engineering,2,1058,0.001890359168241966,9
+18,Human Society,2,1058,0.001890359168241966,10
+19,Biomedical and Clinical Sciences,413,988,0.4180161943319838,1
+19,Biological Sciences,280,988,0.2834008097165992,2
+19,Psychology,174,988,0.17611336032388664,3
+19,Health Sciences,74,988,0.07489878542510121,4
+19,Information and Computing Sciences,35,988,0.0354251012145749,5
+19,Mathematical Sciences,4,988,0.004048582995951417,6
+19,Physical Sciences,3,988,0.003036437246963563,7
+19,Economics,2,988,0.0020242914979757085,8
+19,Human Society,2,988,0.0020242914979757085,9
+19,Environmental Sciences,1,988,0.0010121457489878543,10
+20,Biological Sciences,466,894,0.5212527964205816,1
+20,Biomedical and Clinical Sciences,402,894,0.44966442953020136,2
+20,Health Sciences,14,894,0.015659955257270694,3
+20,Information and Computing Sciences,10,894,0.011185682326621925,4
+20,Psychology,2,894,0.0022371364653243847,5
+21,Biomedical and Clinical Sciences,621,838,0.7410501193317423,1
+21,Health Sciences,132,838,0.1575178997613365,2
+21,Biological Sciences,73,838,0.08711217183770883,3
+21,Psychology,9,838,0.010739856801909307,4
+21,"Agricultural, Veterinary and Food Sciences",3,838,0.003579952267303103,5
+22,Biological Sciences,333,772,0.43134715025906734,1
+22,Biomedical and Clinical Sciences,320,772,0.41450777202072536,2
+22,Health Sciences,75,772,0.09715025906735751,3
+22,Information and Computing Sciences,34,772,0.04404145077720207,4
+22,Engineering,4,772,0.0051813471502590676,5
+22,Mathematical Sciences,3,772,0.0038860103626943004,6
+22,Human Society,2,772,0.0025906735751295338,7
+22,Psychology,1,772,0.0012953367875647669,8
+23,Biomedical and Clinical Sciences,449,744,0.603494623655914,1
+23,Biological Sciences,233,744,0.3131720430107527,2
+23,Health Sciences,62,744,0.08333333333333333,3
+24,Biomedical and Clinical Sciences,403,719,0.5605006954102921,1
+24,Biological Sciences,162,719,0.22531293463143254,2
+24,Health Sciences,131,719,0.18219749652294853,3
+24,Psychology,15,719,0.02086230876216968,4
+24,Engineering,5,719,0.006954102920723227,5
+24,Information and Computing Sciences,3,719,0.004172461752433936,6
+25,Biomedical and Clinical Sciences,402,668,0.6017964071856288,1
+25,Health Sciences,215,668,0.3218562874251497,2
+25,Biological Sciences,35,668,0.05239520958083832,3
+25,Environmental Sciences,7,668,0.010479041916167664,4
+25,Human Society,4,668,0.005988023952095809,5
+25,Mathematical Sciences,2,668,0.0029940119760479044,6
+25,Education,1,668,0.0014970059880239522,7
+25,Psychology,1,668,0.0014970059880239522,8
+25,Unclassified,1,668,0.0014970059880239522,9
+26,Biomedical and Clinical Sciences,333,667,0.4992503748125937,1
+26,Biological Sciences,301,667,0.4512743628185907,2
+26,Health Sciences,29,667,0.043478260869565216,3
+26,Engineering,4,667,0.005997001499250375,4
+27,Biomedical and Clinical Sciences,355,629,0.5643879173290938,1
+27,Biological Sciences,228,629,0.3624801271860095,2
+27,Health Sciences,45,629,0.07154213036565978,3
+27,Information and Computing Sciences,1,629,0.001589825119236884,4
+28,Biomedical and Clinical Sciences,400,629,0.6359300476947536,1
+28,Health Sciences,105,629,0.1669316375198728,2
+28,Biological Sciences,104,629,0.16534181240063592,3
+28,"Agricultural, Veterinary and Food Sciences",6,629,0.009538950715421303,4
+28,Environmental Sciences,6,629,0.009538950715421303,5
+28,Information and Computing Sciences,5,629,0.00794912559618442,6
+28,Engineering,3,629,0.0047694753577106515,7
+29,Biological Sciences,306,609,0.5024630541871922,1
+29,Biomedical and Clinical Sciences,279,609,0.458128078817734,2
+29,Psychology,9,609,0.014778325123152709,3
+29,Health Sciences,8,609,0.013136288998357963,4
+29,Philosophy and Religious Studies,5,609,0.008210180623973728,5
+29,Information and Computing Sciences,2,609,0.003284072249589491,6
+30,Biomedical and Clinical Sciences,375,571,0.6567425569176882,1
+30,Health Sciences,107,571,0.18739054290718038,2
+30,Biological Sciences,66,571,0.11558669001751314,3
+30,Environmental Sciences,11,571,0.01926444833625219,4
+30,"Commerce, Management, Tourism and Services",7,571,0.012259194395796848,5
+30,Psychology,5,571,0.008756567425569177,6
+31,Biomedical and Clinical Sciences,371,537,0.6908752327746741,1
+31,Health Sciences,78,537,0.1452513966480447,2
+31,Biological Sciences,60,537,0.11173184357541899,3
+31,Environmental Sciences,13,537,0.024208566108007448,4
+31,Information and Computing Sciences,9,537,0.01675977653631285,5
+31,Psychology,5,537,0.00931098696461825,6
+31,Unclassified,1,537,0.00186219739292365,7
+32,Biomedical and Clinical Sciences,398,530,0.7509433962264151,1
+32,Health Sciences,74,530,0.13962264150943396,2
+32,Biological Sciences,27,530,0.0509433962264151,3
+32,Chemical Sciences,12,530,0.022641509433962263,4
+32,Engineering,12,530,0.022641509433962263,5
+32,"Agricultural, Veterinary and Food Sciences",5,530,0.009433962264150943,6
+32,Information and Computing Sciences,2,530,0.0037735849056603774,7
+33,Biomedical and Clinical Sciences,226,526,0.4296577946768061,1
+33,Biological Sciences,167,526,0.31749049429657794,2
+33,Health Sciences,104,526,0.19771863117870722,3
+33,Environmental Sciences,11,526,0.02091254752851711,4
+33,"Agricultural, Veterinary and Food Sciences",8,526,0.015209125475285171,5
+33,Psychology,8,526,0.015209125475285171,6
+33,Human Society,2,526,0.0038022813688212928,7
+34,Biomedical and Clinical Sciences,308,506,0.6086956521739131,1
+34,Health Sciences,93,506,0.18379446640316205,2
+34,Biological Sciences,71,506,0.14031620553359683,3
+34,Engineering,15,506,0.029644268774703556,4
+34,Environmental Sciences,15,506,0.029644268774703556,5
+34,"Agricultural, Veterinary and Food Sciences",3,506,0.005928853754940711,6
+34,Human Society,1,506,0.001976284584980237,7
+35,Biomedical and Clinical Sciences,304,503,0.6043737574552683,1
+35,Health Sciences,80,503,0.15904572564612326,2
+35,Biological Sciences,73,503,0.14512922465208747,3
+35,Psychology,26,503,0.05168986083499006,4
+35,Information and Computing Sciences,12,503,0.02385685884691849,5
+35,Environmental Sciences,4,503,0.007952286282306162,6
+35,Physical Sciences,4,503,0.007952286282306162,7
+36,Biomedical and Clinical Sciences,401,491,0.8167006109979633,1
+36,Biological Sciences,68,491,0.1384928716904277,2
+36,Health Sciences,19,491,0.038696537678207736,3
+36,Information and Computing Sciences,3,491,0.006109979633401222,4
+37,Biomedical and Clinical Sciences,373,482,0.7738589211618258,1
+37,Health Sciences,80,482,0.16597510373443983,2
+37,Biological Sciences,14,482,0.029045643153526972,3
+37,Psychology,9,482,0.01867219917012448,4
+37,Environmental Sciences,6,482,0.012448132780082987,5
+38,Biological Sciences,299,465,0.6430107526881721,1
+38,Biomedical and Clinical Sciences,122,465,0.2623655913978495,2
+38,Health Sciences,21,465,0.04516129032258064,3
+38,Psychology,12,465,0.025806451612903226,4
+38,Information and Computing Sciences,8,465,0.017204301075268817,5
+38,Physical Sciences,2,465,0.004301075268817204,6
+38,Environmental Sciences,1,465,0.002150537634408602,7
+39,Biomedical and Clinical Sciences,173,460,0.3760869565217391,1
+39,Psychology,164,460,0.3565217391304348,2
+39,Health Sciences,49,460,0.10652173913043478,3
+39,Biological Sciences,38,460,0.08260869565217391,4
+39,Information and Computing Sciences,26,460,0.05652173913043478,5
+39,Physical Sciences,6,460,0.013043478260869565,6
+39,Mathematical Sciences,4,460,0.008695652173913044,7
+40,Biomedical and Clinical Sciences,288,454,0.6343612334801763,1
+40,Health Sciences,109,454,0.24008810572687225,2
+40,Biological Sciences,37,454,0.08149779735682819,3
+40,Environmental Sciences,18,454,0.039647577092511016,4
+40,Chemical Sciences,1,454,0.0022026431718061676,5
+40,Engineering,1,454,0.0022026431718061676,6
+41,Biomedical and Clinical Sciences,158,410,0.3853658536585366,1
+41,Biological Sciences,112,410,0.2731707317073171,2
+41,Health Sciences,80,410,0.1951219512195122,3
+41,Environmental Sciences,32,410,0.07804878048780488,4
+41,Psychology,9,410,0.02195121951219512,5
+41,"Agricultural, Veterinary and Food Sciences",8,410,0.01951219512195122,6
+41,Earth Sciences,6,410,0.014634146341463415,7
+41,Engineering,3,410,0.007317073170731708,8
+41,Chemical Sciences,2,410,0.004878048780487805,9
+42,Biomedical and Clinical Sciences,214,405,0.528395061728395,1
+42,Biological Sciences,112,405,0.2765432098765432,2
+42,Health Sciences,74,405,0.18271604938271604,3
+42,Psychology,3,405,0.007407407407407408,4
+42,Mathematical Sciences,2,405,0.0049382716049382715,5
+43,Biomedical and Clinical Sciences,290,399,0.7268170426065163,1
+43,Health Sciences,73,399,0.18295739348370926,2
+43,Biological Sciences,28,399,0.07017543859649122,3
+43,Environmental Sciences,5,399,0.012531328320802004,4
+43,Psychology,3,399,0.007518796992481203,5
+44,Biomedical and Clinical Sciences,191,337,0.5667655786350149,1
+44,Biological Sciences,90,337,0.26706231454005935,2
+44,Health Sciences,44,337,0.13056379821958458,3
+44,"Agricultural, Veterinary and Food Sciences",7,337,0.020771513353115726,4
+44,Psychology,3,337,0.008902077151335312,5
+44,Physical Sciences,2,337,0.005934718100890208,6
+45,Biomedical and Clinical Sciences,180,330,0.5454545454545454,1
+45,Biological Sciences,107,330,0.3242424242424242,2
+45,Health Sciences,35,330,0.10606060606060606,3
+45,Psychology,6,330,0.01818181818181818,4
+45,Human Society,2,330,0.006060606060606061,5
+46,Biomedical and Clinical Sciences,216,306,0.7058823529411765,1
+46,Health Sciences,83,306,0.27124183006535946,2
+46,Biological Sciences,7,306,0.02287581699346405,3
+47,Biomedical and Clinical Sciences,110,281,0.3914590747330961,1
+47,Psychology,64,281,0.2277580071174377,2
+47,Health Sciences,53,281,0.18861209964412812,3
+47,Biological Sciences,52,281,0.18505338078291814,4
+47,Information and Computing Sciences,2,281,0.0071174377224199285,5
+48,Biomedical and Clinical Sciences,172,273,0.63003663003663,1
+48,Health Sciences,53,273,0.19413919413919414,2
+48,Biological Sciences,40,273,0.14652014652014653,3
+48,Psychology,8,273,0.029304029304029304,4
+49,Biomedical and Clinical Sciences,200,270,0.7407407407407407,1
+49,Biological Sciences,48,270,0.17777777777777778,2
+49,Health Sciences,11,270,0.040740740740740744,3
+49,Information and Computing Sciences,8,270,0.02962962962962963,4
+49,Psychology,3,270,0.011111111111111112,5
+50,Biomedical and Clinical Sciences,201,270,0.7444444444444445,1
+50,Health Sciences,35,270,0.12962962962962962,2
+50,Biological Sciences,25,270,0.09259259259259259,3
+50,Information and Computing Sciences,5,270,0.018518518518518517,4
+50,Psychology,4,270,0.014814814814814815,5
+51,Biological Sciences,244,267,0.9138576779026217,1
+51,Biomedical and Clinical Sciences,12,267,0.0449438202247191,2
+51,Health Sciences,8,267,0.0299625468164794,3
+51,Information and Computing Sciences,3,267,0.011235955056179775,4
+52,Biological Sciences,127,257,0.49416342412451364,1
+52,Biomedical and Clinical Sciences,78,257,0.3035019455252918,2
+52,Health Sciences,47,257,0.1828793774319066,3
+52,Engineering,3,257,0.011673151750972763,4
+52,Information and Computing Sciences,2,257,0.007782101167315175,5
+53,Biomedical and Clinical Sciences,131,254,0.515748031496063,1
+53,Biological Sciences,67,254,0.2637795275590551,2
+53,Health Sciences,55,254,0.21653543307086615,3
+53,Environmental Sciences,1,254,0.003937007874015748,4
+54,Biomedical and Clinical Sciences,131,250,0.524,1
+54,Biological Sciences,86,250,0.344,2
+54,Health Sciences,31,250,0.124,3
+54,Information and Computing Sciences,2,250,0.008,4
+55,Biomedical and Clinical Sciences,112,176,0.6363636363636364,1
+55,Biological Sciences,39,176,0.2215909090909091,2
+55,Health Sciences,25,176,0.14204545454545456,3
+56,Biomedical and Clinical Sciences,138,163,0.8466257668711656,1
+56,Health Sciences,20,163,0.12269938650306748,2
+56,Biological Sciences,5,163,0.03067484662576687,3
+57,Biomedical and Clinical Sciences,90,142,0.6338028169014085,1
+57,Health Sciences,30,142,0.2112676056338028,2
+57,Biological Sciences,10,142,0.07042253521126761,3
+57,Psychology,8,142,0.056338028169014086,4
+57,Information and Computing Sciences,3,142,0.02112676056338028,5
+57,Mathematical Sciences,1,142,0.007042253521126761,6
+58,Biomedical and Clinical Sciences,96,137,0.7007299270072993,1
+58,Health Sciences,28,137,0.20437956204379562,2
+58,Environmental Sciences,8,137,0.058394160583941604,3
+58,Biological Sciences,4,137,0.029197080291970802,4
+58,Mathematical Sciences,1,137,0.0072992700729927005,5
+59,Biomedical and Clinical Sciences,128,132,0.9696969696969697,1
+59,Health Sciences,3,132,0.022727272727272728,2
+59,Biological Sciences,1,132,0.007575757575757576,3
+60,Biomedical and Clinical Sciences,69,130,0.5307692307692308,1
+60,Biological Sciences,38,130,0.2923076923076923,2
+60,Engineering,19,130,0.14615384615384616,3
+60,Health Sciences,3,130,0.023076923076923078,4
+60,Psychology,1,130,0.007692307692307693,5
+61,Biomedical and Clinical Sciences,75,118,0.635593220338983,1
+61,Health Sciences,31,118,0.2627118644067797,2
+61,Biological Sciences,12,118,0.1016949152542373,3
+62,Biomedical and Clinical Sciences,85,117,0.7264957264957265,1
+62,Biological Sciences,30,117,0.2564102564102564,2
+62,Information and Computing Sciences,2,117,0.017094017094017096,3
+63,Biomedical and Clinical Sciences,90,117,0.7692307692307693,1
+63,Health Sciences,17,117,0.1452991452991453,2
+63,Biological Sciences,9,117,0.07692307692307693,3
+63,Environmental Sciences,1,117,0.008547008547008548,4
+64,Biomedical and Clinical Sciences,84,113,0.7433628318584071,1
+64,Health Sciences,22,113,0.19469026548672566,2
+64,Biological Sciences,7,113,0.061946902654867256,3
+65,Biomedical and Clinical Sciences,58,111,0.5225225225225225,1
+65,Biological Sciences,24,111,0.21621621621621623,2
+65,Health Sciences,21,111,0.1891891891891892,3
+65,Environmental Sciences,8,111,0.07207207207207207,4
+66,"History, Heritage and Archaeology",96,104,0.9230769230769231,1
+66,Biological Sciences,8,104,0.07692307692307693,2
+67,Biomedical and Clinical Sciences,85,103,0.8252427184466019,1
+67,Health Sciences,13,103,0.1262135922330097,2
+67,Biological Sciences,5,103,0.04854368932038835,3
+68,Biomedical and Clinical Sciences,75,98,0.7653061224489796,1
+68,Health Sciences,17,98,0.17346938775510204,2
+68,Biological Sciences,5,98,0.05102040816326531,3
+68,Chemical Sciences,1,98,0.01020408163265306,4
+69,Biomedical and Clinical Sciences,76,98,0.7755102040816326,1
+69,Health Sciences,13,98,0.1326530612244898,2
+69,Biological Sciences,4,98,0.04081632653061224,3
+69,Human Society,3,98,0.030612244897959183,4
+69,Built Environment and Design,1,98,0.01020408163265306,5
+69,Psychology,1,98,0.01020408163265306,6
+70,Biomedical and Clinical Sciences,89,92,0.967391304347826,1
+70,Biological Sciences,3,92,0.03260869565217391,2
+71,Biomedical and Clinical Sciences,64,92,0.6956521739130435,1
+71,Health Sciences,18,92,0.1956521739130435,2
+71,Biological Sciences,10,92,0.10869565217391304,3
+72,Health Sciences,47,85,0.5529411764705883,1
+72,Biomedical and Clinical Sciences,29,85,0.3411764705882353,2
+72,Biological Sciences,7,85,0.08235294117647059,3
+72,Environmental Sciences,2,85,0.023529411764705882,4
+73,Biomedical and Clinical Sciences,71,85,0.8352941176470589,1
+73,Information and Computing Sciences,10,85,0.11764705882352941,2
+73,Biological Sciences,2,85,0.023529411764705882,3
+73,Engineering,1,85,0.011764705882352941,4
+73,Health Sciences,1,85,0.011764705882352941,5
+74,Biomedical and Clinical Sciences,57,77,0.7402597402597403,1
+74,Health Sciences,11,77,0.14285714285714285,2
+74,Biological Sciences,9,77,0.11688311688311688,3
+75,Biological Sciences,31,72,0.4305555555555556,1
+75,Biomedical and Clinical Sciences,23,72,0.3194444444444444,2
+75,Mathematical Sciences,9,72,0.125,3
+75,Information and Computing Sciences,7,72,0.09722222222222222,4
+75,Economics,1,72,0.013888888888888888,5
+75,Health Sciences,1,72,0.013888888888888888,6
+76,Biological Sciences,31,72,0.4305555555555556,1
+76,Biomedical and Clinical Sciences,19,72,0.2638888888888889,2
+76,Engineering,12,72,0.16666666666666666,3
+76,Information and Computing Sciences,10,72,0.1388888888888889,4
+77,Biomedical and Clinical Sciences,60,70,0.8571428571428571,1
+77,Biological Sciences,6,70,0.08571428571428572,2
+77,Health Sciences,4,70,0.05714285714285714,3
+78,Biomedical and Clinical Sciences,60,65,0.9230769230769231,1
+78,Health Sciences,5,65,0.07692307692307693,2
+79,Biomedical and Clinical Sciences,58,63,0.9206349206349206,1
+79,Environmental Sciences,3,63,0.047619047619047616,2
+79,Biological Sciences,2,63,0.031746031746031744,3
+80,Biomedical and Clinical Sciences,33,62,0.532258064516129,1
+80,Health Sciences,15,62,0.24193548387096775,2
+80,Biological Sciences,10,62,0.16129032258064516,3
+80,Information and Computing Sciences,4,62,0.06451612903225806,4
+81,Biomedical and Clinical Sciences,44,61,0.7213114754098361,1
+81,Biological Sciences,17,61,0.2786885245901639,2
+82,Biological Sciences,56,56,1.0,1
+83,Biomedical and Clinical Sciences,44,55,0.8,1
+83,Biological Sciences,8,55,0.14545454545454545,2
+83,Psychology,3,55,0.05454545454545454,3
+84,Health Sciences,29,54,0.5370370370370371,1
+84,Biomedical and Clinical Sciences,24,54,0.4444444444444444,2
+84,Environmental Sciences,1,54,0.018518518518518517,3
+85,Biomedical and Clinical Sciences,36,49,0.7346938775510204,1
+85,Health Sciences,9,49,0.1836734693877551,2
+85,Biological Sciences,4,49,0.08163265306122448,3
+86,Biomedical and Clinical Sciences,39,49,0.7959183673469388,1
+86,Biological Sciences,8,49,0.16326530612244897,2
+86,Health Sciences,2,49,0.04081632653061224,3
+87,Biomedical and Clinical Sciences,44,49,0.8979591836734694,1
+87,Biological Sciences,5,49,0.10204081632653061,2
+88,Biomedical and Clinical Sciences,45,48,0.9375,1
+88,Engineering,2,48,0.041666666666666664,2
+88,"Agricultural, Veterinary and Food Sciences",1,48,0.020833333333333332,3
+89,Biomedical and Clinical Sciences,47,48,0.9791666666666666,1
+89,Health Sciences,1,48,0.020833333333333332,2
+90,Biomedical and Clinical Sciences,34,43,0.7906976744186046,1
+90,Health Sciences,9,43,0.20930232558139536,2
+91,Biomedical and Clinical Sciences,31,43,0.7209302325581395,1
+91,Health Sciences,8,43,0.18604651162790697,2
+91,Biological Sciences,3,43,0.06976744186046512,3
+91,Chemical Sciences,1,43,0.023255813953488372,4
+92,Biomedical and Clinical Sciences,30,39,0.7692307692307693,1
+92,Biological Sciences,6,39,0.15384615384615385,2
+92,Health Sciences,3,39,0.07692307692307693,3
+93,Health Sciences,29,38,0.7631578947368421,1
+93,Biomedical and Clinical Sciences,9,38,0.23684210526315788,2
+94,Health Sciences,17,38,0.4473684210526316,1
+94,Biomedical and Clinical Sciences,12,38,0.3157894736842105,2
+94,Biological Sciences,9,38,0.23684210526315788,3
+95,Biomedical and Clinical Sciences,14,37,0.3783783783783784,1
+95,Health Sciences,13,37,0.35135135135135137,2
+95,Biological Sciences,6,37,0.16216216216216217,3
+95,Psychology,4,37,0.10810810810810811,4
+96,Biomedical and Clinical Sciences,28,36,0.7777777777777778,1
+96,Health Sciences,7,36,0.19444444444444445,2
+96,Biological Sciences,1,36,0.027777777777777776,3
+97,Biomedical and Clinical Sciences,36,36,1.0,1
+98,Health Sciences,28,35,0.8,1
+98,Biomedical and Clinical Sciences,7,35,0.2,2
+99,Biomedical and Clinical Sciences,34,34,1.0,1
+100,Biomedical and Clinical Sciences,34,34,1.0,1
+101,Biomedical and Clinical Sciences,17,33,0.5151515151515151,1
+101,Health Sciences,14,33,0.42424242424242425,2
+101,Psychology,2,33,0.06060606060606061,3
+102,Biomedical and Clinical Sciences,28,33,0.8484848484848485,1
+102,Biological Sciences,4,33,0.12121212121212122,2
+102,Health Sciences,1,33,0.030303030303030304,3
+103,Biological Sciences,32,32,1.0,1
+104,Biomedical and Clinical Sciences,32,32,1.0,1
+105,Biomedical and Clinical Sciences,27,31,0.8709677419354839,1
+105,Health Sciences,4,31,0.12903225806451613,2
+106,Biomedical and Clinical Sciences,16,31,0.5161290322580645,1
+106,Health Sciences,15,31,0.4838709677419355,2
+107,Biomedical and Clinical Sciences,31,31,1.0,1
+108,Biomedical and Clinical Sciences,30,30,1.0,1
+109,Health Sciences,16,29,0.5517241379310345,1
+109,Biomedical and Clinical Sciences,9,29,0.3103448275862069,2
+109,Biological Sciences,4,29,0.13793103448275862,3
+110,Biomedical and Clinical Sciences,21,29,0.7241379310344828,1
+110,Health Sciences,8,29,0.27586206896551724,2
+111,Biomedical and Clinical Sciences,16,29,0.5517241379310345,1
+111,Psychology,7,29,0.2413793103448276,2
+111,Biological Sciences,4,29,0.13793103448275862,3
+111,Health Sciences,2,29,0.06896551724137931,4
+112,Health Sciences,14,29,0.4827586206896552,1
+112,Biomedical and Clinical Sciences,9,29,0.3103448275862069,2
+112,Biological Sciences,6,29,0.20689655172413793,3
+113,Biomedical and Clinical Sciences,17,28,0.6071428571428571,1
+113,Health Sciences,11,28,0.39285714285714285,2
+114,Biological Sciences,12,28,0.42857142857142855,1
+114,Psychology,9,28,0.32142857142857145,2
+114,Health Sciences,3,28,0.10714285714285714,3
+114,Information and Computing Sciences,3,28,0.10714285714285714,4
+114,Biomedical and Clinical Sciences,1,28,0.03571428571428571,5
+115,Biological Sciences,14,27,0.5185185185185185,1
+115,Biomedical and Clinical Sciences,11,27,0.4074074074074074,2
+115,Health Sciences,2,27,0.07407407407407407,3
+116,Health Sciences,27,27,1.0,1
+117,Biomedical and Clinical Sciences,26,26,1.0,1
+118,Biological Sciences,26,26,1.0,1
+119,Biological Sciences,15,25,0.6,1
+119,Biomedical and Clinical Sciences,10,25,0.4,2
+120,Biomedical and Clinical Sciences,17,25,0.68,1
+120,Engineering,5,25,0.2,2
+120,Health Sciences,3,25,0.12,3
+121,Biomedical and Clinical Sciences,19,25,0.76,1
+121,Health Sciences,6,25,0.24,2
+122,Biological Sciences,18,24,0.75,1
+122,Health Sciences,4,24,0.16666666666666666,2
+122,Biomedical and Clinical Sciences,2,24,0.08333333333333333,3
+123,Biomedical and Clinical Sciences,22,24,0.9166666666666666,1
+123,Health Sciences,2,24,0.08333333333333333,2
+124,Biomedical and Clinical Sciences,23,23,1.0,1
+125,Biomedical and Clinical Sciences,17,23,0.7391304347826086,1
+125,Health Sciences,6,23,0.2608695652173913,2
+126,Biomedical and Clinical Sciences,23,23,1.0,1
+127,Biomedical and Clinical Sciences,21,22,0.9545454545454546,1
+127,Biological Sciences,1,22,0.045454545454545456,2
+128,Biomedical and Clinical Sciences,21,22,0.9545454545454546,1
+128,Biological Sciences,1,22,0.045454545454545456,2
+129,Biomedical and Clinical Sciences,15,21,0.7142857142857143,1
+129,Health Sciences,4,21,0.19047619047619047,2
+129,Psychology,2,21,0.09523809523809523,3
+130,Biomedical and Clinical Sciences,21,21,1.0,1
+131,Health Sciences,13,21,0.6190476190476191,1
+131,Biomedical and Clinical Sciences,8,21,0.38095238095238093,2
+132,Biomedical and Clinical Sciences,11,21,0.5238095238095238,1
+132,Biological Sciences,10,21,0.47619047619047616,2
+133,Biomedical and Clinical Sciences,13,21,0.6190476190476191,1
+133,Health Sciences,8,21,0.38095238095238093,2
+134,Biological Sciences,21,21,1.0,1
+135,Biological Sciences,20,21,0.9523809523809523,1
+135,Biomedical and Clinical Sciences,1,21,0.047619047619047616,2
+136,Biomedical and Clinical Sciences,21,21,1.0,1
+137,Biomedical and Clinical Sciences,19,21,0.9047619047619048,1
+137,Biological Sciences,2,21,0.09523809523809523,2
+138,Health Sciences,12,20,0.6,1
+138,Biomedical and Clinical Sciences,7,20,0.35,2
+138,Biological Sciences,1,20,0.05,3
+139,Biological Sciences,8,20,0.4,1
+139,Biomedical and Clinical Sciences,6,20,0.3,2
+139,Health Sciences,6,20,0.3,3
+140,Health Sciences,18,20,0.9,1
+140,Biomedical and Clinical Sciences,2,20,0.1,2
+141,Biomedical and Clinical Sciences,14,20,0.7,1
+141,Biological Sciences,6,20,0.3,2
+142,Biomedical and Clinical Sciences,16,20,0.8,1
+142,Biological Sciences,4,20,0.2,2
+143,Biomedical and Clinical Sciences,10,19,0.5263157894736842,1
+143,Biological Sciences,6,19,0.3157894736842105,2
+143,Health Sciences,2,19,0.10526315789473684,3
+143,Environmental Sciences,1,19,0.05263157894736842,4
+144,Information and Computing Sciences,13,19,0.6842105263157895,1
+144,Psychology,6,19,0.3157894736842105,2
+145,Biological Sciences,13,19,0.6842105263157895,1
+145,Biomedical and Clinical Sciences,6,19,0.3157894736842105,2
+146,Biomedical and Clinical Sciences,15,19,0.7894736842105263,1
+146,Biological Sciences,4,19,0.21052631578947367,2
+147,Biomedical and Clinical Sciences,19,19,1.0,1
+148,Biomedical and Clinical Sciences,10,19,0.5263157894736842,1
+148,Biological Sciences,9,19,0.47368421052631576,2
+149,Biomedical and Clinical Sciences,12,19,0.631578947368421,1
+149,Environmental Sciences,7,19,0.3684210526315789,2
+150,Health Sciences,19,19,1.0,1
+151,Psychology,12,19,0.631578947368421,1
+151,Biomedical and Clinical Sciences,7,19,0.3684210526315789,2
+152,Biomedical and Clinical Sciences,19,19,1.0,1
+153,Biomedical and Clinical Sciences,18,18,1.0,1
+154,Biological Sciences,12,18,0.6666666666666666,1
+154,Mathematical Sciences,4,18,0.2222222222222222,2
+154,Health Sciences,2,18,0.1111111111111111,3
+155,Biomedical and Clinical Sciences,18,18,1.0,1
+156,Biomedical and Clinical Sciences,14,18,0.7777777777777778,1
+156,Health Sciences,4,18,0.2222222222222222,2
+157,Biomedical and Clinical Sciences,16,18,0.8888888888888888,1
+157,Health Sciences,2,18,0.1111111111111111,2
+158,Biomedical and Clinical Sciences,17,17,1.0,1
+159,Biomedical and Clinical Sciences,16,17,0.9411764705882353,1
+159,Health Sciences,1,17,0.058823529411764705,2
+160,Biological Sciences,17,17,1.0,1
+161,Biomedical and Clinical Sciences,17,17,1.0,1
+162,Biological Sciences,17,17,1.0,1
+163,Biomedical and Clinical Sciences,17,17,1.0,1
+164,Biomedical and Clinical Sciences,15,17,0.8823529411764706,1
+164,Information and Computing Sciences,2,17,0.11764705882352941,2
+165,Biomedical and Clinical Sciences,7,17,0.4117647058823529,1
+165,Health Sciences,7,17,0.4117647058823529,2
+165,Biological Sciences,3,17,0.17647058823529413,3
+166,Biomedical and Clinical Sciences,11,17,0.6470588235294118,1
+166,Biological Sciences,6,17,0.35294117647058826,2
+167,Biomedical and Clinical Sciences,17,17,1.0,1
+168,Biomedical and Clinical Sciences,12,17,0.7058823529411765,1
+168,Biological Sciences,5,17,0.29411764705882354,2
+169,Biomedical and Clinical Sciences,17,17,1.0,1
+170,Biological Sciences,16,16,1.0,1
+171,Biomedical and Clinical Sciences,12,16,0.75,1
+171,Biological Sciences,4,16,0.25,2
+172,Biological Sciences,16,16,1.0,1
+173,Biomedical and Clinical Sciences,16,16,1.0,1
+174,Biomedical and Clinical Sciences,16,16,1.0,1
+175,Information and Computing Sciences,11,16,0.6875,1
+175,Biological Sciences,5,16,0.3125,2
+176,Biomedical and Clinical Sciences,8,16,0.5,1
+176,Psychology,5,16,0.3125,2
+176,Health Sciences,3,16,0.1875,3
+177,"Agricultural, Veterinary and Food Sciences",8,16,0.5,1
+177,Biomedical and Clinical Sciences,8,16,0.5,2
+178,Biological Sciences,16,16,1.0,1
+179,Biomedical and Clinical Sciences,15,16,0.9375,1
+179,Biological Sciences,1,16,0.0625,2
+180,Health Sciences,16,16,1.0,1
+181,Biomedical and Clinical Sciences,16,16,1.0,1
+182,Biomedical and Clinical Sciences,16,16,1.0,1
+183,Psychology,7,16,0.4375,1
+183,Biomedical and Clinical Sciences,4,16,0.25,2
+183,Engineering,4,16,0.25,3
+183,Information and Computing Sciences,1,16,0.0625,4
+184,Biomedical and Clinical Sciences,16,16,1.0,1
+185,Biomedical and Clinical Sciences,16,16,1.0,1
+186,Biomedical and Clinical Sciences,15,15,1.0,1
+187,Biomedical and Clinical Sciences,15,15,1.0,1
+188,Biomedical and Clinical Sciences,15,15,1.0,1
+189,Biomedical and Clinical Sciences,15,15,1.0,1
+190,Biological Sciences,15,15,1.0,1
+191,Biomedical and Clinical Sciences,11,15,0.7333333333333333,1
+191,Health Sciences,4,15,0.26666666666666666,2
+192,Biomedical and Clinical Sciences,15,15,1.0,1
+193,Engineering,8,15,0.5333333333333333,1
+193,Environmental Sciences,4,15,0.26666666666666666,2
+193,Biomedical and Clinical Sciences,3,15,0.2,3
+194,Biological Sciences,10,15,0.6666666666666666,1
+194,Health Sciences,5,15,0.3333333333333333,2
+195,Biomedical and Clinical Sciences,15,15,1.0,1
+196,Biomedical and Clinical Sciences,9,15,0.6,1
+196,Biological Sciences,6,15,0.4,2
+197,Biomedical and Clinical Sciences,15,15,1.0,1
+198,Biomedical and Clinical Sciences,15,15,1.0,1
+199,Biomedical and Clinical Sciences,15,15,1.0,1
+200,Health Sciences,14,14,1.0,1
+201,Biological Sciences,14,14,1.0,1
+202,Engineering,7,14,0.5,1
+202,Information and Computing Sciences,7,14,0.5,2
+203,Biological Sciences,7,14,0.5,1
+203,Biomedical and Clinical Sciences,7,14,0.5,2
+204,Biomedical and Clinical Sciences,9,14,0.6428571428571429,1
+204,Biological Sciences,5,14,0.35714285714285715,2
+205,Psychology,14,14,1.0,1
+206,Biomedical and Clinical Sciences,14,14,1.0,1
+207,Biomedical and Clinical Sciences,14,14,1.0,1
+208,Biomedical and Clinical Sciences,11,14,0.7857142857142857,1
+208,Health Sciences,3,14,0.21428571428571427,2
+209,Health Sciences,10,14,0.7142857142857143,1
+209,Biomedical and Clinical Sciences,4,14,0.2857142857142857,2
+210,Biomedical and Clinical Sciences,14,14,1.0,1
+211,Biomedical and Clinical Sciences,6,14,0.42857142857142855,1
+211,Health Sciences,6,14,0.42857142857142855,2
+211,Biological Sciences,2,14,0.14285714285714285,3
+212,Biomedical and Clinical Sciences,14,14,1.0,1
+213,Biomedical and Clinical Sciences,8,14,0.5714285714285714,1
+213,Biological Sciences,5,14,0.35714285714285715,2
+213,Health Sciences,1,14,0.07142857142857142,3
+214,Biomedical and Clinical Sciences,14,14,1.0,1
+215,Biomedical and Clinical Sciences,14,14,1.0,1
+216,Health Sciences,11,14,0.7857142857142857,1
+216,Biological Sciences,2,14,0.14285714285714285,2
+216,Biomedical and Clinical Sciences,1,14,0.07142857142857142,3
+217,Biomedical and Clinical Sciences,13,13,1.0,1
+218,Biological Sciences,13,13,1.0,1
+219,Biological Sciences,7,13,0.5384615384615384,1
+219,Biomedical and Clinical Sciences,6,13,0.46153846153846156,2
+220,Biomedical and Clinical Sciences,13,13,1.0,1
+221,Biomedical and Clinical Sciences,13,13,1.0,1
+222,Biomedical and Clinical Sciences,13,13,1.0,1
+223,Health Sciences,13,13,1.0,1
+224,Biomedical and Clinical Sciences,13,13,1.0,1
+225,Biomedical and Clinical Sciences,8,13,0.6153846153846154,1
+225,Health Sciences,4,13,0.3076923076923077,2
+225,Environmental Sciences,1,13,0.07692307692307693,3
+226,Biomedical and Clinical Sciences,8,13,0.6153846153846154,1
+226,Biological Sciences,5,13,0.38461538461538464,2
+227,Biomedical and Clinical Sciences,11,13,0.8461538461538461,1
+227,Biological Sciences,2,13,0.15384615384615385,2
+228,Biomedical and Clinical Sciences,13,13,1.0,1
+229,Biomedical and Clinical Sciences,13,13,1.0,1
+230,Biomedical and Clinical Sciences,13,13,1.0,1
+231,Biological Sciences,13,13,1.0,1
+232,Biological Sciences,7,13,0.5384615384615384,1
+232,Biomedical and Clinical Sciences,6,13,0.46153846153846156,2
+233,Biomedical and Clinical Sciences,13,13,1.0,1
+234,Biomedical and Clinical Sciences,13,13,1.0,1
+235,Biomedical and Clinical Sciences,13,13,1.0,1
+236,Biomedical and Clinical Sciences,12,12,1.0,1
+237,Biomedical and Clinical Sciences,8,12,0.6666666666666666,1
+237,Biological Sciences,4,12,0.3333333333333333,2
+238,Biomedical and Clinical Sciences,12,12,1.0,1
+239,Biological Sciences,12,12,1.0,1
+240,Biomedical and Clinical Sciences,12,12,1.0,1
+241,Biomedical and Clinical Sciences,12,12,1.0,1
+242,Biological Sciences,7,12,0.5833333333333334,1
+242,Biomedical and Clinical Sciences,5,12,0.4166666666666667,2
+243,Biomedical and Clinical Sciences,12,12,1.0,1
+244,Biomedical and Clinical Sciences,7,12,0.5833333333333334,1
+244,Biological Sciences,5,12,0.4166666666666667,2
+245,Information and Computing Sciences,8,12,0.6666666666666666,1
+245,Biomedical and Clinical Sciences,4,12,0.3333333333333333,2
+246,Biomedical and Clinical Sciences,12,12,1.0,1
+247,Biomedical and Clinical Sciences,12,12,1.0,1
+248,Biomedical and Clinical Sciences,8,12,0.6666666666666666,1
+248,Health Sciences,4,12,0.3333333333333333,2
+249,Biomedical and Clinical Sciences,12,12,1.0,1
+250,Psychology,7,12,0.5833333333333334,1
+250,Health Sciences,5,12,0.4166666666666667,2
+251,Biomedical and Clinical Sciences,12,12,1.0,1
+252,Biological Sciences,12,12,1.0,1
+253,Biomedical and Clinical Sciences,12,12,1.0,1
+254,Biomedical and Clinical Sciences,10,12,0.8333333333333334,1
+254,Health Sciences,2,12,0.16666666666666666,2
+255,Biomedical and Clinical Sciences,12,12,1.0,1
+256,Health Sciences,6,12,0.5,1
+256,Environmental Sciences,4,12,0.3333333333333333,2
+256,Biomedical and Clinical Sciences,2,12,0.16666666666666666,3
+257,Biomedical and Clinical Sciences,9,12,0.75,1
+257,Biological Sciences,3,12,0.25,2
+258,Biomedical and Clinical Sciences,10,12,0.8333333333333334,1
+258,Biological Sciences,2,12,0.16666666666666666,2
+259,Biomedical and Clinical Sciences,12,12,1.0,1
+260,Biomedical and Clinical Sciences,10,12,0.8333333333333334,1
+260,Health Sciences,2,12,0.16666666666666666,2
+261,Biomedical and Clinical Sciences,10,12,0.8333333333333334,1
+261,Psychology,2,12,0.16666666666666666,2
+262,Biological Sciences,12,12,1.0,1
+263,Biomedical and Clinical Sciences,12,12,1.0,1
+264,Biomedical and Clinical Sciences,12,12,1.0,1
+265,Biological Sciences,7,11,0.6363636363636364,1
+265,Biomedical and Clinical Sciences,4,11,0.36363636363636365,2
+266,Biological Sciences,11,11,1.0,1
+267,Biomedical and Clinical Sciences,11,11,1.0,1
+268,Biomedical and Clinical Sciences,11,11,1.0,1
+269,Biological Sciences,9,11,0.8181818181818182,1
+269,Biomedical and Clinical Sciences,2,11,0.18181818181818182,2
+270,Biological Sciences,11,11,1.0,1
+271,Information and Computing Sciences,7,11,0.6363636363636364,1
+271,Biomedical and Clinical Sciences,2,11,0.18181818181818182,2
+271,Psychology,2,11,0.18181818181818182,3
+272,Biomedical and Clinical Sciences,11,11,1.0,1
+273,Biomedical and Clinical Sciences,9,11,0.8181818181818182,1
+273,Biological Sciences,1,11,0.09090909090909091,2
+273,Environmental Sciences,1,11,0.09090909090909091,3
+274,Biomedical and Clinical Sciences,11,11,1.0,1
+275,Biomedical and Clinical Sciences,11,11,1.0,1
+276,Biomedical and Clinical Sciences,11,11,1.0,1
+277,Biological Sciences,11,11,1.0,1
+278,Biomedical and Clinical Sciences,11,11,1.0,1
+279,Biomedical and Clinical Sciences,11,11,1.0,1
+280,Biomedical and Clinical Sciences,6,11,0.5454545454545454,1
+280,Health Sciences,5,11,0.45454545454545453,2
+281,Health Sciences,8,11,0.7272727272727273,1
+281,Psychology,2,11,0.18181818181818182,2
+281,Biological Sciences,1,11,0.09090909090909091,3
+282,Biological Sciences,11,11,1.0,1
+283,Biological Sciences,11,11,1.0,1
+284,Biomedical and Clinical Sciences,6,11,0.5454545454545454,1
+284,Information and Computing Sciences,5,11,0.45454545454545453,2
+285,Health Sciences,9,11,0.8181818181818182,1
+285,Biomedical and Clinical Sciences,1,11,0.09090909090909091,2
+285,Psychology,1,11,0.09090909090909091,3
+286,Health Sciences,11,11,1.0,1
+287,Biomedical and Clinical Sciences,11,11,1.0,1
+288,Biomedical and Clinical Sciences,11,11,1.0,1
+289,Biomedical and Clinical Sciences,10,10,1.0,1
+290,Health Sciences,10,10,1.0,1
+291,Health Sciences,6,10,0.6,1
+291,Biomedical and Clinical Sciences,4,10,0.4,2
+292,Biological Sciences,10,10,1.0,1
+293,Biomedical and Clinical Sciences,10,10,1.0,1
+294,Biomedical and Clinical Sciences,10,10,1.0,1
+295,Biological Sciences,5,10,0.5,1
+295,Biomedical and Clinical Sciences,4,10,0.4,2
+295,Health Sciences,1,10,0.1,3
+296,Health Sciences,10,10,1.0,1
+297,Biomedical and Clinical Sciences,10,10,1.0,1
+298,Biological Sciences,10,10,1.0,1
+299,Biomedical and Clinical Sciences,3,10,0.3,1
+299,Mathematical Sciences,3,10,0.3,2
+299,Psychology,3,10,0.3,3
+299,Information and Computing Sciences,1,10,0.1,4
+300,Biomedical and Clinical Sciences,10,10,1.0,1
+301,Biomedical and Clinical Sciences,10,10,1.0,1
+302,Biomedical and Clinical Sciences,10,10,1.0,1
+303,Biomedical and Clinical Sciences,7,10,0.7,1
+303,Biological Sciences,3,10,0.3,2
+304,Biomedical and Clinical Sciences,10,10,1.0,1
+305,Biomedical and Clinical Sciences,10,10,1.0,1
+306,Biomedical and Clinical Sciences,9,10,0.9,1
+306,Biological Sciences,1,10,0.1,2
+307,Biomedical and Clinical Sciences,10,10,1.0,1
+308,Biomedical and Clinical Sciences,10,10,1.0,1
+309,Biological Sciences,10,10,1.0,1
+310,Health Sciences,6,10,0.6,1
+310,Biomedical and Clinical Sciences,4,10,0.4,2
+311,Biological Sciences,10,10,1.0,1
+312,Psychology,10,10,1.0,1
+313,Biomedical and Clinical Sciences,10,10,1.0,1
+314,Biomedical and Clinical Sciences,10,10,1.0,1
+315,Biomedical and Clinical Sciences,10,10,1.0,1
+316,Biomedical and Clinical Sciences,10,10,1.0,1
+317,Biological Sciences,10,10,1.0,1
+318,Biomedical and Clinical Sciences,10,10,1.0,1
+319,Biomedical and Clinical Sciences,10,10,1.0,1
+320,Biological Sciences,5,10,0.5,1
+320,Health Sciences,4,10,0.4,2
+320,Information and Computing Sciences,1,10,0.1,3
+321,Biomedical and Clinical Sciences,10,10,1.0,1
+322,Biomedical and Clinical Sciences,6,10,0.6,1
+322,Biological Sciences,2,10,0.2,2
+322,Health Sciences,2,10,0.2,3
+323,Biomedical and Clinical Sciences,10,10,1.0,1
+324,Biomedical and Clinical Sciences,9,10,0.9,1
+324,Biological Sciences,1,10,0.1,2
+325,Health Sciences,7,10,0.7,1
+325,Biomedical and Clinical Sciences,3,10,0.3,2
+326,Biomedical and Clinical Sciences,7,10,0.7,1
+326,Health Sciences,3,10,0.3,2
+327,Psychology,10,10,1.0,1
+328,Biomedical and Clinical Sciences,10,10,1.0,1
+329,Biomedical and Clinical Sciences,10,10,1.0,1
+330,Biomedical and Clinical Sciences,10,10,1.0,1
+331,Biomedical and Clinical Sciences,10,10,1.0,1
+332,Biomedical and Clinical Sciences,10,10,1.0,1
+333,Health Sciences,10,10,1.0,1
+334,Biological Sciences,8,10,0.8,1
+334,Health Sciences,2,10,0.2,2
+335,Biomedical and Clinical Sciences,10,10,1.0,1
+336,Health Sciences,10,10,1.0,1
+337,Health Sciences,10,10,1.0,1
+338,Biomedical and Clinical Sciences,10,10,1.0,1
+339,Biological Sciences,10,10,1.0,1
+340,Biomedical and Clinical Sciences,8,10,0.8,1
+340,Health Sciences,2,10,0.2,2
+341,Biomedical and Clinical Sciences,9,9,1.0,1
+342,Biomedical and Clinical Sciences,9,9,1.0,1
+343,Biological Sciences,9,9,1.0,1
+344,Biomedical and Clinical Sciences,9,9,1.0,1
+345,Biomedical and Clinical Sciences,9,9,1.0,1
+346,Biomedical and Clinical Sciences,6,9,0.6666666666666666,1
+346,Biological Sciences,3,9,0.3333333333333333,2
+347,Health Sciences,7,9,0.7777777777777778,1
+347,Biomedical and Clinical Sciences,2,9,0.2222222222222222,2
+348,Health Sciences,9,9,1.0,1
+349,Biomedical and Clinical Sciences,9,9,1.0,1
+350,Biomedical and Clinical Sciences,9,9,1.0,1
+351,Biomedical and Clinical Sciences,9,9,1.0,1
+352,Biomedical and Clinical Sciences,9,9,1.0,1
+353,Biological Sciences,9,9,1.0,1
+354,Biological Sciences,9,9,1.0,1
+355,Health Sciences,9,9,1.0,1
+356,Biomedical and Clinical Sciences,9,9,1.0,1
+357,Psychology,9,9,1.0,1
+358,Biomedical and Clinical Sciences,9,9,1.0,1
+359,Biomedical and Clinical Sciences,9,9,1.0,1
+360,Health Sciences,6,9,0.6666666666666666,1
+360,Biomedical and Clinical Sciences,3,9,0.3333333333333333,2
+361,Biomedical and Clinical Sciences,9,9,1.0,1
+362,Biomedical and Clinical Sciences,9,9,1.0,1
+363,Biological Sciences,9,9,1.0,1
+364,Biomedical and Clinical Sciences,9,9,1.0,1
+365,Biological Sciences,9,9,1.0,1
+366,Health Sciences,9,9,1.0,1
+367,Biological Sciences,9,9,1.0,1
+368,Biomedical and Clinical Sciences,9,9,1.0,1
+369,Biological Sciences,9,9,1.0,1
+370,Biomedical and Clinical Sciences,6,9,0.6666666666666666,1
+370,Biological Sciences,3,9,0.3333333333333333,2
+371,Biological Sciences,9,9,1.0,1
+372,Biomedical and Clinical Sciences,6,9,0.6666666666666666,1
+372,Biological Sciences,3,9,0.3333333333333333,2
+373,Biomedical and Clinical Sciences,9,9,1.0,1
+374,Biological Sciences,9,9,1.0,1
+375,Biomedical and Clinical Sciences,9,9,1.0,1
+376,Biological Sciences,9,9,1.0,1
+377,Biological Sciences,9,9,1.0,1
+378,Health Sciences,9,9,1.0,1
+379,Biological Sciences,9,9,1.0,1
+380,Biomedical and Clinical Sciences,9,9,1.0,1
+381,Biomedical and Clinical Sciences,9,9,1.0,1
+382,Biomedical and Clinical Sciences,9,9,1.0,1
+383,Biomedical and Clinical Sciences,9,9,1.0,1
+384,Biomedical and Clinical Sciences,9,9,1.0,1
+385,Biomedical and Clinical Sciences,9,9,1.0,1
+386,Health Sciences,9,9,1.0,1
+387,Biomedical and Clinical Sciences,9,9,1.0,1
+388,Health Sciences,9,9,1.0,1
+389,Biomedical and Clinical Sciences,9,9,1.0,1
+390,Biomedical and Clinical Sciences,9,9,1.0,1
+391,Biomedical and Clinical Sciences,6,9,0.6666666666666666,1
+391,Biological Sciences,3,9,0.3333333333333333,2
+392,Biological Sciences,9,9,1.0,1
+393,Biomedical and Clinical Sciences,9,9,1.0,1
+394,Biomedical and Clinical Sciences,9,9,1.0,1
+395,Information and Computing Sciences,9,9,1.0,1
+396,Health Sciences,6,9,0.6666666666666666,1
+396,Biomedical and Clinical Sciences,3,9,0.3333333333333333,2
+397,Biomedical and Clinical Sciences,9,9,1.0,1
+398,Biomedical and Clinical Sciences,7,9,0.7777777777777778,1
+398,Biological Sciences,2,9,0.2222222222222222,2
+399,Biological Sciences,9,9,1.0,1
+400,Biomedical and Clinical Sciences,4,9,0.4444444444444444,1
+400,Biological Sciences,3,9,0.3333333333333333,2
+400,Psychology,2,9,0.2222222222222222,3
+401,Biomedical and Clinical Sciences,6,9,0.6666666666666666,1
+401,Biological Sciences,3,9,0.3333333333333333,2
+402,Biomedical and Clinical Sciences,9,9,1.0,1
+403,Biomedical and Clinical Sciences,9,9,1.0,1
+404,Biological Sciences,9,9,1.0,1
+405,Biomedical and Clinical Sciences,9,9,1.0,1
+406,Biomedical and Clinical Sciences,9,9,1.0,1
+407,Biological Sciences,9,9,1.0,1
+408,Biomedical and Clinical Sciences,9,9,1.0,1
+409,Health Sciences,9,9,1.0,1
+410,Health Sciences,9,9,1.0,1
+411,Biological Sciences,9,9,1.0,1
+412,Biomedical and Clinical Sciences,9,9,1.0,1
+413,Biomedical and Clinical Sciences,9,9,1.0,1
+414,Biomedical and Clinical Sciences,9,9,1.0,1
+415,Biological Sciences,9,9,1.0,1
+416,Biomedical and Clinical Sciences,9,9,1.0,1
+417,Biomedical and Clinical Sciences,9,9,1.0,1
+418,Biomedical and Clinical Sciences,6,9,0.6666666666666666,1
+418,Health Sciences,3,9,0.3333333333333333,2
+419,Biomedical and Clinical Sciences,9,9,1.0,1
+420,Biomedical and Clinical Sciences,9,9,1.0,1
+421,Biological Sciences,9,9,1.0,1
+422,Biomedical and Clinical Sciences,9,9,1.0,1
+423,Biological Sciences,9,9,1.0,1
+424,Biomedical and Clinical Sciences,7,9,0.7777777777777778,1
+424,Health Sciences,2,9,0.2222222222222222,2
+425,Biomedical and Clinical Sciences,9,9,1.0,1
+426,Health Sciences,9,9,1.0,1
+427,Biomedical and Clinical Sciences,9,9,1.0,1
+428,Information and Computing Sciences,9,9,1.0,1
+429,Biomedical and Clinical Sciences,9,9,1.0,1
+430,Biological Sciences,9,9,1.0,1
+431,Biomedical and Clinical Sciences,9,9,1.0,1
+432,Biomedical and Clinical Sciences,9,9,1.0,1
+433,Biomedical and Clinical Sciences,9,9,1.0,1
+434,Biomedical and Clinical Sciences,9,9,1.0,1
+435,Biomedical and Clinical Sciences,5,9,0.5555555555555556,1
+435,Biological Sciences,4,9,0.4444444444444444,2
+436,Biomedical and Clinical Sciences,6,8,0.75,1
+436,Biological Sciences,2,8,0.25,2
+437,Health Sciences,8,8,1.0,1
+438,Biomedical and Clinical Sciences,8,8,1.0,1
+439,Biomedical and Clinical Sciences,8,8,1.0,1
+440,Biomedical and Clinical Sciences,7,8,0.875,1
+440,Biological Sciences,1,8,0.125,2
+441,Biomedical and Clinical Sciences,6,8,0.75,1
+441,"Agricultural, Veterinary and Food Sciences",1,8,0.125,2
+441,Health Sciences,1,8,0.125,3
+442,Biomedical and Clinical Sciences,8,8,1.0,1
+443,Biological Sciences,8,8,1.0,1
+444,Biomedical and Clinical Sciences,8,8,1.0,1
+445,Biomedical and Clinical Sciences,8,8,1.0,1
+446,Information and Computing Sciences,8,8,1.0,1
+447,"Agricultural, Veterinary and Food Sciences",6,8,0.75,1
+447,Health Sciences,2,8,0.25,2
+448,Biomedical and Clinical Sciences,8,8,1.0,1
+449,Health Sciences,8,8,1.0,1
+450,Biomedical and Clinical Sciences,8,8,1.0,1
+451,Biological Sciences,8,8,1.0,1
+452,Health Sciences,8,8,1.0,1
+453,Biomedical and Clinical Sciences,8,8,1.0,1
+454,Biomedical and Clinical Sciences,8,8,1.0,1
+455,Biomedical and Clinical Sciences,5,8,0.625,1
+455,Health Sciences,3,8,0.375,2
+456,Biomedical and Clinical Sciences,8,8,1.0,1
+457,Biomedical and Clinical Sciences,8,8,1.0,1
+458,Biomedical and Clinical Sciences,8,8,1.0,1
+459,Biomedical and Clinical Sciences,8,8,1.0,1
+460,Biomedical and Clinical Sciences,5,8,0.625,1
+460,Health Sciences,3,8,0.375,2
+461,Biomedical and Clinical Sciences,8,8,1.0,1
+462,Biomedical and Clinical Sciences,8,8,1.0,1
+463,Biomedical and Clinical Sciences,8,8,1.0,1
+464,Biomedical and Clinical Sciences,6,8,0.75,1
+464,Biological Sciences,2,8,0.25,2
+465,Health Sciences,6,8,0.75,1
+465,Biomedical and Clinical Sciences,2,8,0.25,2
+466,Biomedical and Clinical Sciences,8,8,1.0,1
+467,Health Sciences,8,8,1.0,1
+468,Health Sciences,8,8,1.0,1
+469,Health Sciences,5,8,0.625,1
+469,Biomedical and Clinical Sciences,3,8,0.375,2
+470,Biomedical and Clinical Sciences,5,8,0.625,1
+470,Health Sciences,3,8,0.375,2
+471,Biomedical and Clinical Sciences,8,8,1.0,1
+472,Health Sciences,8,8,1.0,1
+473,Health Sciences,8,8,1.0,1
+474,Biomedical and Clinical Sciences,8,8,1.0,1
+475,"Agricultural, Veterinary and Food Sciences",8,8,1.0,1
+476,Biomedical and Clinical Sciences,8,8,1.0,1
+477,Biomedical and Clinical Sciences,8,8,1.0,1
+478,Biomedical and Clinical Sciences,8,8,1.0,1
+479,Biomedical and Clinical Sciences,8,8,1.0,1
+480,Biomedical and Clinical Sciences,8,8,1.0,1
+481,Biomedical and Clinical Sciences,5,8,0.625,1
+481,Psychology,3,8,0.375,2
+482,Health Sciences,8,8,1.0,1
+483,Biomedical and Clinical Sciences,8,8,1.0,1
+484,Biomedical and Clinical Sciences,3,8,0.375,1
+484,Health Sciences,3,8,0.375,2
+484,Biological Sciences,2,8,0.25,3
+485,Engineering,8,8,1.0,1
+486,Biological Sciences,6,8,0.75,1
+486,Biomedical and Clinical Sciences,2,8,0.25,2
+487,Biomedical and Clinical Sciences,8,8,1.0,1
+488,Biomedical and Clinical Sciences,8,8,1.0,1
+489,Biomedical and Clinical Sciences,8,8,1.0,1
+490,Biomedical and Clinical Sciences,8,8,1.0,1
+491,Biomedical and Clinical Sciences,8,8,1.0,1
+492,Biomedical and Clinical Sciences,8,8,1.0,1
+493,Health Sciences,8,8,1.0,1
+494,Biomedical and Clinical Sciences,8,8,1.0,1
+495,Biomedical and Clinical Sciences,8,8,1.0,1
+496,Biological Sciences,8,8,1.0,1
+497,Biomedical and Clinical Sciences,8,8,1.0,1
+498,Biological Sciences,8,8,1.0,1
+499,Biomedical and Clinical Sciences,8,8,1.0,1
+500,Biological Sciences,8,8,1.0,1
+501,Biological Sciences,8,8,1.0,1
+502,Biological Sciences,8,8,1.0,1
+503,Biomedical and Clinical Sciences,8,8,1.0,1
+504,Biological Sciences,8,8,1.0,1
+505,Biomedical and Clinical Sciences,8,8,1.0,1
+506,Biomedical and Clinical Sciences,8,8,1.0,1
+507,Health Sciences,8,8,1.0,1
+508,Biomedical and Clinical Sciences,8,8,1.0,1
+509,Biomedical and Clinical Sciences,8,8,1.0,1
+510,Health Sciences,8,8,1.0,1
+511,Biomedical and Clinical Sciences,8,8,1.0,1
+512,Biological Sciences,6,8,0.75,1
+512,Biomedical and Clinical Sciences,2,8,0.25,2
+513,Biomedical and Clinical Sciences,8,8,1.0,1
+514,Biomedical and Clinical Sciences,8,8,1.0,1
+515,Biomedical and Clinical Sciences,8,8,1.0,1
+516,Biomedical and Clinical Sciences,8,8,1.0,1
+517,Biomedical and Clinical Sciences,8,8,1.0,1
+518,Biomedical and Clinical Sciences,8,8,1.0,1
+519,Health Sciences,8,8,1.0,1
+520,Biological Sciences,8,8,1.0,1
+521,Health Sciences,8,8,1.0,1
+522,Biomedical and Clinical Sciences,8,8,1.0,1
+523,Health Sciences,8,8,1.0,1
+524,Biomedical and Clinical Sciences,7,8,0.875,1
+524,Health Sciences,1,8,0.125,2
+525,Biomedical and Clinical Sciences,8,8,1.0,1
+526,Biomedical and Clinical Sciences,8,8,1.0,1
+527,Biomedical and Clinical Sciences,6,8,0.75,1
+527,Health Sciences,2,8,0.25,2
+528,Biomedical and Clinical Sciences,7,7,1.0,1
+529,Biomedical and Clinical Sciences,7,7,1.0,1
+530,Health Sciences,7,7,1.0,1
+531,Biomedical and Clinical Sciences,7,7,1.0,1
+532,Biomedical and Clinical Sciences,7,7,1.0,1
+533,Biomedical and Clinical Sciences,7,7,1.0,1
+534,Biomedical and Clinical Sciences,7,7,1.0,1
+535,Information and Computing Sciences,7,7,1.0,1
+536,Biomedical and Clinical Sciences,7,7,1.0,1
+537,Biological Sciences,4,7,0.5714285714285714,1
+537,Biomedical and Clinical Sciences,3,7,0.42857142857142855,2
+538,Biomedical and Clinical Sciences,7,7,1.0,1
+539,Biomedical and Clinical Sciences,7,7,1.0,1
+540,Biomedical and Clinical Sciences,7,7,1.0,1
+541,Health Sciences,7,7,1.0,1
+542,Health Sciences,5,7,0.7142857142857143,1
+542,Biomedical and Clinical Sciences,2,7,0.2857142857142857,2
+543,Biological Sciences,7,7,1.0,1
+544,Biomedical and Clinical Sciences,7,7,1.0,1
+545,Biological Sciences,7,7,1.0,1
+546,Biological Sciences,7,7,1.0,1
+547,Biomedical and Clinical Sciences,7,7,1.0,1
+548,Biomedical and Clinical Sciences,7,7,1.0,1
+549,Biomedical and Clinical Sciences,5,7,0.7142857142857143,1
+549,"Agricultural, Veterinary and Food Sciences",2,7,0.2857142857142857,2
+550,Biomedical and Clinical Sciences,7,7,1.0,1
+551,Biomedical and Clinical Sciences,7,7,1.0,1
+552,Biomedical and Clinical Sciences,7,7,1.0,1
+553,Biomedical and Clinical Sciences,7,7,1.0,1
+554,Health Sciences,7,7,1.0,1
+555,Biomedical and Clinical Sciences,7,7,1.0,1
+556,Biomedical and Clinical Sciences,6,7,0.8571428571428571,1
+556,Health Sciences,1,7,0.14285714285714285,2
+557,Health Sciences,7,7,1.0,1
+558,Biomedical and Clinical Sciences,7,7,1.0,1
+559,Biomedical and Clinical Sciences,7,7,1.0,1
+560,Biomedical and Clinical Sciences,7,7,1.0,1
+561,Biomedical and Clinical Sciences,7,7,1.0,1
+562,Biomedical and Clinical Sciences,7,7,1.0,1
+563,Biological Sciences,7,7,1.0,1
+564,Biomedical and Clinical Sciences,7,7,1.0,1
+565,Biomedical and Clinical Sciences,7,7,1.0,1
+566,Biomedical and Clinical Sciences,7,7,1.0,1
+567,Biomedical and Clinical Sciences,7,7,1.0,1
+568,Biological Sciences,7,7,1.0,1
+569,Biomedical and Clinical Sciences,5,7,0.7142857142857143,1
+569,Biological Sciences,2,7,0.2857142857142857,2
+570,Biological Sciences,7,7,1.0,1
+571,Biomedical and Clinical Sciences,5,7,0.7142857142857143,1
+571,Psychology,2,7,0.2857142857142857,2
+572,Environmental Sciences,7,7,1.0,1
+573,Biomedical and Clinical Sciences,7,7,1.0,1
+574,Biological Sciences,7,7,1.0,1
+575,Biomedical and Clinical Sciences,7,7,1.0,1
+576,Biological Sciences,7,7,1.0,1
+577,Biological Sciences,5,7,0.7142857142857143,1
+577,Biomedical and Clinical Sciences,2,7,0.2857142857142857,2
+578,Biomedical and Clinical Sciences,7,7,1.0,1
+579,Biomedical and Clinical Sciences,7,7,1.0,1
+580,Biological Sciences,7,7,1.0,1
+581,Biological Sciences,7,7,1.0,1
+582,Psychology,7,7,1.0,1
+583,Biomedical and Clinical Sciences,7,7,1.0,1
+584,Biomedical and Clinical Sciences,7,7,1.0,1
+585,Biomedical and Clinical Sciences,7,7,1.0,1
+586,Biological Sciences,7,7,1.0,1
+587,Biomedical and Clinical Sciences,7,7,1.0,1
+588,Biological Sciences,7,7,1.0,1
+589,Health Sciences,7,7,1.0,1
+590,Health Sciences,7,7,1.0,1
+591,Health Sciences,5,7,0.7142857142857143,1
+591,Biological Sciences,2,7,0.2857142857142857,2
+592,Biomedical and Clinical Sciences,7,7,1.0,1
+593,Biomedical and Clinical Sciences,4,7,0.5714285714285714,1
+593,Health Sciences,3,7,0.42857142857142855,2
+594,Health Sciences,7,7,1.0,1
+595,Biological Sciences,7,7,1.0,1
+596,Biomedical and Clinical Sciences,7,7,1.0,1
+597,Health Sciences,4,7,0.5714285714285714,1
+597,Biomedical and Clinical Sciences,3,7,0.42857142857142855,2
+598,Biomedical and Clinical Sciences,7,7,1.0,1
+599,Biomedical and Clinical Sciences,7,7,1.0,1
+600,Information and Computing Sciences,7,7,1.0,1
+601,Biological Sciences,7,7,1.0,1
+602,Health Sciences,7,7,1.0,1
+603,Biological Sciences,7,7,1.0,1
+604,Biomedical and Clinical Sciences,7,7,1.0,1
+605,Biomedical and Clinical Sciences,7,7,1.0,1
+606,"Agricultural, Veterinary and Food Sciences",7,7,1.0,1
+607,Biomedical and Clinical Sciences,4,7,0.5714285714285714,1
+607,Health Sciences,3,7,0.42857142857142855,2
+608,Biomedical and Clinical Sciences,7,7,1.0,1
+609,Biomedical and Clinical Sciences,7,7,1.0,1
+610,Biological Sciences,6,7,0.8571428571428571,1
+610,Health Sciences,1,7,0.14285714285714285,2
+611,Biomedical and Clinical Sciences,7,7,1.0,1
+612,Health Sciences,7,7,1.0,1
+613,Biomedical and Clinical Sciences,4,7,0.5714285714285714,1
+613,Health Sciences,3,7,0.42857142857142855,2
+614,Health Sciences,7,7,1.0,1
+615,Health Sciences,5,7,0.7142857142857143,1
+615,Biological Sciences,2,7,0.2857142857142857,2
+616,Biomedical and Clinical Sciences,7,7,1.0,1
+617,Biomedical and Clinical Sciences,7,7,1.0,1
+618,Biomedical and Clinical Sciences,7,7,1.0,1
+619,Health Sciences,4,7,0.5714285714285714,1
+619,Biological Sciences,3,7,0.42857142857142855,2
+620,Biomedical and Clinical Sciences,7,7,1.0,1
+621,Biomedical and Clinical Sciences,7,7,1.0,1
+622,Information and Computing Sciences,7,7,1.0,1
+623,Biological Sciences,7,7,1.0,1
+624,Biomedical and Clinical Sciences,7,7,1.0,1
+625,Biomedical and Clinical Sciences,7,7,1.0,1
+626,Biomedical and Clinical Sciences,7,7,1.0,1
+627,Health Sciences,7,7,1.0,1
+628,Biological Sciences,7,7,1.0,1
+629,Biomedical and Clinical Sciences,6,7,0.8571428571428571,1
+629,Engineering,1,7,0.14285714285714285,2
+630,Biological Sciences,5,7,0.7142857142857143,1
+630,Biomedical and Clinical Sciences,2,7,0.2857142857142857,2
+631,Health Sciences,7,7,1.0,1
+632,Biological Sciences,7,7,1.0,1
+633,Biomedical and Clinical Sciences,7,7,1.0,1
+634,Biomedical and Clinical Sciences,7,7,1.0,1
+635,Biomedical and Clinical Sciences,5,7,0.7142857142857143,1
+635,Biological Sciences,2,7,0.2857142857142857,2
+636,Biomedical and Clinical Sciences,7,7,1.0,1
+637,Biological Sciences,7,7,1.0,1
+638,Biomedical and Clinical Sciences,7,7,1.0,1
+639,Biomedical and Clinical Sciences,7,7,1.0,1
+640,Biomedical and Clinical Sciences,7,7,1.0,1
+641,Biomedical and Clinical Sciences,4,7,0.5714285714285714,1
+641,Biological Sciences,3,7,0.42857142857142855,2
+642,Biomedical and Clinical Sciences,7,7,1.0,1
+643,Biomedical and Clinical Sciences,7,7,1.0,1
+644,Biomedical and Clinical Sciences,7,7,1.0,1
+645,Biological Sciences,7,7,1.0,1
+646,Biomedical and Clinical Sciences,7,7,1.0,1
+647,Biomedical and Clinical Sciences,7,7,1.0,1
+648,Biological Sciences,7,7,1.0,1
+649,Biomedical and Clinical Sciences,7,7,1.0,1
+650,Biomedical and Clinical Sciences,7,7,1.0,1
+651,Biological Sciences,7,7,1.0,1
+652,Health Sciences,7,7,1.0,1
+653,Biological Sciences,7,7,1.0,1
+654,Biological Sciences,7,7,1.0,1
+655,Biomedical and Clinical Sciences,7,7,1.0,1
+656,Health Sciences,7,7,1.0,1
+657,Biological Sciences,7,7,1.0,1
+658,Biomedical and Clinical Sciences,6,6,1.0,1
+659,Biomedical and Clinical Sciences,6,6,1.0,1
+660,Health Sciences,6,6,1.0,1
+661,Biomedical and Clinical Sciences,6,6,1.0,1
+662,Health Sciences,6,6,1.0,1
+663,Health Sciences,6,6,1.0,1
+664,Biological Sciences,6,6,1.0,1
+665,Health Sciences,6,6,1.0,1
+666,Biomedical and Clinical Sciences,6,6,1.0,1
+667,Biomedical and Clinical Sciences,6,6,1.0,1
+668,Health Sciences,4,6,0.6666666666666666,1
+668,Biomedical and Clinical Sciences,2,6,0.3333333333333333,2
+669,Biomedical and Clinical Sciences,6,6,1.0,1
+670,Environmental Sciences,6,6,1.0,1
+671,Biological Sciences,6,6,1.0,1
+672,Biomedical and Clinical Sciences,6,6,1.0,1
+673,Health Sciences,6,6,1.0,1
+674,Biomedical and Clinical Sciences,6,6,1.0,1
+675,Biomedical and Clinical Sciences,6,6,1.0,1
+676,Health Sciences,6,6,1.0,1
+677,Biomedical and Clinical Sciences,6,6,1.0,1
+678,Biomedical and Clinical Sciences,6,6,1.0,1
+679,Biomedical and Clinical Sciences,6,6,1.0,1
+680,Biomedical and Clinical Sciences,6,6,1.0,1
+681,Biological Sciences,6,6,1.0,1
+682,Biomedical and Clinical Sciences,6,6,1.0,1
+683,Biomedical and Clinical Sciences,6,6,1.0,1
+684,Biomedical and Clinical Sciences,6,6,1.0,1
+685,Biomedical and Clinical Sciences,6,6,1.0,1
+686,Health Sciences,6,6,1.0,1
+687,Biomedical and Clinical Sciences,6,6,1.0,1
+688,Biomedical and Clinical Sciences,6,6,1.0,1
+689,Biomedical and Clinical Sciences,6,6,1.0,1
+690,Biomedical and Clinical Sciences,6,6,1.0,1
+691,Health Sciences,6,6,1.0,1
+692,Biomedical and Clinical Sciences,5,6,0.8333333333333334,1
+692,Biological Sciences,1,6,0.16666666666666666,2
+693,Biomedical and Clinical Sciences,6,6,1.0,1
+694,Biomedical and Clinical Sciences,6,6,1.0,1
+695,Biomedical and Clinical Sciences,6,6,1.0,1
+696,Biomedical and Clinical Sciences,6,6,1.0,1
+697,Biological Sciences,6,6,1.0,1
+698,Biomedical and Clinical Sciences,6,6,1.0,1
+699,Biomedical and Clinical Sciences,6,6,1.0,1
+700,Biological Sciences,6,6,1.0,1
+701,Health Sciences,6,6,1.0,1
+702,Biomedical and Clinical Sciences,6,6,1.0,1
+703,Health Sciences,6,6,1.0,1
+704,Biomedical and Clinical Sciences,6,6,1.0,1
+705,Health Sciences,6,6,1.0,1
+706,Biological Sciences,6,6,1.0,1
+707,Biomedical and Clinical Sciences,6,6,1.0,1
+708,Biomedical and Clinical Sciences,6,6,1.0,1
+709,Health Sciences,5,6,0.8333333333333334,1
+709,Engineering,1,6,0.16666666666666666,2
+710,Biomedical and Clinical Sciences,6,6,1.0,1
+711,Biomedical and Clinical Sciences,6,6,1.0,1
+712,Biomedical and Clinical Sciences,6,6,1.0,1
+713,Biomedical and Clinical Sciences,6,6,1.0,1
+714,Biomedical and Clinical Sciences,6,6,1.0,1
+715,Biomedical and Clinical Sciences,6,6,1.0,1
+716,Health Sciences,6,6,1.0,1
+717,Biomedical and Clinical Sciences,6,6,1.0,1
+718,Biomedical and Clinical Sciences,6,6,1.0,1
+719,Biomedical and Clinical Sciences,5,6,0.8333333333333334,1
+719,Psychology,1,6,0.16666666666666666,2
+720,Biomedical and Clinical Sciences,6,6,1.0,1
+721,Biomedical and Clinical Sciences,6,6,1.0,1
+722,Biomedical and Clinical Sciences,6,6,1.0,1
+723,Biomedical and Clinical Sciences,6,6,1.0,1
+724,Psychology,6,6,1.0,1
+725,Biomedical and Clinical Sciences,6,6,1.0,1
+726,Biomedical and Clinical Sciences,6,6,1.0,1
+727,Biomedical and Clinical Sciences,6,6,1.0,1
+728,Biomedical and Clinical Sciences,6,6,1.0,1
+729,Biomedical and Clinical Sciences,6,6,1.0,1
+730,Biological Sciences,6,6,1.0,1
+731,Biomedical and Clinical Sciences,6,6,1.0,1
+732,Biomedical and Clinical Sciences,6,6,1.0,1
+733,Health Sciences,6,6,1.0,1
+734,Biological Sciences,6,6,1.0,1
+735,Biological Sciences,6,6,1.0,1
+736,Biomedical and Clinical Sciences,6,6,1.0,1
+737,Biomedical and Clinical Sciences,6,6,1.0,1
+738,Health Sciences,6,6,1.0,1
+739,Biological Sciences,6,6,1.0,1
+740,Biomedical and Clinical Sciences,6,6,1.0,1
+741,Health Sciences,6,6,1.0,1
+742,Health Sciences,6,6,1.0,1
+743,Biomedical and Clinical Sciences,6,6,1.0,1
+744,Biological Sciences,6,6,1.0,1
+745,Health Sciences,6,6,1.0,1
+746,Biomedical and Clinical Sciences,6,6,1.0,1
+747,Health Sciences,6,6,1.0,1
+748,Biological Sciences,6,6,1.0,1
+749,Biomedical and Clinical Sciences,6,6,1.0,1
+750,Biomedical and Clinical Sciences,4,6,0.6666666666666666,1
+750,Biological Sciences,2,6,0.3333333333333333,2
+751,Biomedical and Clinical Sciences,6,6,1.0,1
+752,Biomedical and Clinical Sciences,6,6,1.0,1
+753,Biomedical and Clinical Sciences,6,6,1.0,1
+754,Biomedical and Clinical Sciences,6,6,1.0,1
+755,Biomedical and Clinical Sciences,6,6,1.0,1
+756,Biomedical and Clinical Sciences,6,6,1.0,1
+757,Biomedical and Clinical Sciences,6,6,1.0,1
+758,Biomedical and Clinical Sciences,6,6,1.0,1
+759,Biomedical and Clinical Sciences,6,6,1.0,1
+760,Biomedical and Clinical Sciences,6,6,1.0,1
+761,Biomedical and Clinical Sciences,6,6,1.0,1
+762,Health Sciences,6,6,1.0,1
+763,Biomedical and Clinical Sciences,6,6,1.0,1
+764,Biomedical and Clinical Sciences,6,6,1.0,1
+765,Biomedical and Clinical Sciences,6,6,1.0,1
+766,Biomedical and Clinical Sciences,6,6,1.0,1
+767,Health Sciences,6,6,1.0,1
+768,Biomedical and Clinical Sciences,6,6,1.0,1
+769,Biomedical and Clinical Sciences,6,6,1.0,1
+770,Biomedical and Clinical Sciences,6,6,1.0,1
+771,Biomedical and Clinical Sciences,6,6,1.0,1
+772,Biomedical and Clinical Sciences,6,6,1.0,1
+773,Biological Sciences,6,6,1.0,1
+774,Biomedical and Clinical Sciences,6,6,1.0,1
+775,Biomedical and Clinical Sciences,6,6,1.0,1
+776,Biomedical and Clinical Sciences,6,6,1.0,1
+777,Biomedical and Clinical Sciences,6,6,1.0,1
+778,Biomedical and Clinical Sciences,6,6,1.0,1
+779,Biomedical and Clinical Sciences,6,6,1.0,1
+780,Biological Sciences,6,6,1.0,1
+781,Biological Sciences,6,6,1.0,1
+782,Health Sciences,6,6,1.0,1
+783,Biological Sciences,6,6,1.0,1
+784,Health Sciences,6,6,1.0,1
+785,Biomedical and Clinical Sciences,6,6,1.0,1
+786,Biomedical and Clinical Sciences,6,6,1.0,1
+787,Health Sciences,6,6,1.0,1
+788,Biomedical and Clinical Sciences,6,6,1.0,1
+789,Health Sciences,6,6,1.0,1
+790,Biomedical and Clinical Sciences,6,6,1.0,1
+791,Biomedical and Clinical Sciences,6,6,1.0,1
+792,Psychology,6,6,1.0,1
+793,Biomedical and Clinical Sciences,6,6,1.0,1
+794,Biomedical and Clinical Sciences,6,6,1.0,1
+795,Health Sciences,6,6,1.0,1
+796,Biomedical and Clinical Sciences,6,6,1.0,1
+797,Health Sciences,6,6,1.0,1
+798,Biomedical and Clinical Sciences,6,6,1.0,1
+799,Environmental Sciences,6,6,1.0,1
+800,Biomedical and Clinical Sciences,4,6,0.6666666666666666,1
+800,Health Sciences,2,6,0.3333333333333333,2
+801,Biomedical and Clinical Sciences,6,6,1.0,1
+802,Biomedical and Clinical Sciences,6,6,1.0,1
+803,Health Sciences,6,6,1.0,1
+804,Biomedical and Clinical Sciences,6,6,1.0,1
+805,Biological Sciences,6,6,1.0,1
+806,Biomedical and Clinical Sciences,6,6,1.0,1
+807,Health Sciences,6,6,1.0,1
+808,Health Sciences,6,6,1.0,1
+809,Biomedical and Clinical Sciences,6,6,1.0,1
+810,Biomedical and Clinical Sciences,6,6,1.0,1
+811,"Agricultural, Veterinary and Food Sciences",6,6,1.0,1
+812,Biomedical and Clinical Sciences,5,5,1.0,1
+813,Biological Sciences,5,5,1.0,1
+814,Biomedical and Clinical Sciences,5,5,1.0,1
+815,Biomedical and Clinical Sciences,5,5,1.0,1
+816,Health Sciences,5,5,1.0,1
+817,Biomedical and Clinical Sciences,5,5,1.0,1
+818,Biological Sciences,5,5,1.0,1
+819,Psychology,4,5,0.8,1
+819,Biomedical and Clinical Sciences,1,5,0.2,2
+820,Biological Sciences,5,5,1.0,1
+821,Health Sciences,5,5,1.0,1
+822,Biological Sciences,5,5,1.0,1
+823,Information and Computing Sciences,5,5,1.0,1
+824,Biomedical and Clinical Sciences,5,5,1.0,1
+825,Biomedical and Clinical Sciences,5,5,1.0,1
+826,Biological Sciences,5,5,1.0,1
+827,Biomedical and Clinical Sciences,5,5,1.0,1
+828,Biomedical and Clinical Sciences,5,5,1.0,1
+829,Health Sciences,5,5,1.0,1
+830,Biomedical and Clinical Sciences,5,5,1.0,1
+831,Biological Sciences,5,5,1.0,1
+832,Health Sciences,5,5,1.0,1
+833,Biological Sciences,5,5,1.0,1
+834,Health Sciences,4,5,0.8,1
+834,Biomedical and Clinical Sciences,1,5,0.2,2
+835,Biomedical and Clinical Sciences,5,5,1.0,1
+836,Biomedical and Clinical Sciences,5,5,1.0,1
+837,Health Sciences,5,5,1.0,1
+838,Biomedical and Clinical Sciences,5,5,1.0,1
+839,Biomedical and Clinical Sciences,5,5,1.0,1
+840,Biomedical and Clinical Sciences,3,5,0.6,1
+840,Information and Computing Sciences,2,5,0.4,2
+841,Biological Sciences,5,5,1.0,1
+842,Biological Sciences,5,5,1.0,1
+843,Biomedical and Clinical Sciences,5,5,1.0,1
+844,Health Sciences,5,5,1.0,1
+845,Health Sciences,5,5,1.0,1
+846,Biomedical and Clinical Sciences,5,5,1.0,1
+847,Health Sciences,5,5,1.0,1
+848,Biomedical and Clinical Sciences,5,5,1.0,1
+849,Biological Sciences,5,5,1.0,1
+850,Biomedical and Clinical Sciences,5,5,1.0,1
+851,Biological Sciences,5,5,1.0,1
+852,Biomedical and Clinical Sciences,5,5,1.0,1
+853,Biomedical and Clinical Sciences,5,5,1.0,1
+854,Biomedical and Clinical Sciences,5,5,1.0,1
+855,Biological Sciences,5,5,1.0,1
+856,Biomedical and Clinical Sciences,5,5,1.0,1
+857,Biomedical and Clinical Sciences,3,5,0.6,1
+857,Health Sciences,2,5,0.4,2
+858,Biomedical and Clinical Sciences,5,5,1.0,1
+859,Health Sciences,5,5,1.0,1
+860,Biomedical and Clinical Sciences,5,5,1.0,1
+861,Biomedical and Clinical Sciences,5,5,1.0,1
+862,Health Sciences,5,5,1.0,1
+863,Health Sciences,5,5,1.0,1
+864,Biomedical and Clinical Sciences,5,5,1.0,1
+865,Biomedical and Clinical Sciences,5,5,1.0,1
+866,Biomedical and Clinical Sciences,5,5,1.0,1
+867,Biological Sciences,5,5,1.0,1
+868,Biological Sciences,5,5,1.0,1
+869,Health Sciences,5,5,1.0,1
+870,Health Sciences,5,5,1.0,1
+871,Biomedical and Clinical Sciences,5,5,1.0,1
+872,Biomedical and Clinical Sciences,5,5,1.0,1
+873,Biomedical and Clinical Sciences,5,5,1.0,1
+874,Biomedical and Clinical Sciences,5,5,1.0,1
+875,Information and Computing Sciences,5,5,1.0,1
+876,Biological Sciences,5,5,1.0,1
+877,Biological Sciences,5,5,1.0,1
+878,Biomedical and Clinical Sciences,5,5,1.0,1
+879,Biological Sciences,5,5,1.0,1
+880,Biomedical and Clinical Sciences,5,5,1.0,1
+881,Biomedical and Clinical Sciences,5,5,1.0,1
+882,Biological Sciences,3,5,0.6,1
+882,Biomedical and Clinical Sciences,2,5,0.4,2
+883,Biological Sciences,4,5,0.8,1
+883,Biomedical and Clinical Sciences,1,5,0.2,2
+884,Biomedical and Clinical Sciences,5,5,1.0,1
+885,Biomedical and Clinical Sciences,5,5,1.0,1
+886,Biomedical and Clinical Sciences,5,5,1.0,1
+887,Health Sciences,5,5,1.0,1
+888,Biomedical and Clinical Sciences,5,5,1.0,1
+889,Information and Computing Sciences,5,5,1.0,1
+890,Psychology,5,5,1.0,1
+891,Biomedical and Clinical Sciences,5,5,1.0,1
+892,Biomedical and Clinical Sciences,5,5,1.0,1
+893,Biomedical and Clinical Sciences,5,5,1.0,1
+894,Biological Sciences,4,5,0.8,1
+894,Biomedical and Clinical Sciences,1,5,0.2,2
+895,Biomedical and Clinical Sciences,5,5,1.0,1
+896,Biomedical and Clinical Sciences,5,5,1.0,1
+897,Health Sciences,5,5,1.0,1
+898,Biomedical and Clinical Sciences,5,5,1.0,1
+899,Biomedical and Clinical Sciences,5,5,1.0,1
+900,Biomedical and Clinical Sciences,3,5,0.6,1
+900,Health Sciences,2,5,0.4,2
+901,Biomedical and Clinical Sciences,5,5,1.0,1
+902,Biological Sciences,5,5,1.0,1
+903,Biomedical and Clinical Sciences,5,5,1.0,1
+904,Health Sciences,5,5,1.0,1
+905,Health Sciences,5,5,1.0,1
+906,Biological Sciences,5,5,1.0,1
+907,Biomedical and Clinical Sciences,5,5,1.0,1
+908,Biomedical and Clinical Sciences,5,5,1.0,1
+909,Health Sciences,5,5,1.0,1
+910,Biological Sciences,5,5,1.0,1
+911,Biomedical and Clinical Sciences,5,5,1.0,1
+912,Biological Sciences,5,5,1.0,1
+913,Biological Sciences,5,5,1.0,1
+914,Biomedical and Clinical Sciences,5,5,1.0,1
+915,Biomedical and Clinical Sciences,5,5,1.0,1
+916,Mathematical Sciences,5,5,1.0,1
+917,Biomedical and Clinical Sciences,5,5,1.0,1
+918,Engineering,5,5,1.0,1
+919,Information and Computing Sciences,5,5,1.0,1
+920,Health Sciences,5,5,1.0,1
+921,Health Sciences,5,5,1.0,1
+922,Biomedical and Clinical Sciences,5,5,1.0,1
+923,Biomedical and Clinical Sciences,5,5,1.0,1
+924,Biomedical and Clinical Sciences,5,5,1.0,1
+925,Biological Sciences,5,5,1.0,1
+926,Biological Sciences,5,5,1.0,1
+927,Biomedical and Clinical Sciences,5,5,1.0,1
+928,Biological Sciences,5,5,1.0,1
+929,Biomedical and Clinical Sciences,5,5,1.0,1
+930,Biomedical and Clinical Sciences,5,5,1.0,1
+931,Biomedical and Clinical Sciences,5,5,1.0,1
+932,Biological Sciences,5,5,1.0,1
+933,Biomedical and Clinical Sciences,5,5,1.0,1
+934,Biomedical and Clinical Sciences,5,5,1.0,1
+935,Biomedical and Clinical Sciences,5,5,1.0,1
+936,Health Sciences,5,5,1.0,1
+937,Biomedical and Clinical Sciences,5,5,1.0,1
+938,Biomedical and Clinical Sciences,5,5,1.0,1
+939,Biomedical and Clinical Sciences,5,5,1.0,1
+940,Biological Sciences,5,5,1.0,1
+941,Biomedical and Clinical Sciences,5,5,1.0,1
+942,Biological Sciences,5,5,1.0,1
+943,Health Sciences,5,5,1.0,1
+944,Biological Sciences,5,5,1.0,1
+945,Biomedical and Clinical Sciences,5,5,1.0,1
+946,Health Sciences,5,5,1.0,1
+947,Biomedical and Clinical Sciences,5,5,1.0,1
+948,Health Sciences,5,5,1.0,1
+949,Biomedical and Clinical Sciences,5,5,1.0,1
+950,Biomedical and Clinical Sciences,5,5,1.0,1
+951,Biological Sciences,5,5,1.0,1
+952,Biomedical and Clinical Sciences,5,5,1.0,1
+953,Biomedical and Clinical Sciences,5,5,1.0,1
+954,Biomedical and Clinical Sciences,5,5,1.0,1
+955,Biomedical and Clinical Sciences,5,5,1.0,1
+956,Biological Sciences,5,5,1.0,1
+957,Biomedical and Clinical Sciences,5,5,1.0,1
+958,Biological Sciences,5,5,1.0,1
+959,Biomedical and Clinical Sciences,5,5,1.0,1
+960,Biological Sciences,5,5,1.0,1
+961,Biomedical and Clinical Sciences,5,5,1.0,1
+962,Biomedical and Clinical Sciences,5,5,1.0,1
+963,Biomedical and Clinical Sciences,5,5,1.0,1
+964,Biomedical and Clinical Sciences,5,5,1.0,1
+965,Biomedical and Clinical Sciences,5,5,1.0,1
+966,Biological Sciences,5,5,1.0,1
+967,Information and Computing Sciences,5,5,1.0,1
+968,Biomedical and Clinical Sciences,5,5,1.0,1
+969,Biomedical and Clinical Sciences,5,5,1.0,1
+970,Health Sciences,5,5,1.0,1
+971,Biomedical and Clinical Sciences,5,5,1.0,1
+972,Information and Computing Sciences,5,5,1.0,1
+973,Biomedical and Clinical Sciences,5,5,1.0,1
+974,Biomedical and Clinical Sciences,4,5,0.8,1
+974,Health Sciences,1,5,0.2,2
+975,Biomedical and Clinical Sciences,5,5,1.0,1
+976,Biomedical and Clinical Sciences,5,5,1.0,1
+977,Health Sciences,5,5,1.0,1
+978,Biomedical and Clinical Sciences,5,5,1.0,1
+979,Health Sciences,5,5,1.0,1
+980,Biomedical and Clinical Sciences,5,5,1.0,1
+981,Psychology,5,5,1.0,1
+982,Biomedical and Clinical Sciences,5,5,1.0,1
+983,Biomedical and Clinical Sciences,5,5,1.0,1
+984,Biomedical and Clinical Sciences,5,5,1.0,1
+985,Biomedical and Clinical Sciences,5,5,1.0,1
+986,Environmental Sciences,5,5,1.0,1
+987,Biological Sciences,5,5,1.0,1
+988,Biomedical and Clinical Sciences,5,5,1.0,1
+989,Biomedical and Clinical Sciences,5,5,1.0,1
+990,Biomedical and Clinical Sciences,4,5,0.8,1
+990,Health Sciences,1,5,0.2,2
+991,Biomedical and Clinical Sciences,5,5,1.0,1
+992,Biological Sciences,5,5,1.0,1
+993,Biomedical and Clinical Sciences,5,5,1.0,1
+994,Biomedical and Clinical Sciences,5,5,1.0,1
+995,Biomedical and Clinical Sciences,5,5,1.0,1
+996,Biomedical and Clinical Sciences,5,5,1.0,1
+997,Health Sciences,5,5,1.0,1
+998,Biomedical and Clinical Sciences,5,5,1.0,1
+999,Biological Sciences,5,5,1.0,1
+1000,Biomedical and Clinical Sciences,5,5,1.0,1
+1001,Biomedical and Clinical Sciences,5,5,1.0,1
+1002,Biomedical and Clinical Sciences,5,5,1.0,1
+1003,Biomedical and Clinical Sciences,5,5,1.0,1
+1004,Biomedical and Clinical Sciences,5,5,1.0,1
+1005,Biological Sciences,5,5,1.0,1
+1006,Biomedical and Clinical Sciences,5,5,1.0,1
+1007,Biomedical and Clinical Sciences,5,5,1.0,1
+1008,Biomedical and Clinical Sciences,5,5,1.0,1
+1009,Biomedical and Clinical Sciences,5,5,1.0,1
+1010,Health Sciences,5,5,1.0,1
+1011,Biomedical and Clinical Sciences,5,5,1.0,1
+1012,Biomedical and Clinical Sciences,5,5,1.0,1
+1013,Health Sciences,5,5,1.0,1
+1014,Biomedical and Clinical Sciences,5,5,1.0,1
+1015,Health Sciences,5,5,1.0,1
+1016,Biomedical and Clinical Sciences,5,5,1.0,1
+1017,Biomedical and Clinical Sciences,5,5,1.0,1
+1018,Biomedical and Clinical Sciences,5,5,1.0,1
+1019,Biological Sciences,5,5,1.0,1
+1020,Biomedical and Clinical Sciences,5,5,1.0,1
+1021,Biomedical and Clinical Sciences,4,4,1.0,1
+1022,Biomedical and Clinical Sciences,4,4,1.0,1
+1023,Health Sciences,4,4,1.0,1
+1024,Information and Computing Sciences,4,4,1.0,1
+1025,Biomedical and Clinical Sciences,4,4,1.0,1
+1026,Biological Sciences,4,4,1.0,1
+1027,Psychology,4,4,1.0,1
+1028,Biomedical and Clinical Sciences,4,4,1.0,1
+1029,Information and Computing Sciences,4,4,1.0,1
+1030,Biomedical and Clinical Sciences,4,4,1.0,1
+1031,Biomedical and Clinical Sciences,4,4,1.0,1
+1032,Biomedical and Clinical Sciences,4,4,1.0,1
+1033,Biomedical and Clinical Sciences,4,4,1.0,1
+1034,Biomedical and Clinical Sciences,4,4,1.0,1
+1035,Health Sciences,4,4,1.0,1
+1036,Biomedical and Clinical Sciences,4,4,1.0,1
+1037,Biomedical and Clinical Sciences,4,4,1.0,1
+1038,Biological Sciences,4,4,1.0,1
+1039,Health Sciences,4,4,1.0,1
+1040,Information and Computing Sciences,4,4,1.0,1
+1041,Biological Sciences,4,4,1.0,1
+1042,Biomedical and Clinical Sciences,4,4,1.0,1
+1043,Biomedical and Clinical Sciences,4,4,1.0,1
+1044,Biomedical and Clinical Sciences,4,4,1.0,1
+1045,Biomedical and Clinical Sciences,4,4,1.0,1
+1046,Health Sciences,4,4,1.0,1
+1047,Biological Sciences,4,4,1.0,1
+1048,Biomedical and Clinical Sciences,4,4,1.0,1
+1049,Biological Sciences,4,4,1.0,1
+1050,Biomedical and Clinical Sciences,4,4,1.0,1
+1051,Biomedical and Clinical Sciences,4,4,1.0,1
+1052,Biological Sciences,4,4,1.0,1
+1053,Biomedical and Clinical Sciences,4,4,1.0,1
+1054,Biomedical and Clinical Sciences,4,4,1.0,1
+1055,Biomedical and Clinical Sciences,4,4,1.0,1
+1056,Biological Sciences,4,4,1.0,1
+1057,Biomedical and Clinical Sciences,4,4,1.0,1
+1058,Biomedical and Clinical Sciences,4,4,1.0,1
+1059,Biological Sciences,4,4,1.0,1
+1060,Biomedical and Clinical Sciences,4,4,1.0,1
+1061,Biomedical and Clinical Sciences,4,4,1.0,1
+1062,Biological Sciences,3,4,0.75,1
+1062,Health Sciences,1,4,0.25,2
+1063,Biological Sciences,4,4,1.0,1
+1064,Biomedical and Clinical Sciences,4,4,1.0,1
+1065,Biomedical and Clinical Sciences,4,4,1.0,1
+1066,Biomedical and Clinical Sciences,4,4,1.0,1
+1067,Biomedical and Clinical Sciences,4,4,1.0,1
+1068,Biological Sciences,4,4,1.0,1
+1069,Health Sciences,4,4,1.0,1
+1070,Biomedical and Clinical Sciences,4,4,1.0,1
+1071,Biomedical and Clinical Sciences,4,4,1.0,1
+1072,Psychology,3,4,0.75,1
+1072,Biomedical and Clinical Sciences,1,4,0.25,2
+1073,Health Sciences,4,4,1.0,1
+1074,Biomedical and Clinical Sciences,4,4,1.0,1
+1075,Health Sciences,4,4,1.0,1
+1076,Information and Computing Sciences,4,4,1.0,1
+1077,Biomedical and Clinical Sciences,4,4,1.0,1
+1078,Health Sciences,4,4,1.0,1
+1079,Biological Sciences,4,4,1.0,1
+1080,Biomedical and Clinical Sciences,4,4,1.0,1
+1081,Biomedical and Clinical Sciences,4,4,1.0,1
+1082,Biomedical and Clinical Sciences,4,4,1.0,1
+1083,Biomedical and Clinical Sciences,4,4,1.0,1
+1084,Biological Sciences,4,4,1.0,1
+1085,Biomedical and Clinical Sciences,4,4,1.0,1
+1086,Biomedical and Clinical Sciences,4,4,1.0,1
+1087,Health Sciences,4,4,1.0,1
+1088,Biomedical and Clinical Sciences,4,4,1.0,1
+1089,Biomedical and Clinical Sciences,4,4,1.0,1
+1090,Biological Sciences,4,4,1.0,1
+1091,Health Sciences,4,4,1.0,1
+1092,Health Sciences,4,4,1.0,1
+1093,Health Sciences,4,4,1.0,1
+1094,Biomedical and Clinical Sciences,4,4,1.0,1
+1095,Biomedical and Clinical Sciences,4,4,1.0,1
+1096,Psychology,4,4,1.0,1
+1097,Biomedical and Clinical Sciences,4,4,1.0,1
+1098,Biomedical and Clinical Sciences,4,4,1.0,1
+1099,Biological Sciences,4,4,1.0,1
+1100,Biomedical and Clinical Sciences,4,4,1.0,1
+1101,Biomedical and Clinical Sciences,4,4,1.0,1
+1102,Biomedical and Clinical Sciences,4,4,1.0,1
+1103,Biomedical and Clinical Sciences,4,4,1.0,1
+1104,Health Sciences,4,4,1.0,1
+1105,Biomedical and Clinical Sciences,4,4,1.0,1
+1106,Biomedical and Clinical Sciences,4,4,1.0,1
+1107,Biological Sciences,4,4,1.0,1
+1108,Psychology,4,4,1.0,1
+1109,Biomedical and Clinical Sciences,4,4,1.0,1
+1110,Biological Sciences,4,4,1.0,1
+1111,Health Sciences,4,4,1.0,1
+1112,Biomedical and Clinical Sciences,4,4,1.0,1
+1113,Biomedical and Clinical Sciences,4,4,1.0,1
+1114,Health Sciences,4,4,1.0,1
+1115,Biomedical and Clinical Sciences,4,4,1.0,1
+1116,Biomedical and Clinical Sciences,4,4,1.0,1
+1117,Biomedical and Clinical Sciences,4,4,1.0,1
+1118,Biomedical and Clinical Sciences,4,4,1.0,1
+1119,Biomedical and Clinical Sciences,4,4,1.0,1
+1120,Health Sciences,4,4,1.0,1
+1121,Biological Sciences,4,4,1.0,1
+1122,Health Sciences,4,4,1.0,1
+1123,Biomedical and Clinical Sciences,4,4,1.0,1
+1124,Biomedical and Clinical Sciences,4,4,1.0,1
+1125,Health Sciences,4,4,1.0,1
+1126,Engineering,4,4,1.0,1
+1127,Health Sciences,4,4,1.0,1
+1128,Biomedical and Clinical Sciences,4,4,1.0,1
+1129,Biomedical and Clinical Sciences,4,4,1.0,1
+1130,Biomedical and Clinical Sciences,4,4,1.0,1
+1131,Biomedical and Clinical Sciences,4,4,1.0,1
+1132,Health Sciences,4,4,1.0,1
+1133,Health Sciences,4,4,1.0,1
+1134,Biomedical and Clinical Sciences,4,4,1.0,1
+1135,Biological Sciences,4,4,1.0,1
+1136,Biomedical and Clinical Sciences,4,4,1.0,1
+1137,Biomedical and Clinical Sciences,3,4,0.75,1
+1137,Health Sciences,1,4,0.25,2
+1138,Biomedical and Clinical Sciences,4,4,1.0,1
+1139,Health Sciences,4,4,1.0,1
+1140,Biomedical and Clinical Sciences,4,4,1.0,1
+1141,Biomedical and Clinical Sciences,4,4,1.0,1
+1142,Health Sciences,4,4,1.0,1
+1143,Health Sciences,4,4,1.0,1
+1144,Biomedical and Clinical Sciences,4,4,1.0,1
+1145,Biomedical and Clinical Sciences,4,4,1.0,1
+1146,Biomedical and Clinical Sciences,4,4,1.0,1
+1147,Biological Sciences,4,4,1.0,1
+1148,Biomedical and Clinical Sciences,4,4,1.0,1
+1149,Health Sciences,4,4,1.0,1
+1150,Biological Sciences,4,4,1.0,1
+1151,Biomedical and Clinical Sciences,4,4,1.0,1
+1152,Biomedical and Clinical Sciences,4,4,1.0,1
+1153,Biomedical and Clinical Sciences,4,4,1.0,1
+1154,Biomedical and Clinical Sciences,4,4,1.0,1
+1155,Biological Sciences,4,4,1.0,1
+1156,Biological Sciences,4,4,1.0,1
+1157,Biological Sciences,4,4,1.0,1
+1158,Biomedical and Clinical Sciences,4,4,1.0,1
+1159,Biomedical and Clinical Sciences,4,4,1.0,1
+1160,Health Sciences,4,4,1.0,1
+1161,Biological Sciences,4,4,1.0,1
+1162,Health Sciences,4,4,1.0,1
+1163,Health Sciences,4,4,1.0,1
+1164,Biomedical and Clinical Sciences,4,4,1.0,1
+1165,Biomedical and Clinical Sciences,4,4,1.0,1
+1166,Biomedical and Clinical Sciences,4,4,1.0,1
+1167,Environmental Sciences,4,4,1.0,1
+1168,Biomedical and Clinical Sciences,4,4,1.0,1
+1169,Biomedical and Clinical Sciences,4,4,1.0,1
+1170,Biomedical and Clinical Sciences,4,4,1.0,1
+1171,Biomedical and Clinical Sciences,2,4,0.5,1
+1171,Health Sciences,2,4,0.5,2
+1172,Health Sciences,4,4,1.0,1
+1173,Biomedical and Clinical Sciences,4,4,1.0,1
+1174,Health Sciences,4,4,1.0,1
+1175,Biomedical and Clinical Sciences,4,4,1.0,1
+1176,Biomedical and Clinical Sciences,4,4,1.0,1
+1177,Biomedical and Clinical Sciences,4,4,1.0,1
+1178,Biomedical and Clinical Sciences,4,4,1.0,1
+1179,Biomedical and Clinical Sciences,4,4,1.0,1
+1180,Biomedical and Clinical Sciences,4,4,1.0,1
+1181,Biomedical and Clinical Sciences,4,4,1.0,1
+1182,Mathematical Sciences,4,4,1.0,1
+1183,Health Sciences,4,4,1.0,1
+1184,Biomedical and Clinical Sciences,4,4,1.0,1
+1185,Biological Sciences,4,4,1.0,1
+1186,Biomedical and Clinical Sciences,4,4,1.0,1
+1187,Biomedical and Clinical Sciences,4,4,1.0,1
+1188,"Agricultural, Veterinary and Food Sciences",3,4,0.75,1
+1188,Health Sciences,1,4,0.25,2
+1189,Biomedical and Clinical Sciences,4,4,1.0,1
+1190,Biomedical and Clinical Sciences,4,4,1.0,1
+1191,Biomedical and Clinical Sciences,4,4,1.0,1
+1192,Biomedical and Clinical Sciences,4,4,1.0,1
+1193,Biomedical and Clinical Sciences,4,4,1.0,1
+1194,Biomedical and Clinical Sciences,4,4,1.0,1
+1195,Biomedical and Clinical Sciences,4,4,1.0,1
+1196,Biomedical and Clinical Sciences,4,4,1.0,1
+1197,Biomedical and Clinical Sciences,4,4,1.0,1
+1198,Biological Sciences,4,4,1.0,1
+1199,Health Sciences,4,4,1.0,1
+1200,Biological Sciences,4,4,1.0,1
+1201,Biological Sciences,4,4,1.0,1
+1202,Biomedical and Clinical Sciences,4,4,1.0,1
+1203,Biomedical and Clinical Sciences,4,4,1.0,1
+1204,Biomedical and Clinical Sciences,4,4,1.0,1
+1205,Health Sciences,4,4,1.0,1
+1206,Biological Sciences,4,4,1.0,1
+1207,Health Sciences,4,4,1.0,1
+1208,Health Sciences,4,4,1.0,1
+1209,Biological Sciences,4,4,1.0,1
+1210,Health Sciences,4,4,1.0,1
+1211,Biomedical and Clinical Sciences,4,4,1.0,1
+1212,Biomedical and Clinical Sciences,4,4,1.0,1
+1213,Biomedical and Clinical Sciences,4,4,1.0,1
+1214,Health Sciences,4,4,1.0,1
+1215,Health Sciences,4,4,1.0,1
+1216,Biomedical and Clinical Sciences,4,4,1.0,1
+1217,Health Sciences,4,4,1.0,1
+1218,Biomedical and Clinical Sciences,4,4,1.0,1
+1219,Biomedical and Clinical Sciences,4,4,1.0,1
+1220,Biological Sciences,4,4,1.0,1
+1221,Psychology,4,4,1.0,1
+1222,Biomedical and Clinical Sciences,4,4,1.0,1
+1223,Biomedical and Clinical Sciences,4,4,1.0,1
+1224,Biomedical and Clinical Sciences,4,4,1.0,1
+1225,Biomedical and Clinical Sciences,4,4,1.0,1
+1226,Health Sciences,4,4,1.0,1
+1227,Biomedical and Clinical Sciences,4,4,1.0,1
+1228,Biomedical and Clinical Sciences,4,4,1.0,1
+1229,Biomedical and Clinical Sciences,4,4,1.0,1
+1230,Health Sciences,4,4,1.0,1
+1231,Biomedical and Clinical Sciences,4,4,1.0,1
+1232,Biological Sciences,4,4,1.0,1
+1233,Biomedical and Clinical Sciences,4,4,1.0,1
+1234,Health Sciences,4,4,1.0,1
+1235,Biomedical and Clinical Sciences,4,4,1.0,1
+1236,Biomedical and Clinical Sciences,4,4,1.0,1
+1237,Biomedical and Clinical Sciences,4,4,1.0,1
+1238,Health Sciences,4,4,1.0,1
+1239,Psychology,4,4,1.0,1
+1240,Biomedical and Clinical Sciences,4,4,1.0,1
+1241,Biomedical and Clinical Sciences,4,4,1.0,1
+1242,Biomedical and Clinical Sciences,3,3,1.0,1
+1243,Biomedical and Clinical Sciences,3,3,1.0,1
+1244,Biological Sciences,3,3,1.0,1
+1245,Engineering,3,3,1.0,1
+1246,Biomedical and Clinical Sciences,3,3,1.0,1
+1247,Biomedical and Clinical Sciences,3,3,1.0,1
+1248,Biomedical and Clinical Sciences,3,3,1.0,1
+1249,Health Sciences,2,3,0.6666666666666666,1
+1249,Biomedical and Clinical Sciences,1,3,0.3333333333333333,2
+1250,Biomedical and Clinical Sciences,3,3,1.0,1
+1251,Health Sciences,3,3,1.0,1
+1252,Biomedical and Clinical Sciences,3,3,1.0,1
+1253,Biomedical and Clinical Sciences,3,3,1.0,1
+1254,Health Sciences,3,3,1.0,1
+1255,Biomedical and Clinical Sciences,3,3,1.0,1
+1256,Biological Sciences,3,3,1.0,1
+1257,Health Sciences,3,3,1.0,1
+1258,Biological Sciences,3,3,1.0,1
+1259,Psychology,3,3,1.0,1
+1260,Health Sciences,3,3,1.0,1
+1261,Health Sciences,3,3,1.0,1
+1262,Biomedical and Clinical Sciences,3,3,1.0,1
+1263,Biomedical and Clinical Sciences,3,3,1.0,1
+1264,Biomedical and Clinical Sciences,3,3,1.0,1
+1265,Biological Sciences,3,3,1.0,1
+1266,Biomedical and Clinical Sciences,3,3,1.0,1
+1267,Information and Computing Sciences,3,3,1.0,1
+1268,Psychology,3,3,1.0,1
+1269,Biomedical and Clinical Sciences,3,3,1.0,1
+1270,Information and Computing Sciences,3,3,1.0,1
+1271,Biomedical and Clinical Sciences,3,3,1.0,1
+1272,Information and Computing Sciences,3,3,1.0,1
+1273,Biomedical and Clinical Sciences,3,3,1.0,1
+1274,Biomedical and Clinical Sciences,3,3,1.0,1
+1275,Biomedical and Clinical Sciences,3,3,1.0,1
+1276,Biological Sciences,3,3,1.0,1
+1277,Biomedical and Clinical Sciences,3,3,1.0,1
+1278,Biomedical and Clinical Sciences,3,3,1.0,1
+1279,Biomedical and Clinical Sciences,3,3,1.0,1
+1280,Biomedical and Clinical Sciences,3,3,1.0,1
+1281,Biological Sciences,3,3,1.0,1
+1282,Biomedical and Clinical Sciences,3,3,1.0,1
+1283,Biomedical and Clinical Sciences,3,3,1.0,1
+1284,Biomedical and Clinical Sciences,3,3,1.0,1
+1285,Biological Sciences,3,3,1.0,1
+1286,Biomedical and Clinical Sciences,3,3,1.0,1
+1287,Biological Sciences,3,3,1.0,1
+1288,"Agricultural, Veterinary and Food Sciences",3,3,1.0,1
+1289,Biomedical and Clinical Sciences,3,3,1.0,1
+1290,Biological Sciences,3,3,1.0,1
+1291,Health Sciences,3,3,1.0,1
+1292,Biomedical and Clinical Sciences,3,3,1.0,1
+1293,Biomedical and Clinical Sciences,3,3,1.0,1
+1294,Environmental Sciences,3,3,1.0,1
+1295,Biomedical and Clinical Sciences,3,3,1.0,1
+1296,Biomedical and Clinical Sciences,3,3,1.0,1
+1297,Biomedical and Clinical Sciences,3,3,1.0,1
+1298,Biological Sciences,3,3,1.0,1
+1299,Biological Sciences,3,3,1.0,1
+1300,Biomedical and Clinical Sciences,3,3,1.0,1
+1301,Health Sciences,3,3,1.0,1
+1302,Biomedical and Clinical Sciences,3,3,1.0,1
+1303,Biomedical and Clinical Sciences,3,3,1.0,1
+1304,Biological Sciences,3,3,1.0,1
+1305,Biological Sciences,3,3,1.0,1
+1306,Biomedical and Clinical Sciences,3,3,1.0,1
+1307,Biomedical and Clinical Sciences,3,3,1.0,1
+1308,Health Sciences,3,3,1.0,1
+1309,Biomedical and Clinical Sciences,3,3,1.0,1
+1310,Biological Sciences,3,3,1.0,1
+1311,Biomedical and Clinical Sciences,3,3,1.0,1
+1312,Biomedical and Clinical Sciences,3,3,1.0,1
+1313,Biomedical and Clinical Sciences,3,3,1.0,1
+1314,Biomedical and Clinical Sciences,3,3,1.0,1
+1315,Biomedical and Clinical Sciences,3,3,1.0,1
+1316,Biomedical and Clinical Sciences,3,3,1.0,1
+1317,Health Sciences,3,3,1.0,1
+1318,Psychology,3,3,1.0,1
+1319,Biomedical and Clinical Sciences,3,3,1.0,1
+1320,Biomedical and Clinical Sciences,3,3,1.0,1
+1321,Biological Sciences,3,3,1.0,1
+1322,Biomedical and Clinical Sciences,3,3,1.0,1
+1323,Biomedical and Clinical Sciences,3,3,1.0,1
+1324,Information and Computing Sciences,3,3,1.0,1
+1325,Biomedical and Clinical Sciences,3,3,1.0,1
+1326,Biological Sciences,3,3,1.0,1
+1327,Biological Sciences,3,3,1.0,1
+1328,Biomedical and Clinical Sciences,3,3,1.0,1
+1329,Biological Sciences,3,3,1.0,1
+1330,Biomedical and Clinical Sciences,3,3,1.0,1
+1331,Biomedical and Clinical Sciences,3,3,1.0,1
+1332,Biomedical and Clinical Sciences,3,3,1.0,1
+1333,Biomedical and Clinical Sciences,3,3,1.0,1
+1334,Biomedical and Clinical Sciences,3,3,1.0,1
+1335,Biological Sciences,3,3,1.0,1
+1336,Biomedical and Clinical Sciences,3,3,1.0,1
+1337,Biomedical and Clinical Sciences,3,3,1.0,1
+1338,Biomedical and Clinical Sciences,3,3,1.0,1
+1339,Chemical Sciences,3,3,1.0,1
+1340,Health Sciences,3,3,1.0,1
+1341,Biomedical and Clinical Sciences,3,3,1.0,1
+1342,Biological Sciences,3,3,1.0,1
+1343,Biological Sciences,3,3,1.0,1
+1344,Mathematical Sciences,3,3,1.0,1
+1345,Biomedical and Clinical Sciences,3,3,1.0,1
+1346,Biomedical and Clinical Sciences,3,3,1.0,1
+1347,Biomedical and Clinical Sciences,3,3,1.0,1
+1348,Biomedical and Clinical Sciences,3,3,1.0,1
+1349,Biomedical and Clinical Sciences,3,3,1.0,1
+1350,Biomedical and Clinical Sciences,3,3,1.0,1
+1351,Biomedical and Clinical Sciences,3,3,1.0,1
+1352,Law and Legal Studies,3,3,1.0,1
+1353,Biomedical and Clinical Sciences,3,3,1.0,1
+1354,Biomedical and Clinical Sciences,3,3,1.0,1
+1355,Biomedical and Clinical Sciences,3,3,1.0,1
+1356,Biomedical and Clinical Sciences,3,3,1.0,1
+1357,Biomedical and Clinical Sciences,3,3,1.0,1
+1358,Biomedical and Clinical Sciences,2,3,0.6666666666666666,1
+1358,Biological Sciences,1,3,0.3333333333333333,2
+1359,Biological Sciences,3,3,1.0,1
+1360,Health Sciences,3,3,1.0,1
+1361,Biomedical and Clinical Sciences,3,3,1.0,1
+1362,Biological Sciences,3,3,1.0,1
+1363,Biomedical and Clinical Sciences,3,3,1.0,1
+1364,Biomedical and Clinical Sciences,3,3,1.0,1
+1365,Biomedical and Clinical Sciences,3,3,1.0,1
+1366,Health Sciences,3,3,1.0,1
+1367,Biological Sciences,3,3,1.0,1
+1368,Biomedical and Clinical Sciences,3,3,1.0,1
+1369,Health Sciences,3,3,1.0,1
+1370,Biomedical and Clinical Sciences,3,3,1.0,1
+1371,Mathematical Sciences,3,3,1.0,1
+1372,Biomedical and Clinical Sciences,3,3,1.0,1
+1373,Biomedical and Clinical Sciences,3,3,1.0,1
+1374,Biomedical and Clinical Sciences,3,3,1.0,1
+1375,Biological Sciences,3,3,1.0,1
+1376,Biomedical and Clinical Sciences,3,3,1.0,1
+1377,Psychology,3,3,1.0,1
+1378,Biomedical and Clinical Sciences,3,3,1.0,1
+1379,Health Sciences,3,3,1.0,1
+1380,Biomedical and Clinical Sciences,3,3,1.0,1
+1381,Biomedical and Clinical Sciences,3,3,1.0,1
+1382,Biomedical and Clinical Sciences,3,3,1.0,1
+1383,Information and Computing Sciences,3,3,1.0,1
+1384,Biomedical and Clinical Sciences,3,3,1.0,1
+1385,Biological Sciences,3,3,1.0,1
+1386,Biomedical and Clinical Sciences,3,3,1.0,1
+1387,Biomedical and Clinical Sciences,3,3,1.0,1
+1388,Biomedical and Clinical Sciences,3,3,1.0,1
+1389,Biological Sciences,3,3,1.0,1
+1390,Mathematical Sciences,2,3,0.6666666666666666,1
+1390,Economics,1,3,0.3333333333333333,2
+1391,Information and Computing Sciences,3,3,1.0,1
+1392,Biomedical and Clinical Sciences,3,3,1.0,1
+1393,Biomedical and Clinical Sciences,3,3,1.0,1
+1394,Biological Sciences,3,3,1.0,1
+1395,Information and Computing Sciences,3,3,1.0,1
+1396,Biomedical and Clinical Sciences,3,3,1.0,1
+1397,Health Sciences,3,3,1.0,1
+1398,Information and Computing Sciences,3,3,1.0,1
+1399,Health Sciences,3,3,1.0,1
+1400,Health Sciences,3,3,1.0,1
+1401,Biomedical and Clinical Sciences,3,3,1.0,1
+1402,Health Sciences,3,3,1.0,1
+1403,Health Sciences,3,3,1.0,1
+1404,"Agricultural, Veterinary and Food Sciences",3,3,1.0,1
+1405,Biomedical and Clinical Sciences,3,3,1.0,1
+1406,Biomedical and Clinical Sciences,3,3,1.0,1
+1407,Health Sciences,3,3,1.0,1
+1408,Biological Sciences,3,3,1.0,1
+1409,Biomedical and Clinical Sciences,3,3,1.0,1
+1410,Biomedical and Clinical Sciences,3,3,1.0,1
+1411,Biomedical and Clinical Sciences,3,3,1.0,1
+1412,Biomedical and Clinical Sciences,3,3,1.0,1
+1413,Biomedical and Clinical Sciences,3,3,1.0,1
+1414,Health Sciences,3,3,1.0,1
+1415,Biomedical and Clinical Sciences,3,3,1.0,1
+1416,Biomedical and Clinical Sciences,3,3,1.0,1
+1417,Health Sciences,3,3,1.0,1
+1418,Biomedical and Clinical Sciences,2,3,0.6666666666666666,1
+1418,Biological Sciences,1,3,0.3333333333333333,2
+1419,Health Sciences,3,3,1.0,1
+1420,Biological Sciences,3,3,1.0,1
+1421,Health Sciences,3,3,1.0,1
+1422,Health Sciences,3,3,1.0,1
+1423,Biomedical and Clinical Sciences,3,3,1.0,1
+1424,Biomedical and Clinical Sciences,3,3,1.0,1
+1425,Biomedical and Clinical Sciences,3,3,1.0,1
+1426,Biomedical and Clinical Sciences,3,3,1.0,1
+1427,Biomedical and Clinical Sciences,3,3,1.0,1
+1428,Biomedical and Clinical Sciences,3,3,1.0,1
+1429,Biological Sciences,2,3,0.6666666666666666,1
+1429,Health Sciences,1,3,0.3333333333333333,2
+1430,Health Sciences,3,3,1.0,1
+1431,Biomedical and Clinical Sciences,3,3,1.0,1
+1432,Psychology,3,3,1.0,1
+1433,Biomedical and Clinical Sciences,3,3,1.0,1
+1434,Health Sciences,3,3,1.0,1
+1435,Health Sciences,3,3,1.0,1
+1436,Health Sciences,3,3,1.0,1
+1437,Biomedical and Clinical Sciences,3,3,1.0,1
+1438,Biomedical and Clinical Sciences,3,3,1.0,1
+1439,Biomedical and Clinical Sciences,3,3,1.0,1
+1440,Biomedical and Clinical Sciences,3,3,1.0,1
+1441,Biomedical and Clinical Sciences,3,3,1.0,1
+1442,Biomedical and Clinical Sciences,3,3,1.0,1
+1443,Biological Sciences,3,3,1.0,1
+1444,Biomedical and Clinical Sciences,3,3,1.0,1
+1445,Biological Sciences,3,3,1.0,1
+1446,Biological Sciences,3,3,1.0,1
+1447,Biomedical and Clinical Sciences,3,3,1.0,1
+1448,Biological Sciences,3,3,1.0,1
+1449,Biomedical and Clinical Sciences,3,3,1.0,1
+1450,Biological Sciences,3,3,1.0,1
+1451,Biomedical and Clinical Sciences,3,3,1.0,1
+1452,Biomedical and Clinical Sciences,3,3,1.0,1
+1453,Health Sciences,3,3,1.0,1
+1454,Biomedical and Clinical Sciences,3,3,1.0,1
+1455,Biological Sciences,3,3,1.0,1
+1456,Biomedical and Clinical Sciences,3,3,1.0,1
+1457,Biological Sciences,3,3,1.0,1
+1458,Biomedical and Clinical Sciences,3,3,1.0,1
+1459,Biomedical and Clinical Sciences,3,3,1.0,1
+1460,Health Sciences,3,3,1.0,1
+1461,Biological Sciences,3,3,1.0,1
+1462,Biological Sciences,3,3,1.0,1
+1463,Biomedical and Clinical Sciences,3,3,1.0,1
+1464,Health Sciences,3,3,1.0,1
+1465,Health Sciences,3,3,1.0,1
+1466,Biomedical and Clinical Sciences,3,3,1.0,1
+1467,Health Sciences,3,3,1.0,1
+1468,Information and Computing Sciences,3,3,1.0,1
+1469,Health Sciences,3,3,1.0,1
+1470,Biological Sciences,3,3,1.0,1
+1471,Biomedical and Clinical Sciences,2,2,1.0,1
+1472,Biomedical and Clinical Sciences,2,2,1.0,1
+1473,Biological Sciences,2,2,1.0,1
+1474,Biomedical and Clinical Sciences,2,2,1.0,1
+1475,Biological Sciences,2,2,1.0,1
+1476,Biomedical and Clinical Sciences,2,2,1.0,1
+1477,Biomedical and Clinical Sciences,2,2,1.0,1
+1478,Biomedical and Clinical Sciences,2,2,1.0,1
+1479,Biomedical and Clinical Sciences,2,2,1.0,1
+1480,Biomedical and Clinical Sciences,2,2,1.0,1
+1481,Biomedical and Clinical Sciences,2,2,1.0,1
+1482,Biological Sciences,2,2,1.0,1
+1483,Biomedical and Clinical Sciences,2,2,1.0,1
+1484,Biomedical and Clinical Sciences,2,2,1.0,1
+1485,Health Sciences,2,2,1.0,1
+1486,Health Sciences,2,2,1.0,1
+1487,Health Sciences,2,2,1.0,1
+1488,Health Sciences,2,2,1.0,1
+1489,Biological Sciences,2,2,1.0,1
+1490,Biomedical and Clinical Sciences,2,2,1.0,1
+1491,Health Sciences,2,2,1.0,1
+1492,Biomedical and Clinical Sciences,2,2,1.0,1
+1493,Biomedical and Clinical Sciences,2,2,1.0,1
+1494,Biomedical and Clinical Sciences,2,2,1.0,1
+1495,Biomedical and Clinical Sciences,2,2,1.0,1
+1496,Biomedical and Clinical Sciences,2,2,1.0,1
+1497,Biomedical and Clinical Sciences,2,2,1.0,1
+1498,Biomedical and Clinical Sciences,2,2,1.0,1
+1499,Biomedical and Clinical Sciences,2,2,1.0,1
+1500,Biological Sciences,2,2,1.0,1
+1501,Biomedical and Clinical Sciences,2,2,1.0,1
+1502,Biomedical and Clinical Sciences,2,2,1.0,1
+1503,Information and Computing Sciences,2,2,1.0,1
+1504,Biological Sciences,2,2,1.0,1
+1505,Health Sciences,2,2,1.0,1
+1506,Biomedical and Clinical Sciences,2,2,1.0,1
+1507,Health Sciences,2,2,1.0,1
+1508,Biomedical and Clinical Sciences,2,2,1.0,1
+1509,Biomedical and Clinical Sciences,2,2,1.0,1
+1510,Biomedical and Clinical Sciences,2,2,1.0,1
+1511,Biomedical and Clinical Sciences,2,2,1.0,1
+1512,Biomedical and Clinical Sciences,2,2,1.0,1
+1513,Biological Sciences,2,2,1.0,1
+1514,Information and Computing Sciences,2,2,1.0,1
+1515,Biological Sciences,2,2,1.0,1
+1516,Biomedical and Clinical Sciences,2,2,1.0,1
+1517,Biomedical and Clinical Sciences,2,2,1.0,1
+1518,Biological Sciences,2,2,1.0,1
+1519,"Agricultural, Veterinary and Food Sciences",2,2,1.0,1
+1520,Health Sciences,2,2,1.0,1
+1521,Biological Sciences,2,2,1.0,1
+1522,Biomedical and Clinical Sciences,2,2,1.0,1
+1523,Biomedical and Clinical Sciences,2,2,1.0,1
+1524,Biomedical and Clinical Sciences,2,2,1.0,1
+1525,Biomedical and Clinical Sciences,2,2,1.0,1
+1526,Biomedical and Clinical Sciences,2,2,1.0,1
+1527,Biomedical and Clinical Sciences,2,2,1.0,1
+1528,Health Sciences,2,2,1.0,1
+1529,Biological Sciences,2,2,1.0,1
+1530,Health Sciences,2,2,1.0,1
+1531,Biomedical and Clinical Sciences,2,2,1.0,1
+1532,Biomedical and Clinical Sciences,2,2,1.0,1
+1533,Information and Computing Sciences,2,2,1.0,1
+1534,Biomedical and Clinical Sciences,2,2,1.0,1
+1535,Health Sciences,2,2,1.0,1
+1536,Health Sciences,2,2,1.0,1
+1537,Biological Sciences,2,2,1.0,1
+1538,Biomedical and Clinical Sciences,2,2,1.0,1
+1539,Biological Sciences,2,2,1.0,1
+1540,Health Sciences,2,2,1.0,1
+1541,Biomedical and Clinical Sciences,2,2,1.0,1
+1542,Biological Sciences,2,2,1.0,1
+1543,Biomedical and Clinical Sciences,2,2,1.0,1
+1544,Biological Sciences,2,2,1.0,1
+1545,Biomedical and Clinical Sciences,2,2,1.0,1
+1546,Health Sciences,2,2,1.0,1
+1547,Health Sciences,2,2,1.0,1
+1548,Health Sciences,2,2,1.0,1
+1549,Biomedical and Clinical Sciences,2,2,1.0,1
+1550,Biomedical and Clinical Sciences,2,2,1.0,1
+1551,Health Sciences,2,2,1.0,1
+1552,Biomedical and Clinical Sciences,2,2,1.0,1
+1553,Biomedical and Clinical Sciences,2,2,1.0,1
+1554,Biological Sciences,2,2,1.0,1
+1555,Biological Sciences,2,2,1.0,1
+1556,Biological Sciences,2,2,1.0,1
+1557,Biomedical and Clinical Sciences,2,2,1.0,1
+1558,Biomedical and Clinical Sciences,2,2,1.0,1
+1559,Biomedical and Clinical Sciences,2,2,1.0,1
+1560,Mathematical Sciences,2,2,1.0,1
+1561,Biomedical and Clinical Sciences,2,2,1.0,1
+1562,Health Sciences,2,2,1.0,1
+1563,Psychology,2,2,1.0,1
+1564,Biomedical and Clinical Sciences,2,2,1.0,1
+1565,Biomedical and Clinical Sciences,2,2,1.0,1
+1566,Biomedical and Clinical Sciences,2,2,1.0,1
+1567,Biomedical and Clinical Sciences,2,2,1.0,1
+1568,Biomedical and Clinical Sciences,2,2,1.0,1
+1569,Psychology,2,2,1.0,1
+1570,"Agricultural, Veterinary and Food Sciences",2,2,1.0,1
+1571,Health Sciences,2,2,1.0,1
+1572,Health Sciences,2,2,1.0,1
+1573,Information and Computing Sciences,2,2,1.0,1
+1574,Biomedical and Clinical Sciences,2,2,1.0,1
+1575,Health Sciences,2,2,1.0,1
+1576,Biological Sciences,1,2,0.5,1
+1576,Biomedical and Clinical Sciences,1,2,0.5,2
+1577,Biomedical and Clinical Sciences,2,2,1.0,1
+1578,Biomedical and Clinical Sciences,2,2,1.0,1
+1579,Biomedical and Clinical Sciences,2,2,1.0,1
+1580,Biomedical and Clinical Sciences,2,2,1.0,1
+1581,Biomedical and Clinical Sciences,2,2,1.0,1
+1582,Biomedical and Clinical Sciences,2,2,1.0,1
+1583,Biomedical and Clinical Sciences,2,2,1.0,1
+1584,Biomedical and Clinical Sciences,2,2,1.0,1
+1585,Biomedical and Clinical Sciences,2,2,1.0,1
+1586,Biomedical and Clinical Sciences,2,2,1.0,1
+1587,Biomedical and Clinical Sciences,2,2,1.0,1
+1588,Biomedical and Clinical Sciences,2,2,1.0,1
+1589,Health Sciences,2,2,1.0,1
+1590,Biological Sciences,2,2,1.0,1
+1591,Biomedical and Clinical Sciences,2,2,1.0,1
+1592,Biological Sciences,1,2,0.5,1
+1592,Health Sciences,1,2,0.5,2
+1593,Biomedical and Clinical Sciences,2,2,1.0,1
+1594,Biological Sciences,2,2,1.0,1
+1595,Biomedical and Clinical Sciences,2,2,1.0,1
+1596,Health Sciences,2,2,1.0,1
+1597,Biomedical and Clinical Sciences,2,2,1.0,1
+1598,Biomedical and Clinical Sciences,2,2,1.0,1
+1599,Health Sciences,2,2,1.0,1
+1600,Biological Sciences,2,2,1.0,1
+1601,Information and Computing Sciences,2,2,1.0,1
+1602,Biomedical and Clinical Sciences,2,2,1.0,1
+1603,Health Sciences,2,2,1.0,1
+1604,Biological Sciences,2,2,1.0,1
+1605,Biomedical and Clinical Sciences,2,2,1.0,1
+1606,Biomedical and Clinical Sciences,2,2,1.0,1
+1607,Psychology,2,2,1.0,1
+1608,Information and Computing Sciences,2,2,1.0,1
+1609,Biological Sciences,2,2,1.0,1
+1610,Biomedical and Clinical Sciences,2,2,1.0,1
+1611,Biomedical and Clinical Sciences,2,2,1.0,1
+1612,Health Sciences,2,2,1.0,1
+1613,Biological Sciences,2,2,1.0,1
+1614,Biomedical and Clinical Sciences,2,2,1.0,1
+1615,Biomedical and Clinical Sciences,2,2,1.0,1
+1616,Biomedical and Clinical Sciences,2,2,1.0,1
+1617,Biomedical and Clinical Sciences,2,2,1.0,1
+1618,Biological Sciences,2,2,1.0,1
+1619,Biomedical and Clinical Sciences,2,2,1.0,1
+1620,Biomedical and Clinical Sciences,2,2,1.0,1
+1621,Earth Sciences,2,2,1.0,1
+1622,Biological Sciences,2,2,1.0,1
+1623,Biomedical and Clinical Sciences,2,2,1.0,1
+1624,Biomedical and Clinical Sciences,2,2,1.0,1
+1625,Health Sciences,2,2,1.0,1
+1626,Biomedical and Clinical Sciences,2,2,1.0,1
+1627,Biomedical and Clinical Sciences,2,2,1.0,1
+1628,Biological Sciences,2,2,1.0,1
+1629,Health Sciences,2,2,1.0,1
+1630,Biomedical and Clinical Sciences,2,2,1.0,1
+1631,Biomedical and Clinical Sciences,2,2,1.0,1
+1632,Health Sciences,2,2,1.0,1
+1633,Biological Sciences,2,2,1.0,1
+1634,Biomedical and Clinical Sciences,2,2,1.0,1
+1635,Health Sciences,2,2,1.0,1
+1636,Mathematical Sciences,2,2,1.0,1
+1637,Health Sciences,2,2,1.0,1
+1638,Biomedical and Clinical Sciences,2,2,1.0,1
+1639,Biological Sciences,2,2,1.0,1
+1640,Biomedical and Clinical Sciences,2,2,1.0,1
+1641,Biomedical and Clinical Sciences,2,2,1.0,1
+1642,Biomedical and Clinical Sciences,2,2,1.0,1
+1643,Health Sciences,2,2,1.0,1
+1644,Biomedical and Clinical Sciences,2,2,1.0,1
+1645,Biological Sciences,2,2,1.0,1
+1646,Engineering,2,2,1.0,1
+1647,Biomedical and Clinical Sciences,2,2,1.0,1
+1648,Biomedical and Clinical Sciences,2,2,1.0,1
+1649,Health Sciences,2,2,1.0,1
+1650,Biomedical and Clinical Sciences,2,2,1.0,1
+1651,Biomedical and Clinical Sciences,2,2,1.0,1
+1652,Health Sciences,2,2,1.0,1
+1653,Biomedical and Clinical Sciences,2,2,1.0,1
+1654,Biomedical and Clinical Sciences,2,2,1.0,1
+1655,Biomedical and Clinical Sciences,2,2,1.0,1
+1656,Biomedical and Clinical Sciences,2,2,1.0,1
+1657,Biological Sciences,2,2,1.0,1
+1658,Biomedical and Clinical Sciences,2,2,1.0,1
+1659,Biomedical and Clinical Sciences,2,2,1.0,1
+1660,Biomedical and Clinical Sciences,2,2,1.0,1
+1661,Health Sciences,2,2,1.0,1
+1662,Health Sciences,2,2,1.0,1
+1663,Information and Computing Sciences,2,2,1.0,1
+1664,Biological Sciences,2,2,1.0,1
+1665,Biomedical and Clinical Sciences,2,2,1.0,1
+1666,Biomedical and Clinical Sciences,2,2,1.0,1
+1667,Biological Sciences,2,2,1.0,1
+1668,Biomedical and Clinical Sciences,2,2,1.0,1
+1669,Health Sciences,2,2,1.0,1
+1670,Biomedical and Clinical Sciences,2,2,1.0,1
+1671,Biological Sciences,2,2,1.0,1
+1672,Biomedical and Clinical Sciences,2,2,1.0,1
+1673,Biomedical and Clinical Sciences,2,2,1.0,1
+1674,Biomedical and Clinical Sciences,2,2,1.0,1
+1675,Biomedical and Clinical Sciences,2,2,1.0,1
+1676,Health Sciences,2,2,1.0,1
+1677,Biomedical and Clinical Sciences,2,2,1.0,1
+1678,Health Sciences,2,2,1.0,1
+1679,Biomedical and Clinical Sciences,2,2,1.0,1
+1680,Biomedical and Clinical Sciences,2,2,1.0,1
+1681,Biomedical and Clinical Sciences,2,2,1.0,1
+1682,Biological Sciences,2,2,1.0,1
+1683,Biomedical and Clinical Sciences,2,2,1.0,1
+1684,Human Society,2,2,1.0,1
+1685,Biomedical and Clinical Sciences,2,2,1.0,1
+1686,Biomedical and Clinical Sciences,2,2,1.0,1
+1687,Biomedical and Clinical Sciences,2,2,1.0,1
+1688,Biomedical and Clinical Sciences,1,1,1.0,1
+1689,Health Sciences,1,1,1.0,1
+1690,Biomedical and Clinical Sciences,1,1,1.0,1
+1691,Biomedical and Clinical Sciences,1,1,1.0,1
+1692,Biomedical and Clinical Sciences,1,1,1.0,1
+1693,Biomedical and Clinical Sciences,1,1,1.0,1
+1694,Health Sciences,1,1,1.0,1
+1695,Biomedical and Clinical Sciences,1,1,1.0,1
+1696,Biomedical and Clinical Sciences,1,1,1.0,1
+1697,Biomedical and Clinical Sciences,1,1,1.0,1
+1698,Biomedical and Clinical Sciences,1,1,1.0,1
+1699,Health Sciences,1,1,1.0,1
+1700,Information and Computing Sciences,1,1,1.0,1
+1701,Biomedical and Clinical Sciences,1,1,1.0,1
+1702,Biomedical and Clinical Sciences,1,1,1.0,1
+1703,Biomedical and Clinical Sciences,1,1,1.0,1
+1704,Biomedical and Clinical Sciences,1,1,1.0,1
+1705,Biological Sciences,1,1,1.0,1
+1706,Biomedical and Clinical Sciences,1,1,1.0,1
+1707,Biomedical and Clinical Sciences,1,1,1.0,1
+1708,Health Sciences,1,1,1.0,1
+1709,Biomedical and Clinical Sciences,1,1,1.0,1
+1710,Biomedical and Clinical Sciences,1,1,1.0,1
+1711,Biomedical and Clinical Sciences,1,1,1.0,1
+1712,Biomedical and Clinical Sciences,1,1,1.0,1
+1713,Biomedical and Clinical Sciences,1,1,1.0,1
+1714,Biomedical and Clinical Sciences,1,1,1.0,1
+1715,Health Sciences,1,1,1.0,1
+1716,Biological Sciences,1,1,1.0,1
+1717,Biomedical and Clinical Sciences,1,1,1.0,1
+1718,Information and Computing Sciences,1,1,1.0,1
+1719,Biomedical and Clinical Sciences,1,1,1.0,1
+1720,Biomedical and Clinical Sciences,1,1,1.0,1
+1721,Health Sciences,1,1,1.0,1
+1722,Biomedical and Clinical Sciences,1,1,1.0,1
+1723,Biomedical and Clinical Sciences,1,1,1.0,1
+1724,Biomedical and Clinical Sciences,1,1,1.0,1
+1725,Biomedical and Clinical Sciences,1,1,1.0,1
+1726,Biomedical and Clinical Sciences,1,1,1.0,1
+1727,Biomedical and Clinical Sciences,1,1,1.0,1
+1728,Biomedical and Clinical Sciences,1,1,1.0,1
+1729,Biomedical and Clinical Sciences,1,1,1.0,1
+1730,Biomedical and Clinical Sciences,1,1,1.0,1
+1731,Biomedical and Clinical Sciences,1,1,1.0,1
+1732,Biomedical and Clinical Sciences,1,1,1.0,1
+1733,Human Society,1,1,1.0,1
+1734,Biomedical and Clinical Sciences,1,1,1.0,1
+1735,Biomedical and Clinical Sciences,1,1,1.0,1
+1736,Biomedical and Clinical Sciences,1,1,1.0,1
+1737,Biomedical and Clinical Sciences,1,1,1.0,1
+1738,Biomedical and Clinical Sciences,1,1,1.0,1
+1739,Biological Sciences,1,1,1.0,1
+1740,Biomedical and Clinical Sciences,1,1,1.0,1
+1741,Biomedical and Clinical Sciences,1,1,1.0,1
+1742,Biomedical and Clinical Sciences,1,1,1.0,1
+1743,Biological Sciences,1,1,1.0,1
+1744,Health Sciences,1,1,1.0,1
+1745,Biomedical and Clinical Sciences,1,1,1.0,1
+1746,Biological Sciences,1,1,1.0,1
+1747,Environmental Sciences,1,1,1.0,1
+1748,Biomedical and Clinical Sciences,1,1,1.0,1
+1749,Biomedical and Clinical Sciences,1,1,1.0,1
+1750,Biomedical and Clinical Sciences,1,1,1.0,1
+1751,Information and Computing Sciences,1,1,1.0,1
+1752,Biomedical and Clinical Sciences,1,1,1.0,1
+1753,Biological Sciences,1,1,1.0,1
+1754,Biomedical and Clinical Sciences,1,1,1.0,1
+1755,Information and Computing Sciences,1,1,1.0,1
+1756,Biomedical and Clinical Sciences,1,1,1.0,1
+1757,Engineering,1,1,1.0,1
+1758,Biomedical and Clinical Sciences,1,1,1.0,1
+1759,Biological Sciences,1,1,1.0,1
+1760,Biological Sciences,1,1,1.0,1
+1761,Biomedical and Clinical Sciences,1,1,1.0,1
+1762,Biomedical and Clinical Sciences,1,1,1.0,1
+1763,Health Sciences,1,1,1.0,1
+1764,Biological Sciences,1,1,1.0,1
+1765,Biomedical and Clinical Sciences,1,1,1.0,1
+1766,Biomedical and Clinical Sciences,1,1,1.0,1
+1767,Biomedical and Clinical Sciences,1,1,1.0,1
+1768,Health Sciences,1,1,1.0,1
+1769,Biomedical and Clinical Sciences,1,1,1.0,1
+1770,Biomedical and Clinical Sciences,1,1,1.0,1
+1771,Biomedical and Clinical Sciences,1,1,1.0,1
+1772,Biomedical and Clinical Sciences,1,1,1.0,1
+1773,Biomedical and Clinical Sciences,1,1,1.0,1
+1774,Health Sciences,1,1,1.0,1
+1775,Biomedical and Clinical Sciences,1,1,1.0,1
+1776,Biomedical and Clinical Sciences,1,1,1.0,1
+1777,Biomedical and Clinical Sciences,1,1,1.0,1
+1778,Biological Sciences,1,1,1.0,1
+1779,Biological Sciences,1,1,1.0,1
+1780,Health Sciences,1,1,1.0,1
+1781,Human Society,1,1,1.0,1
+1782,Biological Sciences,1,1,1.0,1
+1783,Biomedical and Clinical Sciences,1,1,1.0,1
+1784,Biomedical and Clinical Sciences,1,1,1.0,1
+1785,Biomedical and Clinical Sciences,1,1,1.0,1
+1786,Biomedical and Clinical Sciences,1,1,1.0,1
+1787,Biomedical and Clinical Sciences,1,1,1.0,1
+1788,Health Sciences,1,1,1.0,1
+1789,Biological Sciences,1,1,1.0,1
+1790,Biomedical and Clinical Sciences,1,1,1.0,1
+1791,Biological Sciences,1,1,1.0,1
+1792,Biomedical and Clinical Sciences,1,1,1.0,1
+1793,Biomedical and Clinical Sciences,1,1,1.0,1
+1794,Biomedical and Clinical Sciences,1,1,1.0,1
+1795,Biomedical and Clinical Sciences,1,1,1.0,1
+1796,Biomedical and Clinical Sciences,1,1,1.0,1
+1797,Biological Sciences,1,1,1.0,1
+1798,Engineering,1,1,1.0,1
+1799,Health Sciences,1,1,1.0,1
+1800,Biomedical and Clinical Sciences,1,1,1.0,1
+1801,Unclassified,1,1,1.0,1
+1802,Biological Sciences,1,1,1.0,1
+1803,Biological Sciences,1,1,1.0,1
+1804,Biological Sciences,1,1,1.0,1
+1805,Biomedical and Clinical Sciences,1,1,1.0,1
+1806,Health Sciences,1,1,1.0,1
+1807,Biomedical and Clinical Sciences,1,1,1.0,1
+1808,Health Sciences,1,1,1.0,1
+1809,Biomedical and Clinical Sciences,1,1,1.0,1
+1810,Biomedical and Clinical Sciences,1,1,1.0,1
+1811,Biomedical and Clinical Sciences,1,1,1.0,1
+1812,Biological Sciences,1,1,1.0,1
+1813,Biological Sciences,1,1,1.0,1
+1814,Biological Sciences,1,1,1.0,1
+1815,Biomedical and Clinical Sciences,1,1,1.0,1
+1816,Biomedical and Clinical Sciences,1,1,1.0,1
+1817,Biomedical and Clinical Sciences,1,1,1.0,1
+1818,Biomedical and Clinical Sciences,1,1,1.0,1
+1819,Biomedical and Clinical Sciences,1,1,1.0,1
+1820,Biomedical and Clinical Sciences,1,1,1.0,1
+1821,Health Sciences,1,1,1.0,1
+1822,Biomedical and Clinical Sciences,1,1,1.0,1
+1823,Biomedical and Clinical Sciences,1,1,1.0,1
+1824,Biological Sciences,1,1,1.0,1
+1825,Health Sciences,1,1,1.0,1
+1826,Psychology,1,1,1.0,1
+1827,Biological Sciences,1,1,1.0,1
+1828,Biological Sciences,1,1,1.0,1
+1829,Biomedical and Clinical Sciences,1,1,1.0,1
+1830,Biomedical and Clinical Sciences,1,1,1.0,1
+1831,Biological Sciences,1,1,1.0,1
+1832,Health Sciences,1,1,1.0,1
+1833,Biomedical and Clinical Sciences,1,1,1.0,1
+1834,Biomedical and Clinical Sciences,1,1,1.0,1
+1835,Unclassified,1,1,1.0,1
+1836,Biomedical and Clinical Sciences,1,1,1.0,1
+1837,Information and Computing Sciences,1,1,1.0,1
+1838,Information and Computing Sciences,1,1,1.0,1
+1839,Biomedical and Clinical Sciences,1,1,1.0,1
+1840,Biological Sciences,1,1,1.0,1
+1841,Biomedical and Clinical Sciences,1,1,1.0,1
+1842,Health Sciences,1,1,1.0,1
+1843,Biomedical and Clinical Sciences,1,1,1.0,1
+1844,Biomedical and Clinical Sciences,1,1,1.0,1
+1845,Biomedical and Clinical Sciences,1,1,1.0,1
+1846,Biological Sciences,1,1,1.0,1
+1847,Health Sciences,1,1,1.0,1
+1848,Biomedical and Clinical Sciences,1,1,1.0,1
+1849,Biological Sciences,1,1,1.0,1
+1850,Mathematical Sciences,1,1,1.0,1
+1851,Health Sciences,1,1,1.0,1
+1852,Biomedical and Clinical Sciences,1,1,1.0,1
+1853,Health Sciences,1,1,1.0,1
+1854,Biological Sciences,1,1,1.0,1
+1855,Biomedical and Clinical Sciences,1,1,1.0,1
+1856,Biomedical and Clinical Sciences,1,1,1.0,1
+1857,Health Sciences,1,1,1.0,1
+1858,Biological Sciences,1,1,1.0,1
+1859,Biomedical and Clinical Sciences,1,1,1.0,1
+1860,Biomedical and Clinical Sciences,1,1,1.0,1
+1861,Biomedical and Clinical Sciences,1,1,1.0,1
+1862,Biomedical and Clinical Sciences,1,1,1.0,1

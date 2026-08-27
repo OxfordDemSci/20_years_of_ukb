@@ -1,0 +1,17 @@
+statistic,value,unit_or_definition
+Resolved authors,69237.0,authors
+Author-paper pairs,274603.0,authorships
+Authors with one UKB paper,53.03522682958534,% resolved authors
+Author credit Gini,0.6853735672984331,0=equality; 1=concentration
+Credit held by top 1% of authors,20.490963519821307,% resolved-author fractional publication credit
+Credit held by top 5% of authors,43.97683707091475,% resolved-author fractional publication credit
+Credit held by top 10% of authors,57.4624463463396,% resolved-author fractional publication credit
+Credit held by top 25% of authors,76.88088682107905,% resolved-author fractional publication credit
+Credit held by top 50% of authors,91.25319405073982,% resolved-author fractional publication credit
+"Female-name share, 2013",29.545454545454547,% classified authorships
+"Female-name share, 2025",38.84206014715337,% classified authorships
+Countries represented,135.0,geolocated author-affiliation countries
+Institutions represented,11596.0,identified affiliations
+"Top-10 institution share, 2025",11.427575259124751,% annual fractional credit
+"Giant component, 2025",85.34598552796915,% resolved authors
+Leiden modularity,0.7808709906666031,fractional-edge weighted
