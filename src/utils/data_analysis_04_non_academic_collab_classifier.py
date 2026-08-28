@@ -200,7 +200,10 @@ def build_institution_list(row):
 # CREDENTIALS: `anthropic.Anthropic()` resolves ANTHROPIC_API_KEY, then
 # ANTHROPIC_AUTH_TOKEN, then an `ant auth login` profile. A Claude Code session
 # is NOT a usable credential here — it has no API key to lend. See
-# doc/04_non_academic_methodology.md §5.2.
+# doc/04_non_academic_methodology.md §5.2. `_resolve_api_key` below adds one more
+# source at the END of that chain — config/anthropic.ini — so the key can live
+# with the project's other credential (config/dsl.ini) instead of in a shell
+# profile. It never overrides the environment.
 
 import os
 import time
@@ -208,7 +211,12 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
 from typing import Any, Callable, Iterable, Sequence
 
-DEFAULT_MODEL = "claude-opus-5"
+# Sonnet 5 rather than Opus 5: this is bulk short-string classification against an
+# explicit rubric, which is not where the Opus premium buys anything. ~$14-21 for one
+# full pass against ~$36 on Opus 5 (D16's estimate). Haiku 4.5 would be cheaper again
+# (~$5-7) but REJECTS `output_config.effort` with a 400, so switching to it means
+# dropping the effort field below, not just editing this line.
+DEFAULT_MODEL = "claude-sonnet-5"
 DEFAULT_BATCH_SIZE = 20
 DEFAULT_MAX_CONCURRENCY = 8
 DEFAULT_EFFORT = "low"          # bulk string classification; see note below
@@ -263,6 +271,36 @@ BATCH_SCHEMA = {
 }
 
 INDEX_FIELDS = ("academic", "non_academic", "company", "uk_company")
+
+
+class IncompleteClassification(RuntimeError):
+    """Raised when a pass ends with institution sets still unclassified.
+
+    WHY THIS IS AN EXCEPTION AND NOT A WARNING. A failed batch used to fall through
+    to `_empty_result()`, which is four empty index lists — byte-identical to the
+    honest answer "this paper has no non-academic collaborator". The partial frame
+    was then written to `out_path`, and `load_or_classify` reuses that file forever
+    without re-attempting, so a transient API failure became a permanent, invisible
+    understatement of every collaboration count. That happened on 2026-08-26: an
+    account spend limit 400'd the last 290 batches, and 6,851 of 24,988 papers
+    (27.4%) were recorded as having no collaborator when they had simply never been
+    looked at. Empty means absence; unknown must not be spelled the same way.
+
+    The per-set cache is fsynced before this raises, so nothing paid for is lost --
+    re-running resumes from it and bills only the remainder.
+    """
+
+    def __init__(self, n_missing: int, n_total: int, first_error: str | None = None):
+        self.n_missing = n_missing
+        self.n_total = n_total
+        self.first_error = first_error
+        detail = f"\n  first failure: {first_error}" if first_error else ""
+        super().__init__(
+            f"{n_missing:,} of {n_total:,} institution sets were not classified "
+            f"({n_missing / n_total:.1%}). Nothing was written: a partial file would "
+            f"be indistinguishable from a complete one. Paid results are cached, so "
+            f"re-running resumes and bills only the remainder.{detail}"
+        )
 
 
 def build_batch_prompt(batch: Sequence[Sequence[str]]) -> str:
@@ -330,6 +368,36 @@ def classify_batch(client, batch: Sequence[Sequence[str]], *,
     return out
 
 
+def _resolve_api_key() -> str | None:
+    """The key for `anthropic.Anthropic(api_key=...)`, or None to let the SDK resolve it.
+
+    Returns None whenever the environment already carries a credential — an exported
+    ANTHROPIC_API_KEY, ANTHROPIC_AUTH_TOKEN, or an `ant auth login` profile all resolve
+    inside the SDK, and this function must not shadow any of them. Only when none of
+    those is present does it fall back to `config/anthropic.ini`, which is where this
+    project keeps the key (same gitignore rule as the Dimensions key in dsl.ini).
+    """
+    import configparser
+
+    if os.environ.get("ANTHROPIC_API_KEY") or os.environ.get("ANTHROPIC_AUTH_TOKEN"):
+        return None
+
+    from . import shared_paths as P
+
+    if P.ANTHROPIC_INI.exists():
+        parser = configparser.ConfigParser()
+        parser.read(P.ANTHROPIC_INI, encoding="utf-8")
+        key = parser.get("anthropic", "api_key", fallback="").strip()
+        if key and key != "sk-ant-REPLACE-ME":
+            return key
+
+    raise RuntimeError(
+        "No Anthropic credential. Set ANTHROPIC_API_KEY, run `ant auth login`, or "
+        f"copy {P.raw_path(P.ANTHROPIC_INI)}.example to "
+        f"{P.raw_path(P.ANTHROPIC_INI)} and paste your key into it."
+    )
+
+
 def _read_cache(path: Path) -> dict[tuple[str, ...], dict[str, list[int]]]:
     import json
 
@@ -384,10 +452,13 @@ def classify_institution_lists(
     print(f"  {len(keys):,} rows | {n_unique:,} distinct institution sets | "
           f"{n_cached:,} cached | {len(todo):,} to classify")
 
+    n_failed = 0
+    first_error: str | None = None
+
     if todo:
         if client is None:
             import anthropic
-            client = anthropic.Anthropic()
+            client = anthropic.Anthropic(api_key=_resolve_api_key())
         batches = [todo[i:i + batch_size] for i in range(0, len(todo), batch_size)]
         done = 0
         with ThreadPoolExecutor(max_workers=max_concurrency) as pool:
@@ -400,9 +471,15 @@ def classify_institution_lists(
                 try:
                     results = fut.result()
                 except Exception as exc:
-                    # Report the type and the batch, never the raw traceback:
-                    # affiliation strings are schema-only data (doc/data/showcase_plus.md).
-                    print(f"  batch of {len(batch)} failed: {type(exc).__name__}")
+                    # The batch content is schema-only data (doc/data/showcase_plus.md),
+                    # so the traceback never gets printed. The API's OWN message is
+                    # server-side text about the request, carries no affiliation string,
+                    # and is the only thing that distinguishes "spend limit reached"
+                    # from "malformed schema" -- keep it, once.
+                    n_failed += 1
+                    if first_error is None:
+                        first_error = f"{type(exc).__name__}: {_api_message(exc)}"
+                        print(f"  batch failed -- {first_error}")
                     continue
                 if cache_path:
                     _append_cache(cache_path, list(zip(batch, results)))
@@ -411,7 +488,24 @@ def classify_institution_lists(
                 if progress:
                     progress(done, len(todo))
 
+    missing = [k for k in todo if k not in cache]
+    if missing:
+        if n_failed:
+            print(f"  {n_failed:,} batches failed in total")
+        raise IncompleteClassification(len(missing), len(set(k for k in keys if k)),
+                                       first_error)
+
     return [cache.get(k, _empty_result()) for k in keys]
+
+
+def _api_message(exc: Exception) -> str:
+    """The server's own error text, without the request that provoked it."""
+    body = getattr(exc, "body", None)
+    if isinstance(body, dict):
+        err = body.get("error")
+        if isinstance(err, dict) and err.get("message"):
+            return str(err["message"])
+    return str(exc)[:200]
 
 
 # ---------------------------------------------------------------- frame level

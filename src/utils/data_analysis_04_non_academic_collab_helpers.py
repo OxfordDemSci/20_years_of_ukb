@@ -1304,8 +1304,12 @@ def plot_cumulative_by_type(df: pd.DataFrame, start_year: int = 2014, end_year: 
         series_spec = [
             (label, sector_flag_col(label), color_map.get(label, "#BDBDBD"))
             for label in NON_ACADEMIC_SECTOR_LABELS
+            if label != "University/HEI"
         ]
-        title = f"Cumulative papers by taxonomy sector ({start_year}-{end_year})"
+        title = (
+            "Cumulative papers by taxonomy sector, excl. University/HEI "
+            f"({start_year}-{end_year})"
+        )
     else:
         series_spec = [
             ("Any taxonomy collaborator", "non_academic_flag", "#D4AF37"),
