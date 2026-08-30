@@ -1,0 +1,6 @@
+library,version,classified_author_paper_pairs,female_author_paper_pairs,male_author_paper_pairs,unknown_author_paper_pairs,coverage_percent,agreement_with_direct_percent,inference_mode
+gender_guesser,0.4.0,168755,64366,104389,105848,61.454172022883945,99.90700033818058,offline bundled data
+gender_detector,0.1.0,181686,67601,114085,92917,66.16315189564571,99.83093490134048,offline bundled data
+nomquamgender,0.1.4,166987,63272,103715,107616,60.810333463217816,100.0,offline bundled data
+names_dataset,3.3.1,177034,66846,110188,97569,64.46906989362826,99.9835621407761,offline bundled data
+gename,0.0.7,203827,83648,120179,70776,74.22606453680403,99.77336532081058,offline bundled data

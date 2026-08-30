@@ -1,0 +1,6 @@
+library,distribution,version,available,inference_mode
+gender_guesser,gender-guesser,0.4.0,True,offline bundled data
+gender_detector,gender-detector,0.1.0,True,offline bundled data
+nomquamgender,nomquamgender,0.1.4,True,offline bundled data
+names_dataset,names-dataset,3.3.1,True,offline bundled data
+gename,gename,0.0.7,True,offline bundled data

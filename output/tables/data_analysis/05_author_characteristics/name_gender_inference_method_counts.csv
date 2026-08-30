@@ -1,0 +1,14 @@
+name_gender_method,name_gender,name_gender_unknown_reason,author_paper_pairs
+offline_ensemble_consensus,Male,,117143
+offline_ensemble_consensus,Female,,71482
+unclassified,Unknown,no_offline_prediction,40052
+offline_single_source,Female,,10751
+offline_single_source,Male,,9170
+unclassified,Unknown,offline_library_conflict,7822
+unclassified,Unknown,initials_only,5120
+researcher_identity_consensus,Male,,4845
+researcher_identity_consensus,Female,,3539
+unclassified,Unknown,identity_conflict,3406
+offline_ensemble_majority,Male,,717
+unclassified,Unknown,missing_name,418
+offline_ensemble_majority,Female,,138

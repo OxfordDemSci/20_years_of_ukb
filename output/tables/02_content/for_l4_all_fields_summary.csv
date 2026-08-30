@@ -1,0 +1,120 @@
+L4_name,L2_name,papers,total_citations,mean_citations,total_altmetric,h_index,modal_researcher,unique_researchers,modal_org,unique_orgs,percent_female
+Epidemiology,Health Sciences,6930,181499,26.19033189033189,219135.0,177,George Davey Smith,26837,Harvard University,4934,31.333294871055212
+Clinical Sciences,Biomedical and Clinical Sciences,6080,114160,18.776315789473685,274179.0,142,Steffen Erhard Petersen,26355,University of Oxford,4877,29.931531531531533
+Genetics,Biological Sciences,5777,241304,41.76977670070971,212843.0,222,Kari Stefansson,28263,Harvard University,5569,33.89058823529412
+Biological Psychology,Psychology,2405,56677,23.566320166320168,124825.0,104,Andrew Mark Mcintosh,9923,King's College London,2378,33.388088780226916
+Cardiovascular Medicine and Haematology,Biomedical and Clinical Sciences,2148,48579,22.615921787709496,98447.0,103,Steffen Erhard Petersen,10749,Harvard University,2406,27.994481971268197
+Public Health,Health Sciences,2138,66527,31.11646398503274,176915.0,115,Jill P Pell,8359,University of Oxford,1961,31.987000928505108
+Oncology and Carcinogenesis,Biomedical and Clinical Sciences,1522,24846,16.324572930354798,44935.0,69,Marc James Gunter,8020,Harvard University,2019,35.32183976615164
+Health Services and Systems,Health Sciences,1336,31870,23.854790419161677,85185.0,77,Jill P Pell,7135,University of Oxford,1735,33.766863236125694
+Nutrition and Dietetics,Biomedical and Clinical Sciences,1261,23054,18.282315622521807,79729.0,76,Aurora Perez-Cornago,5893,Harvard University,1637,32.31299212598425
+Statistics,Mathematical Sciences,1235,24583,19.905263157894737,15410.0,66,George Davey Smith,4930,University of Bristol,1197,26.689468097653027
+Neurosciences,Biomedical and Clinical Sciences,1219,22685,18.60951599671862,58542.0,63,Jin-Tai Yu,6836,University of Oxford,1559,33.27637377462002
+Ophthalmology and Optometry,Biomedical and Clinical Sciences,613,10268,16.750407830342578,18553.0,52,Anthony P Khawaja,2588,National Institute for Health and Care Research,874,26.73460212797842
+Medical Biochemistry and Metabolomics,Biomedical and Clinical Sciences,607,9578,15.779242174629324,9816.0,41,Peter Würtz,3992,Harvard University,1128,28.498293515358363
+Pharmacology and Pharmaceutical Sciences,Biomedical and Clinical Sciences,603,13533,22.442786069651742,20234.0,58,Michael C O'Donovan,4072,King's College London,1163,32.74745605920444
+Immunology,Biomedical and Clinical Sciences,445,8278,18.602247191011237,12437.0,47,Tony Raymond Merriman,3269,Harvard University,993,30.51129607609988
+Biochemistry and Cell Biology,Biological Sciences,380,4508,11.863157894736842,8402.0,34,Jian-Feng Feng,3322,Harvard University,969,32.03577064702788
+Machine Learning,Information and Computing Sciences,323,3936,12.185758513931889,1790.0,27,Daniel Rueckert,1270,King's College London,426,23.1496062992126
+Reproductive Medicine,Biomedical and Clinical Sciences,301,6976,23.176079734219268,12742.0,36,Debbie Anne Lawlor,2038,MRC Integrative Epidemiology Unit,665,41.85968445787177
+Bioinformatics and Computational Biology,Biological Sciences,269,13116,48.75836431226766,9256.0,42,Slave Petrovski,2849,Harvard University,816,33.08783415166394
+Clinical and Health Psychology,Psychology,191,4655,24.3717277486911,9359.0,35,Jonathan Richard Iain Coleman,1497,Harvard University,521,32.92811839323467
+Pollution and Contamination,Environmental Sciences,160,3231,20.19375,3514.0,28,Hua-Liang Lin,892,Sun Yat-sen University,268,22.59970457902511
+Cognitive and Computational Psychology,Psychology,117,3719,31.786324786324787,3328.0,23,Lars Tjelta Westlye,999,University of Oxford,360,29.917355371900825
+Allied Health and Rehabilitation Science,Health Sciences,114,2572,22.56140350877193,7347.0,22,Piers D Dawes,697,King's College London,268,29.81366459627329
+Biomedical Engineering,Engineering,101,3526,34.91089108910891,3364.0,17,Abhirup Banerjee,691,University of Oxford,271,22.74939172749392
+Dentistry,Biomedical and Clinical Sciences,98,1690,17.244897959183675,1106.0,17,Jianhua Wu,484,University of Leeds,203,28.760330578512395
+Social and Personality Psychology,Psychology,90,2450,27.22222222222222,3577.0,24,Ian J Deary,476,University of Edinburgh,203,32.602739726027394
+Medical Physiology,Biomedical and Clinical Sciences,89,1701,19.1123595505618,2197.0,20,Olle Melander,1018,Imperial College London,372,33.361486486486484
+Computer Vision and Multimedia Computation,Information and Computing Sciences,79,840,10.632911392405063,331.0,16,Daniel Rueckert,264,Imperial College London,110,21.428571428571427
+Applied and Developmental Psychology,Psychology,70,1107,15.814285714285715,2158.0,16,Sarah D Bauermeister,430,King's College London,194,30.947775628626694
+Food Sciences,"Agricultural, Veterinary and Food Sciences",64,525,8.203125,4667.0,10,Kaixiong Ye,383,Harvard University,178,29.977116704805493
+Medical Microbiology,Biomedical and Clinical Sciences,63,1434,22.761904761904763,10223.0,17,Axel Schmidt,729,University College London,230,38.41463414634146
+Sports Science and Exercise,Health Sciences,61,580,9.508196721311476,1213.0,11,Patrick Thomas Ellinor,453,Massachusetts General Hospital,167,28.859060402684563
+Microbiology,Biological Sciences,58,3219,55.5,2784.0,15,Aki Samuli Havulinna,445,Monash University,203,26.3671875
+Paediatrics,Biomedical and Clinical Sciences,52,577,11.096153846153847,1071.0,13,John R B Perry,563,Harvard University,253,37.868852459016395
+"Graphics, Augmented Reality and Games",Information and Computing Sciences,51,559,10.96078431372549,178.0,12,Abhirup Banerjee,149,University of Oxford,46,21.722846441947567
+Data Management and Data Science,Information and Computing Sciences,45,372,8.266666666666667,120.0,10,Steffen Erhard Petersen,213,University of Oxford,100,17.22972972972973
+Medicinal and Biomolecular Chemistry,Chemical Sciences,42,153,3.642857142857143,122.0,8,Je Hyun Seo,270,Beijing University of Technology,126,26.148409893992934
+Human Geography,Human Society,32,639,19.96875,2261.0,12,Kate E Mason,130,London School of Hygiene & Tropical Medicine,70,30.303030303030305
+Medical Biotechnology,Biomedical and Clinical Sciences,29,1323,45.62068965517241,855.0,10,Naomi E Allen,240,Peking University,104,26.446280991735538
+Animal Production,"Agricultural, Veterinary and Food Sciences",27,109,4.037037037037037,150.0,5,Kaixiong Ye,168,University of Georgia,64,36.15819209039548
+Medical and Biological Physics,Physical Sciences,25,332,13.28,54.0,8,Alistair A A Young,140,University of Oxford,46,20.737327188940093
+Applied Computing,Information and Computing Sciences,25,294,11.76,101.0,8,Hua Zhou,170,Case Western Reserve University,73,27.11864406779661
+Analytical Chemistry,Chemical Sciences,24,780,32.5,203.0,6,Ben Schöttker,181,German Cancer Research Center,79,27.876106194690266
+Midwifery,Health Sciences,22,1342,61.0,2261.0,7,Ana Luiza Gonçalves Soares,140,University of Bristol,80,57.79816513761468
+Econometrics,Economics,20,57,2.85,32.0,4,Baoluo Sun,44,Yale University,22,21.818181818181817
+Human-Centred Computing,Information and Computing Sciences,18,307,17.055555555555557,1786.0,5,Christopher Beach,65,University of Manchester,34,20.87912087912088
+Communications Engineering,Engineering,18,123,6.833333333333333,23.0,4,Neda Jahanshad,74,Imaging Genetics Ctr. (United States),31,31.52173913043478
+"Electronics, Sensors and Digital Hardware",Engineering,17,87,5.117647058823529,4.0,4,Neda Jahanshad,73,Imaging Genetics Ctr. (United States),33,41.37931034482759
+Artificial Intelligence,Information and Computing Sciences,17,95,5.588235294117647,16.0,4,Andrew Peter King,43,King's College London,27,24.137931034482758
+Human Resources and Industrial Relations,"Commerce, Management, Tourism and Services",17,83,4.882352941176471,60.0,5,Evangelia Demou,77,MRC/CSO Social and Public Health Sciences Unit,37,35.042735042735046
+Anthropology,Human Society,16,377,23.5625,4959.0,6,Eucharist H Kun,162,Broad Institute,86,29.6875
+Nursing,Health Sciences,15,194,12.933333333333334,64.0,6,Philip I-Fon Chow,82,University of Glasgow,53,33.333333333333336
+Demography,Human Society,15,217,14.466666666666667,236.0,7,Jason Michael Fletcher,61,University of Wisconsin-Madison,31,28.235294117647058
+Chemical Engineering,Engineering,13,12,0.9230769230769231,32.0,2,An Pan,68,Addenbrooke's Hospital,35,20.58823529411765
+Archaeology,"History, Heritage and Archaeology",12,611,50.916666666666664,6585.0,4,Abigail Daisy Ramsøe,283,University of Bristol,182,41.42394822006472
+"Atomic, Molecular and Optical Physics",Physical Sciences,12,21,1.75,3.0,3,Neda Jahanshad,40,Imaging Genetics Ctr. (United States),18,53.03030303030303
+Applied Economics,Economics,12,69,5.75,112.0,4,Stephanie Von Hinke,38,China Agricultural University,23,30.232558139534884
+Distributed Computing and Systems Software,Information and Computing Sciences,10,283,28.3,4.0,5,Andre Altmann,40,University of Leeds,18,15.217391304347826
+Agricultural Biotechnology,"Agricultural, Veterinary and Food Sciences",10,1920,192.0,1294.0,8,Alkes L Price,339,Harvard University,172,39.83739837398374
+Cybersecurity and Privacy,Information and Computing Sciences,9,69,7.666666666666667,36.0,3,Hyunghoon Cho,34,Yale University,22,22.80701754385965
+Information Systems,Information and Computing Sciences,9,95,10.555555555555555,26.0,4,Abdullah Mesut Erzurumluoglu,61,Barts Health NHS Trust,25,26.229508196721312
+Evolutionary Biology,Biological Sciences,9,270,30.0,462.0,3,Debbie Anne Lawlor,458,University of Bristol,234,34.42265795206972
+Historical Studies,"History, Heritage and Archaeology",8,443,55.375,5131.0,5,Abigail Daisy Ramsøe,184,University of Cambridge,100,42.71844660194175
+Atmospheric Sciences,Earth Sciences,8,13,1.625,13.0,2,Binbin Su,58,Sun Yat-sen University,19,22.413793103448278
+Ecology,Biological Sciences,7,221,31.571428571428573,685.0,5,Arbel Harpak,34,Fred Hutchinson Cancer Center,22,21.428571428571427
+Electrical Engineering,Engineering,6,61,10.166666666666666,1.0,4,Alauddin Bhuiyan,24,Colorado School of Public Health,12,16.666666666666668
+Climate Change Science,Earth Sciences,6,17,2.8333333333333335,10.0,2,Binbin Su,43,Sun Yat-sen University,13,20.930232558139537
+Veterinary Sciences,"Agricultural, Veterinary and Food Sciences",6,34,5.666666666666667,1072.0,3,Adrian R Martineau,66,University of Birmingham,25,45.45454545454545
+Social Work,Human Society,6,84,14.0,35.0,4,Alix Blockley,53,Aberdeen Royal Infirmary,23,35.84905660377358
+Library and Information Studies,Information and Computing Sciences,5,28,5.6,56.0,2,Matt P Spick,49,University of Surrey,22,24.0
+Urban and Regional Planning,Built Environment and Design,5,37,7.4,2.0,2,Batel Blechter,26,Johns Hopkins University,8,40.0
+Environmental Engineering,Engineering,5,19,3.8,8.0,2,Bing-Ying Deng,41,Sun Yat-sen University,10,21.951219512195124
+Zoology,Biological Sciences,5,37,7.4,150.0,2,Andrew N Cookson,35,Bristol Royal Infirmary,13,34.285714285714285
+Ecological Applications,Environmental Sciences,4,624,156.0,1103.0,3,Adam E Locke,374,University of Alabama at Birmingham,180,38.23529411764706
+Policy and Administration,Human Society,4,24,6.0,10.0,2,Hai-Lun Liang,13,Peking University,6,46.666666666666664
+"Agriculture, Land and Farm Management","Agricultural, Veterinary and Food Sciences",4,225,56.25,2928.0,3,Aedin Cassidy,42,Harvard University,23,38.095238095238095
+Software Engineering,Information and Computing Sciences,3,24,8.0,15.0,2,Alexandre A Khrapitchev,13,Baker IDI Heart and Diabetes Institute,8,23.076923076923077
+Criminology,Human Society,3,8,2.6666666666666665,0.0,1,Bao-Peng Liu,24,First Affiliated Hospital of Guangzhou Medical University,6,8.333333333333334
+Macromolecular and Materials Chemistry,Chemical Sciences,3,4,1.3333333333333333,1.0,1,Feng Zeng,19,Yale University,19,5.2631578947368425
+Gender Studies,Human Society,3,29,9.666666666666666,106.0,3,Alicia R Riley,9,ARC Centre of Excellence for Children and Families over the Life Course,9,33.333333333333336
+Specialist Studies In Education,Education,3,1,0.3333333333333333,3.0,1,Alana Iaboni,42,Hospital for Sick Children,27,38.095238095238095
+Fluid Mechanics and Thermal Engineering,Engineering,3,158,52.666666666666664,224.0,3,Abhishek Niroula,46,Harvard University,32,34.78260869565217
+Applied Mathematics,Mathematical Sciences,3,6,2.0,3.0,1,Abdulaziz Altamimi,14,Islamia University of Bahawalpur,10,14.285714285714286
+"Banking, Finance and Investment","Commerce, Management, Tourism and Services",3,6,2.0,65.0,1,Alexander V Lebedev,7,Karolinska Institutet,6,0.0
+"Transportation, Logistics and Supply Chains","Commerce, Management, Tourism and Services",3,22,7.333333333333333,1.0,2,Batel Blechter,13,Johns Hopkins University,4,50.0
+Public Law,Law and Legal Studies,2,3,1.5,0.0,1,Alfredo Iacoangeli,9,King's College London,5,77.77777777777777
+"Education Policy, Sociology and Philosophy",Education,2,138,69.0,327.0,2,Anders Lundquist,29,University of Oxford,20,27.586206896551722
+Environmental Management,Environmental Sciences,2,0,0.0,0.0,0,Ding Ye,22,"Data Center, Yinzhou District Center for Disease Control and Prevention, Ningbo, China",8,27.272727272727273
+Numerical and Computational Mathematics,Mathematical Sciences,2,6,3.0,1.0,1,Abdulaziz Altamimi,10,Islamia University of Bahawalpur,8,20.0
+Materials Engineering,Engineering,2,9,4.5,1.0,1,Amy F D Howard,21,Donghua University,7,14.285714285714286
+"Control Engineering, Mechatronics and Robotics",Engineering,2,8,4.0,2.0,2,Alejandro F Frangi,11,Alberta Children's Hospital Research Institute,10,18.181818181818183
+Curriculum and Pedagogy,Education,2,7,3.5,80.0,1,Dong-Qing Ye,8,Anhui Medical University,3,12.5
+Applied Ethics,Philosophy and Religious Studies,2,58,29.0,1.0,1,Amy P K Nelson,15,University of Copenhagen,3,40.0
+Industrial Biotechnology,Biological Sciences,2,5,2.5,2.0,1,Ai-Hua Zhao,13,MRC Integrative Epidemiology Unit,7,30.76923076923077
+Linguistics,"Language, Communication and Culture",1,0,0.0,255.0,0,Allison Marie Momany,11,Massachusetts General Hospital,3,27.272727272727273
+Theoretical and Computational Chemistry,Chemical Sciences,1,0,0.0,0.0,0,Artitaya Lophatananon,3,Chi Mei Medical Center,2,0.0
+Design,Built Environment and Design,1,2,2.0,0.0,1,Brigitte Mueller,9,Johns Hopkins University,3,33.333333333333336
+Theory Of Computation,Information and Computing Sciences,1,0,0.0,1.0,0,Cheng Wang,6,Icahn School of Medicine at Mount Sinai,2,33.333333333333336
+Private Law and Civil Obligations,Law and Legal Studies,1,1,1.0,3.0,1,Anish Karpurapu,4,Duke University,2,50.0
+Business Systems In Context,"Commerce, Management, Tourism and Services",1,0,0.0,47.0,0,Andrew Haddon Kemp,3,Swansea University,1,0.0
+Forestry Sciences,"Agricultural, Veterinary and Food Sciences",1,0,0.0,0.0,0,Ding Ye,16,"Data Center, Yinzhou District Center for Disease Control and Prevention, Ningbo, China",7,18.75
+Cultural Studies,"Language, Communication and Culture",1,1,1.0,0.0,1,,0,,0,0.0
+Aerospace Engineering,Engineering,1,0,0.0,1.0,0,,0,,0,0.0
+Civil Engineering,Engineering,1,2,2.0,1.0,1,A Robert Harris,8,Aeye Health LLC,4,12.5
+"Traditional, Complementary and Integrative Medicine",Health Sciences,1,0,0.0,0.0,0,Guang Chen,11,Affiliated Hospital of Shaanxi University of Chinese Medicine,9,36.36363636363637
+Manufacturing Engineering,Engineering,1,0,0.0,0.0,0,David John Williams,3,Loughborough University,1,33.333333333333336
+Building,Built Environment and Design,1,6,6.0,6.0,1,Christoph Arthofer,5,Wellcome Centre for Integrative Neuroimaging,1,0.0
+Marketing,"Commerce, Management, Tourism and Services",1,7,7.0,17.0,1,Gideon Nave,2,,0,0.0
+Physical Chemistry,Chemical Sciences,1,3,3.0,0.0,1,Jian Zhao,5,Shanghai Tenth People's Hospital,1,20.0
+Sociology,Human Society,1,2,2.0,12.0,1,Boyan Zheng,4,University of Wisconsin-Madison,1,0.0
+Law In Context,Law and Legal Studies,1,3,3.0,44.0,1,Galen Ives,3,University of Sheffield,1,33.333333333333336
+Architecture,Built Environment and Design,1,2,2.0,1.0,1,Colin J Mcclean,5,UCL Institute of Child Health,2,40.0
+Classical Physics,Physical Sciences,1,22,22.0,220.0,1,Andrei E Tarkhov,3,"Gero PTE, 60 Paya Lebar Road # 05-40B, Paya Lebar Square, 409051, Singapore",1,0.0
+Geology,Earth Sciences,1,0,0.0,1.0,0,Beverley M Shields,3,Royal Devon & Exeter NHS Foundation Trust,2,66.66666666666667
+Pure Mathematics,Mathematical Sciences,1,6,6.0,1.0,1,Hua Zhou,3,Seoul National University,2,0.0
+Education Systems,Education,1,111,111.0,306.0,1,Anders Lundquist,24,Bispebjerg Hospital,19,29.166666666666668
+Physical Geography and Environmental Geoscience,Earth Sciences,1,51,51.0,2.0,1,Chinmoy Sarkar,3,Cardiff University,2,0.0
+Geomatic Engineering,Engineering,1,51,51.0,2.0,1,Chinmoy Sarkar,3,Cardiff University,2,0.0
+Political Science,Human Society,1,0,0.0,5.0,0,Hai-Lun Liang,2,"Academy for Educational Development and Innovation, Hong Kong, China",3,0.0
