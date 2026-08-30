@@ -8,9 +8,12 @@ Author-credit concentration,Cumulative share of resolved-author fractional publi
 Author productivity band,"Mutually exclusive grouping of resolved authors by their number of UK Biobank publications: 1, 2-4, 5-9 or 10+."
 Modal author assignment,"An author's most frequent FOR, institution or country after each paper is split equally across that paper's multiple assignments; ties are deterministic."
 Author home assignment,"Current organization metadata when its GRID record resolves; otherwise the author's modal observed affiliation, with the source flagged."
-Female-name share,Female-category author-paper pairs divided by female- plus male-category pairs; unknown and androgynous names are reported but excluded from this denominator.
-Expanded name rule,gender_guesser female/mostly_female and male/mostly_male calls grouped as Female and Male; all other calls Unknown.
-Strict name rule,Only exact female and male dictionary calls are classified; mostly_* and androgynous calls remain Unknown.
+Female-name share,Female-category author-paper pairs divided by Female- plus Male-category pairs; unknown and androgynous names are reported but excluded from this denominator.
+Strict name rule,Only gender_guesser exact female and male calls are classified; mostly_* and androgynous calls remain Unknown.
+Expanded name rule,"Adds gender_guesser mostly_female/mostly_male calls after Unicode-safe cleanup, leading-initial removal and diacritic-normalized retry."
+Offline ensemble name rule,"Combines one local vote each from gender_guesser, gender_detector, nomquamgender, names-dataset and gename. Non-conflicting available votes are accepted; conflicts require at least 3 winning votes and a 2-vote margin."
+Primary name rule,Offline ensemble classification plus within-researcher propagation when all directly classified name observations agree; every row for identities with conflicting direct calls remains Unknown.
+Name-category limitation,"Female and Male are binary statistical name categories, not observed sex or self-identified gender; Unknown is retained because error and non-classification are culturally patterned."
 Effective entities,Exponentiated Shannon entropy of annual fractional country or institution credit.
 Institutional concentration,Share of annual observed institutional fractional credit assigned to that year's leading one or ten institutions.
 Coauthor tie,An undirected link between two resolved authors appearing on at least one common paper.

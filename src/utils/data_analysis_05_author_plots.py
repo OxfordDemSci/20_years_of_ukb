@@ -12,12 +12,33 @@ import pandas as pd
 from matplotlib.collections import LineCollection
 from matplotlib.colors import LogNorm, Normalize
 from matplotlib.lines import Line2D
+from matplotlib.patches import Rectangle
 from scipy import sparse as sp
 from scipy.sparse.csgraph import breadth_first_tree
 
 from . import data_analysis_05_author_characteristics as A
+from . import shared_name_gender as NG
 from . import shared_paths as P
-from .shared_style import extended_palette, savefig, year_ticks
+from .shared_style import (
+    black_legend,
+    compact_count,
+    extended_palette,
+    gridspec_figure,
+    label_panels,
+    marker_area,
+    marker_size,
+    mask_grid_region,
+    panel_grid,
+    panel_label,
+    percent_axis,
+    save_figure,
+    semantic_colors,
+    sequential_colormap,
+    style_axis,
+    style_colorbar,
+    summary_box,
+    year_ticks,
+)
 
 NATURAL_EARTH_URL = (
     "https://naturalearth.s3.amazonaws.com/110m_cultural/"
@@ -30,10 +51,6 @@ WORLD_DOWNLOADED_SHP = (
     / "ne_110m_admin_0_countries.shp"
 )
 _NETWORK_LAYOUT_CACHE = {}
-
-
-def _domain_colors(style):
-    return dict(style["domain_colors"])
 
 
 def _map_colormap(style):
@@ -49,48 +66,6 @@ def _component_colors():
         "Intermediate (6-55)": "#6E8B3D",
         "Giant component": "#345995",
     }
-
-
-def _axis(ax, grid_axis="both", zero=False):
-    """Apply the analysis-wide black-axis and dashed-grid treatment."""
-    ax.spines["left"].set_visible(True)
-    ax.spines["bottom"].set_visible(True)
-    ax.spines["left"].set_color("black")
-    ax.spines["bottom"].set_color("black")
-    ax.spines["left"].set_linewidth(1.0)
-    ax.spines["bottom"].set_linewidth(1.0)
-    ax.tick_params(colors="black")
-    ax.set_axisbelow(True)
-    ax.grid(True, axis=grid_axis, color="#D2D2D2", linestyle="--", linewidth=0.65, alpha=0.75)
-    if zero:
-        ax.axhline(0, color="black", linewidth=0.8)
-    return ax
-
-
-def _panel_label(ax, label, x=-0.12, y=1.07, fontsize=18):
-    ax.text(
-        x,
-        y,
-        label,
-        transform=ax.transAxes,
-        ha="left",
-        va="bottom",
-        fontsize=fontsize,
-        fontweight="bold",
-        color="black",
-        clip_on=False,
-    )
-
-
-def _black_legend(ax, **kwargs):
-    legend = ax.legend(frameon=True, facecolor="white", edgecolor="black", framealpha=1, **kwargs)
-    legend.get_frame().set_linewidth(0.9)
-    return legend
-
-
-def _save(fig, name, style):
-    paths = savefig(fig, name, style=style)
-    return fig, paths
 
 
 def _short_label(value, width=28):
@@ -120,10 +95,6 @@ def _field_label(value):
     return replacements.get(text, text)
 
 
-def _percent_axis(ax):
-    ax.yaxis.set_major_formatter(mticker.PercentFormatter(xmax=100, decimals=0))
-
-
 def _draw_top_country_bars(ax, core: A.CoreTables, style, n=8):
     """Draw the leading affiliation countries using geolocated fractional credit."""
     countries = core.country_metrics.copy()
@@ -135,7 +106,7 @@ def _draw_top_country_bars(ax, core: A.CoreTables, style, n=8):
     bars = ax.barh(
         top["label"],
         top["share"],
-        color=_domain_colors(style)["geography"],
+        color=semantic_colors("domain_colors", style)["geography"],
         edgecolor="black",
         linewidth=0.65,
     )
@@ -143,50 +114,51 @@ def _draw_top_country_bars(ax, core: A.CoreTables, style, n=8):
     ax.set_xlabel("Share of geolocated fractional credit")
     ax.xaxis.set_major_formatter(mticker.PercentFormatter(100))
     ax.margins(x=0.20)
-    _axis(ax, grid_axis="x")
+    style_axis(ax, style, grid_axis="x")
     return top
 
 
 def plot_headline_figure(core: A.CoreTables, network: A.NetworkTables, style, world=None):
     """Six headline views anchored by the community network and geographic map."""
-    colors = _domain_colors(style)
-    fig = plt.figure(figsize=style["figsize_main"])
-    outer = fig.add_gridspec(
+    colors = semantic_colors("domain_colors", style)
+    fig, outer = gridspec_figure(
         1,
         2,
+        style,
+        figsize_key="figsize_main",
         left=0.045,
         right=0.985,
         bottom=0.085,
         top=0.965,
         wspace=0.11,
-        width_ratios=[1.50, 1],
+        width_ratios=[1.45, 1],
     )
     left = outer[0].subgridspec(
         2,
         1,
-        height_ratios=[2.05, 0.92],
+        height_ratios=[1.72, 1],
         hspace=0.14,
     )
     right = outer[1].subgridspec(3, 1, hspace=0.44)
     network_row = left[0].subgridspec(
         1,
         2,
-        width_ratios=[0.48, 1],
-        wspace=0.015,
+        width_ratios=[0.72, 1],
+        wspace=0.03,
     )
-    lower_row = left[1].subgridspec(
-        1,
+    sidebar = network_row[0].subgridspec(
         2,
-        width_ratios=[2.55, 0.9],
-        wspace=0.30,
+        1,
+        height_ratios=[0.72, 1],
+        hspace=0.18,
     )
-    ax_a_meta = fig.add_subplot(network_row[0])
+    ax_a_meta = fig.add_subplot(sidebar[0])
+    ax_b = fig.add_subplot(sidebar[1])
     ax_a = fig.add_subplot(network_row[1])
-    ax_d = fig.add_subplot(lower_row[0])
-    ax_f = fig.add_subplot(lower_row[1])
-    ax_b = fig.add_subplot(right[0])
-    ax_c = fig.add_subplot(right[1])
-    ax_e = fig.add_subplot(right[2])
+    ax_e = fig.add_subplot(left[1])
+    ax_c = fig.add_subplot(right[0])
+    ax_d = fig.add_subplot(right[1])
+    ax_f = fig.add_subplot(right[2])
 
     # A: component-aware author network with an actual-edge topology backbone.
     _draw_component_network(
@@ -221,15 +193,18 @@ def plot_headline_figure(core: A.CoreTables, network: A.NetworkTables, style, wo
         fontsize=style["annot_fs"] + 1,
         fontweight="bold",
     )
-    ax_b.set_xlabel("Share of fractional publication credit")
+    ax_b.set_xlabel("Share of fractional\npublication credit")
     ax_b.xaxis.set_major_formatter(mticker.PercentFormatter(100))
-    ax_b.xaxis.set_major_locator(mticker.MultipleLocator(25))
-    ax_b.set_xlim(0, 100)
-    _axis(ax_b, grid_axis="x")
+    ax_b.xaxis.set_major_locator(mticker.MultipleLocator(50))
+    ax_b.set_xlim(0, 110)
+    style_axis(ax_b, style, grid_axis="x")
 
-    # C: annual female-name share, with binomial interval among classified names.
+    # C: cumulative geographic reach through each publication year.
+    _draw_cumulative_country_reach(ax_c, core, style)
+
+    # D: annual female-name share, with binomial interval among classified names.
     gender = core.gender_by_year.sort_values("year")
-    ax_c.fill_between(
+    ax_d.fill_between(
         gender["year"],
         gender["female_name_ci_low"],
         gender["female_name_ci_high"],
@@ -238,30 +213,30 @@ def plot_headline_figure(core: A.CoreTables, network: A.NetworkTables, style, wo
         linewidth=0,
         label="95% CI",
     )
-    ax_c.plot(
+    ax_d.plot(
         gender["year"],
         gender["female_name_share"],
         color=colors["name_gender"],
         marker="o",
         markeredgecolor="black",
         markeredgewidth=0.5,
-        markersize=4.5,
+        markersize=marker_size(style, scale=0.85),
         linewidth=2.3,
         label="Female-name share",
     )
-    ax_c.set(
+    ax_d.set(
         xlabel="Publication year",
         ylabel="Female-name share",
         xticks=year_ticks(gender["year"].min(), gender["year"].max(), 3),
     )
-    _percent_axis(ax_c)
-    _axis(ax_c)
-    _black_legend(ax_c, loc="lower right")
+    percent_axis(ax_d)
+    style_axis(ax_d, style)
+    black_legend(ax_d, style, loc="lower right")
 
-    # D: global distribution of geolocated fractional publication credit.
+    # E: global distribution of geolocated fractional publication credit.
     world = load_world_geometries() if world is None else world
     _draw_country_map(
-        ax_d,
+        ax_e,
         world,
         core.country_metrics,
         style,
@@ -270,33 +245,9 @@ def plot_headline_figure(core: A.CoreTables, network: A.NetworkTables, style, wo
         colorbar_orientation="vertical",
     )
 
-    # E: compact headline distribution; the full survival curve is supplementary.
-    productivity = A.author_productivity_bands(core.author_metrics)
-    bars = ax_f.barh(
-        productivity["publication_band"],
-        productivity["author_share_percent"],
-        height=0.62,
-        color=colors["author_metrics"],
-        edgecolor="black",
-        linewidth=0.65,
-    )
-    ax_f.invert_yaxis()
-    ax_f.bar_label(
-        bars,
-        labels=[f"{share:.1f}%" for share in productivity["author_share_percent"]],
-        padding=3,
-        fontsize=style["annot_fs"],
-        fontweight="bold",
-    )
-    ax_f.set_xlim(0, 65)
-    ax_f.set_xlabel("Share of resolved authors")
-    ax_f.xaxis.set_major_locator(mticker.MultipleLocator(25))
-    ax_f.xaxis.set_major_formatter(mticker.PercentFormatter(100))
-    _axis(ax_f, grid_axis="x")
-
     # F: institutional concentration over time.
     institutions = core.institution_by_year.sort_values("year")
-    ax_e.plot(
+    ax_f.plot(
         institutions["year"],
         institutions["top_10_share"],
         color=colors["institutions"],
@@ -306,7 +257,7 @@ def plot_headline_figure(core: A.CoreTables, network: A.NetworkTables, style, wo
         linewidth=2.4,
         label="Top 10 institutions",
     )
-    ax_e.plot(
+    ax_f.plot(
         institutions["year"],
         institutions["top_1_share"],
         color=colors["author_metrics"],
@@ -316,43 +267,61 @@ def plot_headline_figure(core: A.CoreTables, network: A.NetworkTables, style, wo
         linewidth=2.0,
         label="Leading institution",
     )
-    ax_e.set(
+    ax_f.set(
         xlabel="Publication year",
         ylabel="Share of annual institutional credit",
         xticks=year_ticks(institutions["year"].min(), institutions["year"].max(), 2),
     )
-    _percent_axis(ax_e)
-    _axis(ax_e)
-    _black_legend(ax_e, loc="upper right")
+    percent_axis(ax_f)
+    style_axis(ax_f, style)
+    black_legend(ax_f, style, loc="upper right")
 
-    _panel_label(
+    panel_label(
         ax_a_meta,
         "A",
+        style,
         x=-0.04,
-        y=1.025,
-        fontsize=style["title_fs"],
+        y=1.075,
     )
-    for ax, label in zip([ax_b, ax_c, ax_d, ax_f, ax_e], "BCDEF"):
-        _panel_label(
+    for ax, label in zip([ax_b, ax_c, ax_d, ax_f], "BCDF"):
+        panel_label(
             ax,
             label,
-            x=-0.02 if ax is ax_d else 0.01,
+            style,
+            x=0.01,
             y=1.025,
-            fontsize=style["title_fs"],
         )
-    return _save(fig, "05_01_figure_01_author_characteristics", style)
+    panel_label(
+        ax_e,
+        "E",
+        style,
+        x=-0.08,
+        y=0.93,
+    )
+    return save_figure(fig, "05_01_figure_01_author_characteristics", style)
 
 
 def plot_author_metrics_supplement(core: A.CoreTables, style):
     metrics = core.author_metrics.copy()
-    color = _domain_colors(style)["author_metrics"]
-    fig, axes = plt.subplots(2, 2, figsize=style["figsize_panel"])
-    fig.subplots_adjust(left=0.08, right=0.98, bottom=0.10, top=0.95, wspace=0.32, hspace=0.38)
+    colors = semantic_colors("author_metric_colors", style)
+    fig, axes = panel_grid(
+        2,
+        2,
+        style,
+        adjust={
+            "left": 0.08,
+            "right": 0.98,
+            "bottom": 0.10,
+            "top": 0.95,
+            "wspace": 0.32,
+            "hspace": 0.38,
+        },
+    )
 
     ax = axes[0, 0]
     thresholds = np.arange(1, int(metrics["n_ukb_papers"].max()) + 1)
     survival = np.array([(metrics["n_ukb_papers"] >= value).mean() * 100 for value in thresholds])
-    ax.plot(thresholds, survival, color=color, linewidth=2.5)
+    ax.plot(thresholds, survival, color=colors["productivity"], linewidth=2.5)
     ax.set_xscale("log")
     ax.set_yscale("log")
     ax.set(
@@ -365,7 +334,24 @@ def plot_author_metrics_supplement(core: A.CoreTables, style):
     ax.yaxis.set_major_formatter(
         mticker.FuncFormatter(lambda value, _: f"{value:g}%")
     )
-    _axis(ax)
+    style_axis(ax, style)
+    paper_quartiles = metrics["n_ukb_papers"].quantile([0.25, 0.5, 0.75])
+    summary_box(
+        ax,
+        [
+            (
+                f"Median {paper_quartiles.loc[0.5]:.0f} paper "
+                f"(IQR {paper_quartiles.loc[0.25]:.0f}-{paper_quartiles.loc[0.75]:.0f})"
+            ),
+            f"10+ papers: {100 * metrics['n_ukb_papers'].ge(10).mean():.1f}%",
+            f"Maximum: {metrics['n_ukb_papers'].max():,.0f} papers",
+        ],
+        style,
+        x=0.04,
+        y=0.06,
+        ha="left",
+        va="bottom",
+    )
 
     ax = axes[0, 1]
     max_h = int(metrics["ukb_h_index"].quantile(0.995))
@@ -373,19 +359,37 @@ def plot_author_metrics_supplement(core: A.CoreTables, style):
     ax.hist(
         metrics.loc[metrics["ukb_h_index"].le(max_h), "ukb_h_index"],
         bins=bins,
-        color=color,
+        color=colors["h_index"],
         edgecolor="black",
         linewidth=0.55,
     )
     ax.set(xlabel="UK Biobank h-index", ylabel="Resolved authors")
-    _axis(ax)
+    style_axis(ax, style)
+    h_quartiles = metrics["ukb_h_index"].quantile([0.25, 0.5, 0.75])
+    shown_share = 100 * metrics["ukb_h_index"].le(max_h).mean()
+    summary_box(
+        ax,
+        [
+            (
+                f"Median {h_quartiles.loc[0.5]:.0f} "
+                f"(IQR {h_quartiles.loc[0.25]:.0f}-{h_quartiles.loc[0.75]:.0f})"
+            ),
+            f"95th percentile: {metrics['ukb_h_index'].quantile(0.95):.0f}",
+            f"{shown_share:.1f}% shown; maximum {metrics['ukb_h_index'].max():,.0f}",
+        ],
+        style,
+        x=0.96,
+        y=0.94,
+        ha="right",
+        va="top",
+    )
 
     ax = axes[1, 0]
     ax.scatter(
         metrics["n_ukb_papers"],
         metrics["ukb_h_index"],
         s=16,
-        facecolor=color,
+        facecolor=colors["association"],
         edgecolor="black",
         linewidth=0.25,
         alpha=0.24,
@@ -394,51 +398,89 @@ def plot_author_metrics_supplement(core: A.CoreTables, style):
     association = metrics[["n_ukb_papers", "ukb_h_index"]].corr(
         method="spearman"
     ).iloc[0, 1]
-    ax.text(
-        0.04,
-        0.94,
-        f"Spearman rho = {association:.2f}\nn = {len(metrics):,} authors",
-        transform=ax.transAxes,
+    summary_box(
+        ax,
+        [
+            f"Spearman rho = {association:.2f}",
+            f"n = {len(metrics):,} authors",
+        ],
+        style,
+        x=0.04,
+        y=0.94,
         ha="left",
         va="top",
-        fontsize=style["annot_fs"],
-        bbox={"facecolor": "white", "edgecolor": "black", "alpha": 0.9, "pad": 3},
     )
     ax.set_xscale("log")
     ax.set(xlabel="UK Biobank publications", ylabel="UK Biobank h-index")
-    _axis(ax)
+    style_axis(ax, style)
 
     ax = axes[1, 1]
-    leaders = metrics.nlargest(20, ["ukb_h_index", "n_ukb_papers"]).sort_values(
-        ["ukb_h_index", "n_ukb_papers"]
+    leaders = metrics.nlargest(
+        10,
+        ["ukb_h_index", "n_ukb_papers", "total_ukb_citations"],
+    ).sort_values(
+        ["ukb_h_index", "n_ukb_papers", "total_ukb_citations"]
     )
-    labels = [_short_label(value, 24) for value in leaders["full_name"]]
+    labels = [_short_label(value, 26) for value in leaders["full_name"]]
+    h_values = leaders["ukb_h_index"].to_numpy(dtype=float)
+    h_span = np.ptp(h_values)
+    blue_positions = (
+        0.38 + 0.62 * (h_values - h_values.min()) / h_span
+        if h_span > 0
+        else np.ones_like(h_values)
+    )
+    blue_scale = sequential_colormap(colors["leaders"])
     bars = ax.barh(
         labels,
         leaders["ukb_h_index"],
-        color=color,
+        color=blue_scale(blue_positions),
         edgecolor="black",
         linewidth=0.6,
     )
+    ax.set_xlabel("UK Biobank h-index")
+    x_max = max(120, 1.55 * leaders["ukb_h_index"].max())
+    annotation_start = leaders["ukb_h_index"].max() + 2
+    ax.set_xlim(0, x_max)
+    ax.xaxis.set_major_locator(mticker.MultipleLocator(20))
+    style_axis(ax, style, grid_axis="x")
+    mask_grid_region(ax, annotation_start, x_max)
     ax.bar_label(
         bars,
-        labels=[f"{h:d}  |  {n:d} papers" for h, n in zip(leaders["ukb_h_index"], leaders["n_ukb_papers"])],
+        labels=[
+            f"h={h:d} | {n:d} papers | {compact_count(c)} citations"
+            for h, n, c in zip(
+                leaders["ukb_h_index"],
+                leaders["n_ukb_papers"],
+                leaders["total_ukb_citations"],
+            )
+        ],
         padding=4,
         fontsize=style["annot_fs"] - 1,
+        zorder=3,
     )
-    ax.set_xlabel("UK Biobank h-index")
-    ax.margins(x=0.22)
-    _axis(ax, grid_axis="x")
-
-    for ax, label in zip(axes.flat, "ABCD"):
-        _panel_label(ax, label, fontsize=style["title_fs"])
-    return _save(fig, "05_02_supplementary_figure_01_author_metrics", style)
+    label_panels(axes, "ABCD", style)
+    return save_figure(
+        fig,
+        "05_02_supplementary_figure_01_author_metrics",
+        style,
+    )
 
 
 def plot_gender_supplement(core: A.CoreTables, style):
-    colors = style["gender_colors"]
-    fig, axes = plt.subplots(2, 2, figsize=style["figsize_panel"])
-    fig.subplots_adjust(left=0.09, right=0.98, bottom=0.10, top=0.95, wspace=0.34, hspace=0.40)
+    colors = semantic_colors("gender_colors", style)
+    fig, axes = panel_grid(
+        2,
+        2,
+        style,
+        adjust={
+            "left": 0.09,
+            "right": 0.98,
+            "bottom": 0.10,
+            "top": 0.95,
+            "wspace": 0.34,
+            "hspace": 0.40,
+        },
+    )
     year = core.gender_by_year.sort_values("year")
 
     ax = axes[0, 0]
@@ -454,26 +496,43 @@ def plot_gender_supplement(core: A.CoreTables, style):
         edgecolor="black",
     )
     ax.set(xlabel="Publication year", ylabel="Author-paper pairs", xticks=year_ticks(year["year"].min(), year["year"].max(), 3))
-    _axis(ax)
-    _black_legend(ax, loc="upper left")
+    style_axis(ax, style)
+    black_legend(ax, style, loc="upper left")
 
     ax = axes[0, 1]
-    strict = (
-        core.authorships.assign(
-            classified=core.authorships["name_gender"].isin(["Female", "Male"]),
-            strict_classified=core.authorships["name_gender_strict"].isin(["Female", "Male"]),
+    coverage = NG.inference_coverage(core.authorships, "year")
+    coverage_styles = {
+        "Strict dictionary": {"color": "#6B6B6B", "marker": "^", "linestyle": "--"},
+        "Expanded dictionary": {"color": colors["Male"], "marker": "s", "linestyle": "-"},
+        "Offline ensemble": {"color": "#D4AF37", "marker": "D", "linestyle": "-"},
+        "Primary + identity linkage": {"color": colors["Female"], "marker": "o", "linestyle": "-"},
+    }
+    coverage_labels = {
+        "Strict dictionary": "Strict dictionary",
+        "Expanded dictionary": "Expanded dictionary",
+        "Offline ensemble": "Offline ensemble",
+        "Primary + identity linkage": "Primary enhanced",
+    }
+    for stage, plot_style in coverage_styles.items():
+        values = coverage[coverage["stage"].eq(stage)]
+        ax.plot(
+            values["year"],
+            values["coverage_percent"],
+            linewidth=2.0,
+            markersize=marker_size(style, scale=0.80),
+            markeredgecolor="black",
+            markeredgewidth=0.65,
+            label=coverage_labels[stage],
+            **plot_style,
         )
-        .groupby("year")[["classified", "strict_classified"]]
-        .mean()
-        .mul(100)
-        .reset_index()
+    ax.set(
+        xlabel="Publication year",
+        ylabel="Names classified",
+        xticks=year_ticks(coverage["year"].min(), coverage["year"].max(), 3),
     )
-    ax.plot(strict["year"], strict["classified"], color=colors["Female"], marker="o", linewidth=2.2, label="Expanded rule")
-    ax.plot(strict["year"], strict["strict_classified"], color=colors["Male"], marker="s", linewidth=2.0, label="Strict rule")
-    ax.set(xlabel="Publication year", ylabel="Names classified", xticks=year_ticks(strict["year"].min(), strict["year"].max(), 3))
-    _percent_axis(ax)
-    _axis(ax)
-    _black_legend(ax, loc="lower left")
+    percent_axis(ax)
+    style_axis(ax, style)
+    black_legend(ax, style, loc="lower left")
 
     ax = axes[1, 0]
     order = ["First author", "Middle author", "Last author", "Single author", "Corresponding author"]
@@ -488,24 +547,27 @@ def plot_gender_supplement(core: A.CoreTables, style):
         fmt="o",
         color=colors["Female"],
         markeredgecolor="black",
+        markeredgewidth=0.7,
         ecolor="black",
         elinewidth=1.2,
         capsize=3,
-        markersize=7,
+        markersize=marker_size(style, scale=1.30),
     )
-    ax.set_yticks(y, role.index)
+    role_labels = [label.replace(" ", "\n", 1) for label in role.index]
+    ax.set_yticks(y, role_labels)
     ax.invert_yaxis()
     ax.set_xlabel("Female share of classified names")
     ax.xaxis.set_major_formatter(mticker.PercentFormatter(100))
-    _axis(ax, grid_axis="x")
+    style_axis(ax, style)
 
     ax = axes[1, 1]
     field = core.gender_by_field.nlargest(12, "classified").sort_values("female_name_share")
     labels = [_field_label(value) for value in field["for_l2"]]
+    blue_scale = sequential_colormap(colors["Male"])
     bars = ax.barh(
         labels,
         field["female_name_share"],
-        color=colors["Female"],
+        color=blue_scale(np.linspace(0.38, 1.0, len(field))),
         edgecolor="black",
         linewidth=0.6,
     )
@@ -513,11 +575,14 @@ def plot_gender_supplement(core: A.CoreTables, style):
     ax.set_xlabel("Female share of classified names")
     ax.xaxis.set_major_formatter(mticker.PercentFormatter(100))
     ax.margins(x=0.14)
-    _axis(ax, grid_axis="x")
+    style_axis(ax, style, grid=False)
 
-    for ax, label in zip(axes.flat, "ABCD"):
-        _panel_label(ax, label, fontsize=style["title_fs"])
-    return _save(fig, "05_03_supplementary_figure_02_name_inferred_gender", style)
+    label_panels(axes, "ABCD", style)
+    return save_figure(
+        fig,
+        "05_03_supplementary_figure_02_name_inferred_gender",
+        style,
+    )
 
 
 def load_world_geometries():
@@ -554,6 +619,7 @@ def _draw_country_map(
     colorbar_label="Fractional publication credit (log scale)",
     scale="log",
     colorbar_orientation="horizontal",
+    norm=None,
 ):
     cmap = _map_colormap(style)
     merged = world.merge(country_values[["iso3", value_col]], on="iso3", how="left")
@@ -561,12 +627,13 @@ def _draw_country_map(
     positive = positive[positive > 0]
     if positive.empty:
         raise ValueError(f"Map variable {value_col!r} has no positive values")
-    if scale == "log":
-        norm = LogNorm(vmin=max(float(positive.min()), 0.05), vmax=float(positive.max()))
-    elif scale == "linear":
-        norm = Normalize(vmin=0, vmax=float(positive.max()))
-    else:
-        raise ValueError("Map scale must be 'linear' or 'log'")
+    if norm is None:
+        if scale == "log":
+            norm = LogNorm(vmin=max(float(positive.min()), 0.05), vmax=float(positive.max()))
+        elif scale == "linear":
+            norm = Normalize(vmin=0, vmax=float(positive.max()))
+        else:
+            raise ValueError("Map scale must be 'linear' or 'log'")
     merged.plot(
         ax=ax,
         column=value_col,
@@ -588,80 +655,377 @@ def _draw_country_map(
         cbar = ax.figure.colorbar(scalar, cax=colorbar_ax, orientation="horizontal")
     else:
         raise ValueError("Colorbar orientation must be 'vertical' or 'horizontal'")
-    cbar.set_label(colorbar_label)
-    cbar.outline.set_edgecolor("black")
-    cbar.outline.set_linewidth(0.8)
+    style_colorbar(cbar, colorbar_label)
     ax.set_ylim(-58, 88)
     ax.set_axis_off()
     ax.set_anchor("C" if colorbar_orientation == "vertical" else "N")
     return merged
 
 
-def plot_geography_supplement(core: A.CoreTables, style, world=None):
+def plot_geography_maps_supplement(core: A.CoreTables, style, world=None):
+    """Three vertically stacked maps with directly comparable paper-count scales."""
     world = load_world_geometries() if world is None else world
-    color = _domain_colors(style)["geography"]
-    width, height = style["figsize_panel"]
-    fig = plt.figure(figsize=(width, height))
-    gs = fig.add_gridspec(
-        2,
+    fig, gs = gridspec_figure(
         3,
-        height_ratios=[0.72, 1],
-        left=0.045,
-        right=0.985,
-        bottom=0.08,
-        top=0.96,
-        hspace=0.28,
-        wspace=0.24,
+        1,
+        style,
+        figsize=(11.5, 12.5),
+        left=0.04,
+        right=0.98,
+        bottom=0.045,
+        top=0.975,
+        hspace=0.34,
     )
-    axes = [fig.add_subplot(gs[row, column]) for row in range(2) for column in range(3)]
-    ax_a, ax_b, ax_c, ax_d, ax_e, ax_f = axes
-    _draw_top_country_bars(ax_a, core, style, n=8)
+    axes = [fig.add_subplot(gs[row, 0]) for row in range(3)]
+    paper_values = pd.concat(
+        [
+            core.country_metrics["author_basis_unique_papers"],
+            core.country_metrics["org_basis_unique_papers"],
+        ]
+    ).dropna()
+    paper_values = paper_values[paper_values.gt(0)]
+    paper_norm = LogNorm(
+        vmin=max(float(paper_values.min()), 0.05),
+        vmax=float(paper_values.max()),
+    )
     _draw_country_map(
-        ax_b,
+        axes[0],
         world,
         core.country_metrics,
         style,
         value_col="author_basis_unique_papers",
-        colorbar_label="Papers: author-affiliation basis (log scale)",
+        colorbar_label="Papers: author-affiliation basis (shared log scale)",
+        norm=paper_norm,
     )
     _draw_country_map(
-        ax_c,
+        axes[1],
         world,
         core.country_metrics,
         style,
         value_col="org_basis_unique_papers",
-        colorbar_label="Papers: research-org basis (log scale)",
+        colorbar_label="Papers: research-organisation basis (shared log scale)",
+        norm=paper_norm,
     )
     intensity = core.country_metrics.copy()
     intensity.loc[
         intensity["author_basis_unique_papers"].lt(20), "authors_per_paper"
     ] = np.nan
     _draw_country_map(
-        ax_d,
+        axes[2],
         world,
         intensity,
         style,
         value_col="authors_per_paper",
         colorbar_label="Author-paper rows per paper\n(>=20 papers; log scale)",
     )
+    label_panels(axes, "ABC", style, x=-0.04, y=1.02)
+    return save_figure(
+        fig,
+        "05_04_supplementary_figure_03_geography_maps",
+        style,
+    )
 
+
+def _draw_cumulative_country_reach(ax, core: A.CoreTables, style):
+    """Plot cumulative affiliation-country reach for the headline figure."""
     annual = core.country_by_year.sort_values("year")
-    bars = ax_e.bar(
-        annual["year"],
-        annual["cumulative_entities"],
-        width=0.72,
+    years = annual["year"].astype(int)
+    values = annual["cumulative_entities"].astype(int).to_numpy()
+    color = semantic_colors("domain_colors", style)["geography"]
+    ax.plot(
+        years,
+        values,
         color=color,
+        linewidth=2.4,
+        marker="o",
+        markersize=marker_size(style, scale=0.9),
+        markeredgecolor="black",
+        markeredgewidth=0.6,
+    )
+    ax.fill_between(years, 0, values, color=color, alpha=0.10, linewidth=0)
+    ax.annotate(
+        f"{values[-1]:,} countries",
+        xy=(years.iloc[-1], values[-1]),
+        xytext=(-8, 8),
+        textcoords="offset points",
+        ha="right",
+        va="bottom",
+        color=color,
+        fontsize=style["annot_fs"] + 1,
+        fontweight="bold",
+    )
+    ax.set(
+        xlabel="Publication year",
+        ylabel="Cumulative affiliation countries",
+        xticks=year_ticks(years.min(), years.max(), 3),
+    )
+    ax.yaxis.set_major_locator(mticker.MaxNLocator(nbins=5, integer=True))
+    ax.set_ylim(0, values[-1] * 1.12)
+    style_axis(ax, style)
+
+
+def _draw_country_basis_agreement(ax, core: A.CoreTables, style):
+    """Compare country paper counts under two independent metadata definitions."""
+    x_col = "author_basis_unique_papers"
+    y_col = "org_basis_unique_papers"
+    countries = core.country_metrics.dropna(subset=[x_col, y_col]).copy()
+    countries = countries[countries[x_col].gt(0) & countries[y_col].gt(0)]
+    project_blue = semantic_colors("domain_colors", style)["geography"]
+    project_yellow = style["colors"][1]
+
+    lower = 0.5 * countries[[x_col, y_col]].min().min()
+    upper = 1.8 * countries[[x_col, y_col]].max().max()
+    ax.plot(
+        [lower, upper],
+        [lower, upper],
+        color="black",
+        linestyle="--",
+        linewidth=1.2,
+        zorder=1,
+    )
+    ax.scatter(
+        countries[x_col],
+        countries[y_col],
+        s=marker_area(style, scale=0.72),
+        color=project_blue,
         edgecolor="black",
         linewidth=0.55,
+        alpha=0.72,
+        zorder=2,
     )
-    ax_e.bar_label(
-        bars,
-        labels=[""] * (len(bars) - 1) + [f"{annual['cumulative_entities'].iloc[-1]:,.0f}"],
-        padding=3,
-        fontsize=style["annot_fs"],
+
+    eligible = countries[countries[[x_col, y_col]].min(axis=1).ge(10)].copy()
+    eligible["log_discrepancy"] = np.abs(
+        np.log10(eligible[x_col] / eligible[y_col])
     )
-    ax_e.set(xlabel="Publication year", ylabel="Cumulative affiliation countries", xticks=year_ticks(annual["year"].min(), annual["year"].max(), 3))
-    _axis(ax_e, grid_axis="y")
+    outliers = eligible.nlargest(4, "log_discrepancy")
+    ax.scatter(
+        outliers[x_col],
+        outliers[y_col],
+        s=marker_area(style, scale=1.05),
+        color=project_yellow,
+        edgecolor="black",
+        linewidth=0.75,
+        zorder=3,
+    )
+    label_layout = {
+        "Serbia": ((0.34, 0.11), 0.32),
+        "Nigeria": ((0.51, 0.23), -0.24),
+        "Lithuania": ((0.24, 0.52), -0.24),
+        "Turkey": ((0.45, 0.75), -0.32),
+    }
+    for row in outliers.itertuples(index=False):
+        x_value = getattr(row, x_col)
+        y_value = getattr(row, y_col)
+        country_label = _short_label(row.country or row.iso3, 18)
+        text_position, curvature = label_layout[country_label]
+        ax.annotate(
+            f"{country_label}  {int(x_value):,} / {int(y_value):,}",
+            (x_value, y_value),
+            xytext=text_position,
+            textcoords="axes fraction",
+            ha="center",
+            va="center",
+            fontsize=style["annot_fs"],
+            zorder=6,
+            bbox={"facecolor": "white", "edgecolor": "none", "alpha": 0.96, "pad": 1},
+            arrowprops={
+                "arrowstyle": "-|>",
+                "color": "#3F3F3F",
+                "connectionstyle": f"arc3,rad={curvature}",
+                "linewidth": 1.0,
+                "mutation_scale": 11,
+                "shrinkA": 2,
+                "shrinkB": 2,
+            },
+        )
+
+    countries["paper_count_scale"] = np.sqrt(countries[x_col] * countries[y_col])
+    minimum_scale = countries["paper_count_scale"].min()
+    minima = countries[countries["paper_count_scale"].eq(minimum_scale)]
+    minimum = minima.sort_values([x_col, y_col, "iso3"]).iloc[0]
+    maximum = countries.sort_values(
+        ["paper_count_scale", x_col, y_col], ascending=False
+    ).iloc[0]
+    extrema = pd.DataFrame([minimum, maximum])
+    ax.scatter(
+        extrema[x_col],
+        extrema[y_col],
+        s=marker_area(style, scale=0.95),
+        marker="D",
+        facecolor=project_blue,
+        edgecolor="black",
+        linewidth=0.9,
+        zorder=4,
+    )
+    endpoint_labels = [
+        (
+            minimum,
+            (
+                f"Minimum: {len(minima)}-country tie  "
+                f"({int(minimum[x_col]):,} / {int(minimum[y_col]):,})"
+            ),
+            (8, -4),
+            "offset points",
+            "left",
+            "top",
+            0.14,
+        ),
+        (
+            maximum,
+            (
+                f"Maximum: "
+                f"{_short_label(maximum['country'] or maximum['iso3'], 18)}\n"
+                f"{int(maximum[x_col]):,} / {int(maximum[y_col]):,}"
+            ),
+            (0.98, 1.01),
+            "axes fraction",
+            "right",
+            "bottom",
+            -0.12,
+        ),
+    ]
+    for row, label, offset, coordinates, horizontal, vertical, curvature in endpoint_labels:
+        ax.annotate(
+            label,
+            (row[x_col], row[y_col]),
+            xytext=offset,
+            textcoords=coordinates,
+            ha=horizontal,
+            va=vertical,
+            fontsize=style["annot_fs"],
+            fontweight="bold",
+            zorder=6,
+            annotation_clip=False,
+            bbox={"facecolor": "white", "edgecolor": "none", "alpha": 0.9, "pad": 1},
+            arrowprops={
+                "arrowstyle": "-|>",
+                "color": "#555555",
+                "connectionstyle": f"arc3,rad={curvature}",
+                "linewidth": 0.9,
+                "mutation_scale": 10,
+                "shrinkA": 2,
+                "shrinkB": 2,
+            },
+        )
+
+    association = countries[[x_col, y_col]].corr(method="spearman").iloc[0, 1]
+    summary_box(
+        ax,
+        [
+            f"Spearman rho = {association:.3f}  (n = {len(countries):,})",
+            "Yellow: largest proportional discrepancies",
+            "Dashed: equal counts",
+        ],
+        style,
+        x=0.03,
+        y=0.97,
+    )
+    ax.set(
+        xscale="log",
+        yscale="log",
+        xlim=(lower, upper),
+        ylim=(lower, upper),
+        xlabel="Papers: author-affiliation basis",
+        ylabel="Papers: research-organisation basis",
+    )
+    style_axis(ax, style)
+
+
+def _draw_country_period_composition(ax, core: A.CoreTables, style, n=8):
+    """Show how the leading countries' fractional-credit shares changed by period."""
+    periods = ["2013-15", "2016-18", "2019-21", "2022-25"]
+    credits = core.country_credits[["year", "iso3", "country", "credit"]].copy()
+    credits["period"] = pd.cut(
+        credits["year"],
+        bins=[2012, 2015, 2018, 2021, 2025],
+        labels=periods,
+    )
+    overall = (
+        credits.groupby(["iso3", "country"], observed=True)["credit"]
+        .sum()
+        .nlargest(n)
+    )
+    top_iso3 = overall.index.get_level_values("iso3").tolist()
+    country_names = dict(overall.index.tolist())
+
+    period_country = (
+        credits.groupby(["period", "iso3"], observed=True)["credit"]
+        .sum()
+        .rename("credit")
+        .reset_index()
+    )
+    period_country["share"] = 100 * period_country["credit"] / period_country.groupby(
+        "period", observed=True
+    )["credit"].transform("sum")
+    matrix = (
+        period_country[period_country["iso3"].isin(top_iso3)]
+        .pivot(index="iso3", columns="period", values="share")
+        .reindex(index=top_iso3, columns=periods)
+        .fillna(0)
+    )
+
+    positive = matrix.to_numpy()[matrix.to_numpy() > 0]
+    norm = LogNorm(vmin=float(positive.min()), vmax=float(positive.max()))
+    cmap = sequential_colormap(
+        semantic_colors("domain_colors", style)["geography"]
+    )
+    image = ax.imshow(
+        matrix,
+        cmap=cmap,
+        norm=norm,
+        aspect="auto",
+        interpolation="nearest",
+    )
+    for row, iso3 in enumerate(matrix.index):
+        for column, period in enumerate(matrix.columns):
+            value = float(matrix.loc[iso3, period])
+            red, green, blue, _ = cmap(norm(value))
+            luminance = 0.2126 * red + 0.7152 * green + 0.0722 * blue
+            text_color = "black" if luminance > 0.52 else "white"
+            ax.text(
+                column,
+                row,
+                f"{value:.1f}%",
+                ha="center",
+                va="center",
+                color=text_color,
+                fontsize=style["annot_fs"],
+            )
+    ax.set(
+        xticks=np.arange(len(periods)),
+        xticklabels=periods,
+        yticks=np.arange(len(top_iso3)),
+        yticklabels=[country_names[iso3] for iso3 in top_iso3],
+        xlabel="Publication-year period",
+    )
+    ax.tick_params(axis="both", which="both", length=0)
+    ax.add_patch(
+        Rectangle(
+            (-0.5, -0.5),
+            len(periods),
+            len(top_iso3),
+            fill=False,
+            edgecolor="black",
+            linewidth=0.8,
+        )
+    )
+    style_axis(ax, style, grid=False)
+
+    colorbar_ax = ax.inset_axes([1.025, 0.08, 0.025, 0.84])
+    colorbar = ax.figure.colorbar(image, cax=colorbar_ax, orientation="vertical")
+    ticks = [value for value in [0.5, 1, 5, 10, 25, 50] if norm.vmin <= value <= norm.vmax]
+    colorbar.set_ticks(ticks)
+    colorbar.ax.yaxis.set_major_formatter(
+        mticker.FuncFormatter(lambda value, _position: f"{value:g}%")
+    )
+    style_colorbar(colorbar, "Fractional-credit share")
+
+
+def _draw_country_diversity(ax, core: A.CoreTables, style):
+    """Plot period-averaged effective geographic diversity."""
+    color = semantic_colors("domain_colors", style)["geography"]
+    annual = core.country_by_year.sort_values("year")
 
     period_labels = ["2013-15", "2016-18", "2019-21", "2022-25"]
     period = pd.cut(
@@ -676,7 +1040,7 @@ def plot_geography_supplement(core: A.CoreTables, style, world=None):
         .reindex(period_labels)
     )
     x = np.arange(len(diversity))
-    ax_f.vlines(
+    ax.vlines(
         x,
         0,
         diversity,
@@ -684,31 +1048,51 @@ def plot_geography_supplement(core: A.CoreTables, style, world=None):
         linewidth=1.0,
         zorder=1,
     )
-    ax_f.scatter(
+    ax.scatter(
         x,
         diversity,
-        s=36,
+        s=marker_area(style),
         color=color,
         edgecolor="black",
         linewidth=0.55,
         zorder=2,
     )
-    ax_f.set(
+    ax.set(
         xlabel="Publication-year period",
         ylabel="Mean effective number of countries",
         xticks=x,
         xticklabels=period_labels,
     )
-    _axis(ax_f, grid_axis="y")
+    style_axis(ax, style, grid_axis="y")
 
-    for ax, label in zip(axes, "ABCDEF"):
-        _panel_label(
-            ax,
-            label,
-            x=-0.12 if ax is ax_a else (-0.04 if ax in {ax_b, ax_c, ax_d} else -0.12),
-            fontsize=style["title_fs"],
-        )
-    return _save(fig, "05_04_supplementary_figure_03_geography", style)
+
+def plot_geography_metrics_supplement(core: A.CoreTables, style):
+    """Four quantitative views of geographic reach, composition, and diversity."""
+    fig, axes = panel_grid(
+        2,
+        2,
+        style,
+        figsize=(14.5, 9.5),
+        adjust={
+            "left": 0.105,
+            "right": 0.98,
+            "bottom": 0.10,
+            "top": 0.95,
+            "wspace": 0.34,
+            "hspace": 0.40,
+        },
+    )
+    _draw_top_country_bars(axes[0, 0], core, style, n=8)
+    _draw_country_basis_agreement(axes[0, 1], core, style)
+    _draw_country_period_composition(axes[1, 0], core, style)
+    _draw_country_diversity(axes[1, 1], core, style)
+
+    label_panels(axes, "ABCD", style)
+    return save_figure(
+        fig,
+        "05_05_supplementary_figure_04_geography_metrics",
+        style,
+    )
 
 
 def field_color_map(core: A.CoreTables, style, n=7):
@@ -736,18 +1120,18 @@ def _institution_field_matrix(core: A.CoreTables, top_ids, field_colors):
 
 
 def plot_institution_supplement(core: A.CoreTables, style):
-    color = _domain_colors(style)["institutions"]
-    fig = plt.figure(figsize=style["figsize_panel"])
-    gs = fig.add_gridspec(
+    color = semantic_colors("domain_colors", style)["institutions"]
+    fig, gs = gridspec_figure(
         2,
         2,
+        style,
         width_ratios=[1.7, 1],
         left=0.14,
         right=0.98,
         bottom=0.09,
         top=0.95,
-        hspace=0.40,
-        wspace=0.42,
+        hspace=0.22,
+        wspace=0.18,
     )
     ax_a = fig.add_subplot(gs[:, 0])
     ax_b = fig.add_subplot(gs[0, 1])
@@ -776,19 +1160,29 @@ def plot_institution_supplement(core: A.CoreTables, style):
         )
         left += values
     ax_a.set_xlabel("Fractional publication credit")
-    _axis(ax_a, grid_axis="x")
-    _black_legend(ax_a, title="FOR division", loc="lower right", fontsize=style["legend_fs"] - 1)
+    style_axis(ax_a, style, grid_axis="x")
+    black_legend(
+        ax_a,
+        style,
+        title="FOR division",
+        loc="lower right",
+        fontsize=style["legend_fs"] - 1,
+    )
 
     annual = core.institution_by_year.sort_values("year")
     ax_b.plot(annual["year"], annual["cumulative_entities"], color=color, marker="o", markeredgecolor="black", linewidth=2.3)
     ax_b.set(xlabel="Publication year", ylabel="Cumulative institutions", xticks=year_ticks(annual["year"].min(), annual["year"].max(), 3))
-    _axis(ax_b)
+    style_axis(ax_b, style)
 
     metrics = core.institution_metrics
     ax_c.scatter(
         metrics["fractional_paper_credit"],
         metrics["ukb_h_index"],
-        s=np.clip(np.sqrt(metrics["unique_resolved_authors"]) * 3, 8, 80),
+        s=np.clip(
+            np.sqrt(metrics["unique_resolved_authors"]) * 3.5,
+            marker_area(style, scale=0.24),
+            marker_area(style, scale=1.35),
+        ),
         color=color,
         edgecolor="black",
         linewidth=0.4,
@@ -798,23 +1192,26 @@ def plot_institution_supplement(core: A.CoreTables, style):
     association = metrics[["fractional_paper_credit", "ukb_h_index"]].corr(
         method="spearman"
     ).iloc[0, 1]
-    ax_c.text(
-        0.04,
-        0.94,
-        f"Spearman rho = {association:.2f}\nn = {len(metrics):,} institutions",
-        transform=ax_c.transAxes,
-        ha="left",
-        va="top",
-        fontsize=style["annot_fs"],
-        bbox={"facecolor": "white", "edgecolor": "black", "alpha": 0.9, "pad": 3},
+    summary_box(
+        ax_c,
+        [
+            f"Spearman rho = {association:.2f}",
+            f"n = {len(metrics):,} institutions",
+        ],
+        style,
+        x=0.04,
+        y=0.94,
     )
     ax_c.set_xscale("log")
     ax_c.set(xlabel="Fractional publication credit", ylabel="Institutional UKB h-index")
-    _axis(ax_c)
+    style_axis(ax_c, style)
 
-    for ax, label in zip([ax_a, ax_b, ax_c], "ABC"):
-        _panel_label(ax, label, fontsize=style["title_fs"])
-    return _save(fig, "05_05_supplementary_figure_04_institutions", style)
+    label_panels([ax_a, ax_b, ax_c], "ABC", style)
+    return save_figure(
+        fig,
+        "05_06_supplementary_figure_05_institutions",
+        style,
+    )
 
 
 def _component_network_layout(network: A.NetworkTables):
@@ -886,7 +1283,7 @@ def _component_network_layout(network: A.NetworkTables):
         out=np.ones_like(radius),
         where=radius > 0,
     )[:, None]
-    giant_xy *= np.array([1.42, 1.15])
+    giant_xy *= np.array([1.30, 1.30])
 
     positions = np.zeros((len(author), 2), dtype=np.float32)
     positions[giant_indices] = giant_xy.astype(np.float32)
@@ -924,7 +1321,7 @@ def _component_network_layout(network: A.NetworkTables):
         centre_radius = math.sqrt(rng.uniform(inner**2, outer**2))
         angle = rng.uniform(0, 2 * math.pi)
         centre = centre_radius * np.array(
-            [math.cos(angle), 0.82 * math.sin(angle)]
+            [math.cos(angle), 0.98 * math.sin(angle)]
         )
         if count == 1:
             positions[node_indices[0]] = centre
@@ -1035,7 +1432,7 @@ def _draw_component_network(ax, network, style, *, compact=False, meta_ax=None):
             markerfacecolor=colors[key],
             markeredgecolor="black",
             markeredgewidth=0.5,
-            markersize=6.5,
+            markersize=marker_size(style),
             label=labels[key],
         )
         for key in ["isolate", "small", "intermediate", "giant"]
@@ -1045,8 +1442,8 @@ def _draw_component_network(ax, network, style, *, compact=False, meta_ax=None):
         meta_ax.set_axis_off()
     legend_kwargs = (
         {
-            "loc": "upper left",
-            "bbox_to_anchor": (0.0, 0.66),
+            "loc": "upper right",
+            "bbox_to_anchor": (1.0, 0.95),
             "borderaxespad": 0,
             "ncol": 1,
             "fontsize": style["legend_fs"] - 1,
@@ -1058,26 +1455,89 @@ def _draw_component_network(ax, network, style, *, compact=False, meta_ax=None):
             "fontsize": style["legend_fs"] - (2 if compact else 1),
         }
     )
-    legend = legend_target.legend(
+    black_legend(
+        legend_target,
+        style,
         handles=handles,
-        frameon=True,
-        facecolor="white",
-        edgecolor="black",
-        framealpha=1,
         **legend_kwargs,
     )
-    legend.get_frame().set_linewidth(0.9)
     giant_share = 100 * layout["giant_size"] / len(positions)
-    summary_target = ax if meta_ax is None else meta_ax
     if meta_ax is not None:
-        summary_text = (
-            f"{len(positions):,} resolved authors\n"
-            f"{layout['total_ties']:,} coauthor ties\n"
-            f"{giant_share:.1f}% in giant component"
+        meta_ax.text(
+            0.0,
+            0.88,
+            f"{len(positions):,}",
+            transform=meta_ax.transAxes,
+            ha="left",
+            va="top",
+            fontsize=style["annot_fs"] + 2,
+            fontweight="bold",
         )
-        summary_x, summary_y = 0.0, 0.42
-        summary_ha, summary_va = "left", "top"
-        summary_bbox = None
+        meta_ax.text(
+            0.0,
+            0.71,
+            "resolved authors",
+            transform=meta_ax.transAxes,
+            ha="left",
+            va="top",
+            fontsize=style["annot_fs"] - 1,
+        )
+        meta_ax.text(
+            0.0,
+            0.54,
+            f"{layout['total_ties'] / 1_000_000:.2f}m",
+            transform=meta_ax.transAxes,
+            ha="left",
+            va="top",
+            fontsize=style["annot_fs"] + 2,
+            fontweight="bold",
+        )
+        meta_ax.text(
+            0.0,
+            0.40,
+            "coauthor ties",
+            transform=meta_ax.transAxes,
+            ha="left",
+            va="top",
+            fontsize=style["annot_fs"] - 1,
+        )
+        meta_ax.text(
+            0.0,
+            0.20,
+            "Authors by component class",
+            transform=meta_ax.transAxes,
+            ha="left",
+            va="bottom",
+            fontsize=style["annot_fs"] - 1,
+        )
+        left = 0.0
+        for key in ["isolate", "small", "intermediate", "giant"]:
+            share = float(np.mean(categories == key))
+            meta_ax.add_patch(
+                Rectangle(
+                    (left, 0.03),
+                    share,
+                    0.11,
+                    transform=meta_ax.transAxes,
+                    facecolor=colors[key],
+                    edgecolor="black",
+                    linewidth=0.6,
+                    clip_on=False,
+                )
+            )
+            if share >= 0.08:
+                meta_ax.text(
+                    left + share / 2,
+                    0.085,
+                    f"{100 * share:.1f}%",
+                    transform=meta_ax.transAxes,
+                    ha="center",
+                    va="center",
+                    fontsize=style["annot_fs"] - 2,
+                    fontweight="bold",
+                    color="white" if key in {"intermediate", "giant"} else "black",
+                )
+            left += share
     else:
         summary_text = (
             f"Giant component\n{layout['giant_size']:,} of {len(positions):,} authors "
@@ -1088,31 +1548,22 @@ def _draw_component_network(ax, network, style, *, compact=False, meta_ax=None):
                 f"{layout['giant_size']:,} ({giant_share:.1f}%)"
             )
         )
-        summary_x = 0.99
-        summary_y = 0.985 if not compact else 0.01
-        summary_ha = "right"
-        summary_va = "top" if not compact else "bottom"
-        summary_bbox = {
-            "facecolor": "white",
-            "edgecolor": "black",
-            "alpha": 0.92,
-            "pad": 3,
-        }
-    summary_target.text(
-        summary_x,
-        summary_y,
-        summary_text,
-        transform=summary_target.transAxes,
-        ha=summary_ha,
-        va=summary_va,
-        fontsize=style["annot_fs"] - (1 if compact else 0),
-        bbox=summary_bbox,
-    )
+        summary_box(
+            ax,
+            summary_text,
+            style,
+            x=0.99,
+            y=0.985 if not compact else 0.01,
+            ha="right",
+            va="top" if not compact else "bottom",
+            fontsize=style["annot_fs"] - (1 if compact else 0),
+            bbox_kws={"alpha": 0.92},
+        )
     ax.set_aspect("equal")
     ax.set_anchor("E" if compact and meta_ax is not None else ("W" if compact else "C"))
     ax.set_axis_off()
     ax.set_xlim(-2.48, 2.48)
-    ax.set_ylim(-2.08, 2.18)
+    ax.set_ylim(-2.48, 2.48)
 
 
 def _draw_community_composition(ax, core, network, style, n=12):
@@ -1124,6 +1575,11 @@ def _draw_community_composition(ax, core, network, style, n=12):
         network.community_membership["community"].isin(top_communities)
     ].copy()
     fields = field_color_map(core, style, n=7)
+    if {"Biological Sciences", "Psychology"}.issubset(fields):
+        fields["Biological Sciences"], fields["Psychology"] = (
+            fields["Psychology"],
+            fields["Biological Sciences"],
+        )
     members["field_display"] = members["modal_for_l2"].where(
         members["modal_for_l2"].isin(fields),
         "Other",
@@ -1149,9 +1605,10 @@ def _draw_community_composition(ax, core, network, style, n=12):
         )
         left += values
     ax.set_xlabel("Resolved authors")
-    _axis(ax, grid_axis="x")
-    _black_legend(
+    style_axis(ax, style, grid_axis="x")
+    black_legend(
         ax,
+        style,
         title="Modal FOR division",
         loc="lower right",
         fontsize=style["legend_fs"] - 2,
@@ -1160,14 +1617,16 @@ def _draw_community_composition(ax, core, network, style, n=12):
 
 
 def plot_network_supplement(core: A.CoreTables, network: A.NetworkTables, style):
-    colors = _domain_colors(style)
-    network_color = colors["networks"]
+    colors = semantic_colors("domain_colors", style)
+    project_red = colors["name_gender"]
+    project_blue = colors["author_metrics"]
+    project_yellow = colors["institutions"]
     component_colors = _component_colors()
     summaries = A.network_figure_tables(network)
-    fig = plt.figure(figsize=style["figsize_panel"])
-    gs = fig.add_gridspec(
+    fig, gs = gridspec_figure(
         3,
         3,
+        style,
         width_ratios=[1.35, 1, 1],
         left=0.075,
         right=0.98,
@@ -1202,7 +1661,7 @@ def plot_network_supplement(core: A.CoreTables, network: A.NetworkTables, style)
         xticks=year_ticks(growth["year"].min(), growth["year"].max(), 3),
     )
     ax_b.yaxis.set_major_formatter(mticker.StrMethodFormatter("{x:,.0f}"))
-    _axis(ax_b, grid_axis="y")
+    style_axis(ax_b, style, grid_axis="y")
 
     # C: density of author productivity against distinct collaboration reach.
     ax_c = fig.add_subplot(gs[0, 2])
@@ -1228,22 +1687,22 @@ def plot_network_supplement(core: A.CoreTables, network: A.NetworkTables, style)
     association = connected[["n_ukb_papers", "coauthor_count"]].corr(
         method="spearman"
     ).iloc[0, 1]
-    ax_c.text(
-        0.04,
-        0.94,
-        f"Spearman rho = {association:.2f}\nn = {len(connected):,} authors",
-        transform=ax_c.transAxes,
-        ha="left",
-        va="top",
-        fontsize=style["annot_fs"],
-        bbox={"facecolor": "white", "edgecolor": "black", "alpha": 0.9, "pad": 3},
+    summary_box(
+        ax_c,
+        [
+            f"Spearman rho = {association:.2f}",
+            f"n = {len(connected):,} authors",
+        ],
+        style,
+        x=0.96,
+        y=0.06,
+        ha="right",
+        va="bottom",
     )
     ax_c.set(xlabel="UK Biobank publications", ylabel="Distinct coauthors")
-    _axis(ax_c)
+    style_axis(ax_c, style)
     colorbar = fig.colorbar(density, ax=ax_c, pad=0.025, fraction=0.055)
-    colorbar.set_label("Authors per hexagon\n(log scale)")
-    colorbar.outline.set_edgecolor("black")
-    colorbar.outline.set_linewidth(0.8)
+    style_colorbar(colorbar, "Authors per hexagon\n(log scale)")
 
     # D: most unique collaborations occur on only one shared paper.
     ax_d = fig.add_subplot(gs[1, 1])
@@ -1265,7 +1724,7 @@ def plot_network_supplement(core: A.CoreTables, network: A.NetworkTables, style)
     ax_d.set_xlabel("Share of unique coauthor ties")
     ax_d.xaxis.set_major_formatter(mticker.PercentFormatter(100))
     ax_d.margins(x=0.16)
-    _axis(ax_d, grid_axis="x")
+    style_axis(ax_d, style, grid_axis="x")
 
     # E: rank-size structure makes the giant/non-giant discontinuity explicit.
     ax_e = fig.add_subplot(gs[1, 2])
@@ -1273,12 +1732,23 @@ def plot_network_supplement(core: A.CoreTables, network: A.NetworkTables, style)
     giant = components.iloc[0]
     non_giant = components.iloc[1:].copy()
     non_giant["non_giant_rank"] = np.arange(1, len(non_giant) + 1)
+    component_markers = {
+        "Isolate": "o",
+        "Small (2-5)": "s",
+        "Intermediate (6-55)": "^",
+    }
+    rank_size_colors = {
+        "Isolate": project_red,
+        "Small (2-5)": project_yellow,
+        "Intermediate (6-55)": project_blue,
+    }
     for component_class, values in non_giant.groupby("component_class", sort=False):
         ax_e.scatter(
             values["non_giant_rank"],
             values["component_size"],
-            s=9,
-            color=component_colors[component_class],
+            s=marker_area(style, scale=0.22),
+            marker=component_markers.get(component_class, "o"),
+            color=rank_size_colors.get(component_class, project_blue),
             edgecolor="black",
             linewidth=0.25,
             alpha=0.78,
@@ -1286,21 +1756,30 @@ def plot_network_supplement(core: A.CoreTables, network: A.NetworkTables, style)
             label=component_class,
         )
     giant_share = 100 * giant["component_size"] / network.adjacency.shape[0]
-    ax_e.text(
-        0.96,
-        1.04,
-        f"Giant component\n{int(giant['component_size']):,} authors ({giant_share:.1f}%)",
-        transform=ax_e.transAxes,
+    summary_box(
+        ax_e,
+        (
+            f"Giant component\n"
+            f"{int(giant['component_size']):,} authors ({giant_share:.1f}%)"
+        ),
+        style,
+        x=0.96,
+        y=1.04,
         ha="right",
         va="bottom",
-        fontsize=style["annot_fs"],
-        bbox={"facecolor": "white", "edgecolor": "black", "alpha": 0.9, "pad": 3},
+        bbox_kws={"alpha": 0.9},
     )
     ax_e.set_xscale("log")
     ax_e.set_yscale("log")
     ax_e.set(xlabel="Non-giant component rank", ylabel="Authors per component")
-    _axis(ax_e)
-    _black_legend(ax_e, loc="lower left", fontsize=style["legend_fs"] - 3, ncol=1)
+    style_axis(ax_e, style)
+    black_legend(
+        ax_e,
+        style,
+        loc="lower left",
+        fontsize=style["legend_fs"] - 3,
+        ncol=1,
+    )
 
     # F: endpoint sensitivity is clearer as a normalized dumbbell than two curves.
     ax_f = fig.add_subplot(gs[2, 1:3])
@@ -1311,8 +1790,8 @@ def plot_network_supplement(core: A.CoreTables, network: A.NetworkTables, style)
     ax_f.scatter(
         np.full(len(y), 100),
         y,
-        s=42,
-        facecolor="white",
+        s=marker_area(style),
+        facecolor=project_blue,
         edgecolor="black",
         linewidth=0.9,
         zorder=3,
@@ -1321,9 +1800,9 @@ def plot_network_supplement(core: A.CoreTables, network: A.NetworkTables, style)
     ax_f.scatter(
         retained,
         y,
-        s=42,
+        s=marker_area(style),
         marker="s",
-        color=network_color,
+        color=project_yellow,
         edgecolor="black",
         linewidth=0.6,
         zorder=3,
@@ -1350,10 +1829,14 @@ def plot_network_supplement(core: A.CoreTables, network: A.NetworkTables, style)
     ax_f.set_xlim(20, 104)
     ax_f.set_xlabel("2025 value retained relative to all papers")
     ax_f.xaxis.set_major_formatter(mticker.PercentFormatter(100))
-    _axis(ax_f, grid_axis="x")
-    _black_legend(ax_f, loc="lower left")
+    style_axis(ax_f, style, grid_axis="x")
+    black_legend(ax_f, style, loc="lower left")
 
-    _panel_label(ax_a, "A", x=-0.03, fontsize=style["title_fs"])
+    panel_label(ax_a, "A", style, x=-0.03)
     for ax, label in zip([ax_b, ax_c, ax_d, ax_e, ax_f], "BCDEF"):
-        _panel_label(ax, label, x=-0.13, y=1.05, fontsize=style["title_fs"])
-    return _save(fig, "05_06_supplementary_figure_05_networks", style)
+        panel_label(ax, label, style, x=-0.13, y=1.05)
+    return save_figure(
+        fig,
+        "05_07_supplementary_figure_06_networks",
+        style,
+    )

@@ -33,6 +33,7 @@ import pandas as pd
 from scipy import sparse as sp
 from scipy.sparse.csgraph import connected_components
 
+from . import shared_name_gender as NG
 from . import shared_paths as P
 from .shared_for import add_for_columns
 from .shared_showcase import load_showcase, parse_listcol
@@ -45,7 +46,6 @@ LEIDEN_SEED = 48652
 NETWORK_LAYOUT_ITERATIONS = 100
 NETWORK_BACKBONE_REPEAT_LIMIT = 80_000
 AUTHOR_CONCENTRATION_THRESHOLDS = (1, 5, 10, 25, 50)
-_GENDER_DETECTOR = None
 
 SHOWCASE_COLUMNS = [
     "id",
@@ -255,33 +255,10 @@ def country_to_iso(country_code, country_name) -> tuple[str | None, str | None]:
     return iso2, iso3
 
 
-@cache
 def infer_name_gender(first_name) -> tuple[str, str, str]:
-    """Return expanded category, strict category, and raw dictionary result.
-
-    These are name-based categories, not self-identified gender. ``mostly_*`` calls
-    are grouped only in the expanded category; the strict category leaves them unknown.
-    """
-    global _GENDER_DETECTOR
-    if _GENDER_DETECTOR is None:
-        import gender_guesser.detector as gender_detector
-
-        _GENDER_DETECTOR = gender_detector.Detector(case_sensitive=False)
-
-    if not isinstance(first_name, str) or not first_name.strip():
-        return "Unknown", "Unknown", "missing"
-    token = re.sub(r"[^A-Za-zÀ-ÖØ-öø-ÿ'’-]", "", first_name.split()[0])
-    if len(token.replace("-", "")) <= 1:
-        return "Unknown", "Unknown", "initial"
-    raw = _GENDER_DETECTOR.get_gender(token)
-    expanded = {
-        "female": "Female",
-        "mostly_female": "Female",
-        "male": "Male",
-        "mostly_male": "Male",
-    }.get(raw, "Unknown")
-    strict = {"female": "Female", "male": "Male"}.get(raw, "Unknown")
-    return expanded, strict, raw
+    """Backward-compatible direct inference wrapper around the shared utility."""
+    result = NG.infer_name_gender(first_name)
+    return result.category, result.strict_category, result.detail
 
 
 def _complete_affiliation(affiliation: dict, lookup: dict) -> dict:
@@ -321,7 +298,6 @@ def build_authorship_tables(
             author_id = researcher_id or f"unresolved::{paper.id}::{position:04d}"
             first_name = _normalise_text(author.get("first_name")) or ""
             last_name = _normalise_text(author.get("last_name")) or ""
-            expanded_gender, strict_gender, gender_detail = infer_name_gender(first_name)
             authorship_rows.append({
                 "author_id": author_id,
                 "researcher_id": researcher_id,
@@ -343,9 +319,6 @@ def build_authorship_tables(
                 "is_corresponding": _as_bool(author.get("corresponding")),
                 "for_l2": paper.for_l2,
                 "for_l4": paper.for_l4,
-                "name_gender": expanded_gender,
-                "name_gender_strict": strict_gender,
-                "name_gender_detail": gender_detail,
             })
 
             raw_affiliations = [
@@ -401,7 +374,6 @@ def build_authorship_tables(
                     "longitude": affiliation.get("longitude"),
                     "org_type": _normalise_text(affiliation.get("org_type")),
                     "affiliation_source": source,
-                    "name_gender": expanded_gender,
                     "for_l2": paper.for_l2,
                     "for_l4": paper.for_l4,
                 })
@@ -414,6 +386,8 @@ def build_authorship_tables(
         .drop_duplicates(["paper_id", "author_id"], keep="first")
         .reset_index(drop=True)
     )
+    name_inference = NG.classify_authorship_names(authorships)
+    authorships = pd.concat([authorships, name_inference], axis=1)
     authorships["team_size"] = authorships.groupby("paper_id")["author_id"].transform("size")
     authorships["authorship_credit"] = 1.0 / authorships["team_size"]
     authorships["position_fraction"] = (
@@ -435,7 +409,15 @@ def build_authorship_tables(
         ["paper_id", "author_id", "institution_id", "iso3"], keep="first"
     ).reset_index(drop=True)
     affiliations = affiliations.merge(
-        authorships[["paper_id", "author_id", "authorship_credit", "team_size"]],
+        authorships[
+            [
+                "paper_id",
+                "author_id",
+                "authorship_credit",
+                "team_size",
+                "name_gender",
+            ]
+        ],
         on=["paper_id", "author_id"],
         how="inner",
         validate="many_to_one",
@@ -627,8 +609,29 @@ def build_author_metrics(
         "last_name",
         "orcid",
         "name_gender",
+        "name_gender_dictionary",
+        "name_gender_direct",
         "name_gender_strict",
         "name_gender_detail",
+        "name_gender_dictionary_detail",
+        "name_gender_method",
+        "name_gender_query",
+        "name_gender_vote_count",
+        "name_gender_vote_margin",
+        "name_gender_vote_share",
+        "name_gender_source_count",
+        "name_gender_direct_conflict",
+        "name_gender_source_predictions",
+        "name_gender_gender_guesser",
+        "name_gender_gender_detector",
+        "name_gender_nomquamgender",
+        "name_gender_names_dataset",
+        "name_gender_gename",
+        "name_gender_nomquamgender_probability",
+        "name_gender_nomquamgender_count",
+        "name_gender_names_dataset_probability",
+        "name_gender_unknown_reason",
+        "name_gender_identity_conflict",
     ]:
         out[column] = _fast_modal(stable, "author_id", column)
     out["current_org_id"] = _fast_modal(stable, "author_id", "current_org_id")
@@ -1516,6 +1519,35 @@ def network_figure_tables(network: NetworkTables) -> OrderedDict[str, pd.DataFra
 
 def quality_audit(source, papers, core: CoreTables) -> pd.DataFrame:
     authorships = core.authorships
+    gender_coverage = NG.inference_coverage(authorships).set_index("stage")
+    gender_methods = NG.inference_method_counts(authorships)
+    offline_direct_rows = int(
+        authorships["name_gender_direct"].isin(NG.CLASSIFIED_CATEGORIES).sum()
+    )
+    offline_conflicts = int(authorships["name_gender_direct_conflict"].sum())
+    accepted_majorities = int(
+        gender_methods.loc[
+            gender_methods["name_gender_method"].eq(
+                "offline_ensemble_majority"
+            ),
+            "author_paper_pairs",
+        ].sum()
+    )
+    identity_rows = int(
+        gender_methods.loc[
+            gender_methods["name_gender_method"].eq(
+                "researcher_identity_consensus"
+            ),
+            "author_paper_pairs",
+        ].sum()
+    )
+    identity_conflicts = int(
+        authorships.loc[
+            authorships["name_gender_identity_conflict"], "researcher_id"
+        ].nunique()
+    )
+    library_audit = NG.offline_library_audit(authorships)
+    unresolved_queries = NG.unresolved_query_queue(authorships)
     parsed_by_paper = authorships.groupby("paper_id").size()
     reported = papers.set_index("id")["authors_count"]
     comparable = pd.concat([parsed_by_paper.rename("parsed"), reported.rename("reported")], axis=1)
@@ -1542,13 +1574,72 @@ def quality_audit(source, papers, core: CoreTables) -> pd.DataFrame:
         ("Geolocated fractional paper credit", round(float(country_credit), 2), "out of papers with parsed authors"),
         ("Institutional fractional paper credit", round(float(institution_credit), 2), "out of papers with parsed authors"),
         ("Duplicate institution metadata variants collapsed", int(institution_metadata_variants), "same author-paper institution; counted once for credit"),
-        ("Name-classified author-paper pairs", int(authorships["name_gender"].isin(["Female", "Male"]).sum()), "expanded dictionary rule"),
-        ("Unknown/androgynous name pairs", int(authorships["name_gender"].eq("Unknown").sum()), "kept and reported"),
+        (
+            "Strict dictionary-classified name pairs",
+            int(gender_coverage.loc["Strict dictionary", "classified_author_paper_pairs"]),
+            "gender_guesser exact female/male calls",
+        ),
+        (
+            "Expanded dictionary-classified name pairs",
+            int(gender_coverage.loc["Expanded dictionary", "classified_author_paper_pairs"]),
+            "adds mostly_female/mostly_male after shared name normalization",
+        ),
+        (
+            "Primary name-classified author-paper pairs",
+            int(gender_coverage.loc["Primary + identity linkage", "classified_author_paper_pairs"]),
+            "offline ensemble plus conflict-safe researcher linkage",
+        ),
+        (
+            "Offline ensemble-classified name pairs",
+            offline_direct_rows,
+            "five local libraries; no APIs or remote caches",
+        ),
+        (
+            "Offline package-vote conflicts",
+            offline_conflicts,
+            "retained only when the configured supermajority rule was met",
+        ),
+        (
+            "Accepted conflicting-vote majorities",
+            accepted_majorities,
+            (
+                f">={NG.ENSEMBLE_MIN_MAJORITY_VOTES} winning votes and "
+                f">={NG.ENSEMBLE_MIN_VOTE_MARGIN}-vote margin"
+            ),
+        ),
+        (
+            "Researcher-linkage name assignments",
+            identity_rows,
+            "unknown row linked only when all direct calls for that researcher agreed",
+        ),
+        (
+            "Researchers with conflicting direct name calls",
+            identity_conflicts,
+            "all rows conservatively returned to Unknown",
+        ),
+        (
+            "Unknown/androgynous name pairs",
+            int(authorships["name_gender"].eq("Unknown").sum()),
+            "kept in totals and excluded only from Female/Male share denominators",
+        ),
+        (
+            "Unresolved normalized names after offline ensemble",
+            len(unresolved_queries),
+            "retained as Unknown; exported with all package votes",
+        ),
         ("Papers missing FOR L2", int(papers["for_l2"].apply(len).eq(0).sum()), "kept as unclassified"),
         ("Papers with >=2 FOR L2 divisions", int(papers["for_l2"].apply(len).ge(2).sum()), "multi-label; no primary field assumed"),
         ("Largest parsed author team", int(authorships["team_size"].max()), "network sensitivity threshold is 100"),
         ("Papers with parsed list shorter than authors_count", int((comparable["parsed"] < comparable["reported"]).fillna(False).sum()), "possible source truncation"),
     ]
+    rows.extend(
+        (
+            f"{row.library} classified name pairs",
+            int(row.classified_author_paper_pairs),
+            f"offline package {row.version}; {row.coverage_percent:.1f}% coverage",
+        )
+        for row in library_audit.itertuples(index=False)
+    )
     return pd.DataFrame(rows, columns=["metric", "value", "interpretation"])
 
 
@@ -1606,6 +1697,72 @@ def validation_checks(
         ("author_credit_concentration_monotonic", bool(concentration["credit_share_percent"].is_monotonic_increasing and concentration["credit_share_percent"].between(0, 100).all()), ", ".join(f"{value:.1f}" for value in concentration["credit_share_percent"]), "nondecreasing; 0-100"),
         ("author_productivity_bands_exhaustive", int(productivity["n_authors"].sum()) == len(core.author_metrics), int(productivity["n_authors"].sum()), len(core.author_metrics)),
         ("gender_shares_bounded", bool(core.gender_by_year["female_name_share"].dropna().between(0, 100).all()), "0-100", "0-100"),
+        (
+            "name_gender_categories_valid",
+            bool(authorships["name_gender"].isin(["Female", "Male", "Unknown"]).all()),
+            ", ".join(sorted(authorships["name_gender"].unique())),
+            "Female, Male, Unknown",
+        ),
+        (
+            "name_gender_dictionary_sensitivity_ordered",
+            int(authorships["name_gender_strict"].isin(["Female", "Male"]).sum())
+            <= int(authorships["name_gender_dictionary"].isin(["Female", "Male"]).sum())
+            <= int(authorships["name_gender_direct"].isin(["Female", "Male"]).sum()),
+            "strict <= expanded <= enhanced direct",
+            "strict <= expanded <= enhanced direct",
+        ),
+        (
+            "resolved_name_categories_consistent",
+            bool(
+                authorships[authorships["identity_resolved"]]
+                .loc[lambda frame: frame["name_gender"].isin(["Female", "Male"])]
+                .groupby("researcher_id")["name_gender"]
+                .nunique()
+                .le(1)
+                .all()
+            ),
+            "at most one classified category per researcher",
+            "at most one classified category per researcher",
+        ),
+        (
+            "offline_name_libraries_available",
+            bool(NG.offline_library_versions()["available"].all()),
+            ", ".join(
+                NG.offline_library_versions().apply(
+                    lambda row: f"{row['library']}={row['version']}", axis=1
+                )
+            ),
+            "all pinned offline libraries available",
+        ),
+        (
+            "offline_conflicting_votes_meet_majority_rule",
+            bool(
+                authorships.loc[
+                    authorships["name_gender_direct_conflict"]
+                    & authorships["name_gender_direct"].isin(
+                        NG.CLASSIFIED_CATEGORIES
+                    ),
+                    ["name_gender_vote_count", "name_gender_vote_margin"],
+                ]
+                .assign(
+                    valid=lambda frame: frame["name_gender_vote_count"].ge(
+                        NG.ENSEMBLE_MIN_MAJORITY_VOTES
+                    )
+                    & frame["name_gender_vote_margin"].ge(
+                        NG.ENSEMBLE_MIN_VOTE_MARGIN
+                    )
+                )["valid"]
+                .all()
+            ),
+            (
+                f">={NG.ENSEMBLE_MIN_MAJORITY_VOTES} votes; "
+                f">={NG.ENSEMBLE_MIN_VOTE_MARGIN} margin"
+            ),
+            (
+                f">={NG.ENSEMBLE_MIN_MAJORITY_VOTES} votes; "
+                f">={NG.ENSEMBLE_MIN_VOTE_MARGIN} margin"
+            ),
+        ),
     ]
     if network is not None:
         all_years = network.metrics_by_year[network.metrics_by_year["scenario"].eq("All papers")]
@@ -1731,19 +1888,19 @@ def legacy_artifact_crosswalk() -> pd.DataFrame:
     """Document how each substantive legacy output is retained after consolidation."""
     rows = [
         ("05_authors_1_metrics", "author_analytics.xlsx", "supplementary_author_characteristics.xlsx + author_metrics.csv", "retained and expanded; h-index explicitly UKB-specific"),
-        ("05_authors_2 / 3_CHECK", "geographic maps (whole, fractional, intensity, org basis)", "Figure 1D + Supplementary Figure 3B-D + country_metrics.csv", "all four geographic views retained with harmonized ISO-3 entities"),
-        ("05_geography_4 / 5", "static geography composite", "Figure 1D + Supplementary Figure 3", "redesigned across the headline and geography-only evidence"),
-        ("05_geography_4 / 5", "geography evolution GIF", "Supplementary Figure 3 temporal panels", "converted to static cumulative and diversity trajectories"),
-        ("05_authors_2 / 3_CHECK", "top-institution FOR bars", "Supplementary Figure 4", "retained with fractional multi-affiliation credit"),
+        ("05_authors_2 / 3_CHECK", "geographic maps (whole, fractional, intensity, org basis)", "Figure 1E + Supplementary Figure 3A-C + country_metrics.csv", "all four geographic views retained with harmonized ISO-3 entities"),
+        ("05_geography_4 / 5", "static geography composite", "Figure 1E + Supplementary Figures 3-4", "separated into map-only and quantitative geography evidence"),
+        ("05_geography_4 / 5", "geography evolution GIF", "Figure 1C + Supplementary Figure 4D", "cumulative country reach promoted to the headline; period-averaged diversity retained as a nonduplicative static summary"),
+        ("05_authors_2 / 3_CHECK", "top-institution FOR bars", "Supplementary Figure 5", "retained with fractional multi-affiliation credit"),
         ("05_institutional_metrics", "institutional_analytics.xlsx", "supplementary_author_characteristics.xlsx + institution_metrics.csv", "retained and corrected for paper/field duplication"),
-        ("05_authors_2 / 3_CHECK", "gender trends", "Figure 1C + Supplementary Figure 2", "trend promoted to headline; coverage/roles/fields in supplement"),
-        ("05_network_over_time", "network evolution with metrics", "Figure 1A + Supplementary Figure 5 + network_metrics_by_year.csv", "retained as one static topology view, nonredundant structural summaries and a complete annual table"),
+        ("05_authors_2 / 3_CHECK", "gender trends", "Figure 1D + Supplementary Figure 2", "trend promoted to headline; coverage/roles/fields in supplement"),
+        ("05_network_over_time", "network evolution with metrics", "Figure 1A + Supplementary Figure 6 + network_metrics_by_year.csv", "retained as one static topology view, nonredundant structural summaries and a complete annual table"),
         ("05_network_over_time", "annual degree, component and tie-strength metrics", "network_metrics_by_year.csv", "retained for all papers and a hyperauthorship sensitivity"),
-        ("05_network_over_time", "Leiden community network and CSV tables", "Figure 1A + Supplementary Figure 5A + community CSVs", "retained using igraph Leiden and fractional edge weights"),
+        ("05_network_over_time", "Leiden community network and CSV tables", "Figure 1A + Supplementary Figure 6A + community CSVs", "retained using igraph Leiden and fractional edge weights"),
         ("05_network_over_time", "paper and author topic/institution assignments", "paper_for_assignments.csv + author_metrics.csv + network_community_membership.csv", "retained without imposing a first-listed primary FOR category"),
         ("05_network_over_time", "full community L2/L4/institution count and summary tables", "network_community_*_counts.csv + network_community_*_summary.csv", "retained and expanded with country and name-category intersections"),
-        ("05_network_over_time", "collapsed community L2/L4/institution tables", "Supplementary Figure 5A + network_collapsed_*_counts.csv + network_collapsed_*_summary.csv", "retained for the 12-community composition display"),
-        ("05_authors_1_metrics", "author productivity distribution", "Figure 1F + Supplementary Figure 1A + author_productivity_bands.csv", "compact mutually exclusive bands promoted to the headline; complete survival curve retained in the author supplement"),
+        ("05_network_over_time", "collapsed community L2/L4/institution tables", "Supplementary Figure 6A + network_collapsed_*_counts.csv + network_collapsed_*_summary.csv", "retained for the 12-community composition display"),
+        ("05_authors_1_metrics", "author productivity distribution", "Supplementary Figure 1A + author_productivity_bands.csv", "complete survival curve and mutually exclusive band table retained in the author supplement"),
         ("05_authors_2 / 3_CHECK", "paper_combined", "Figure 1", "replaced by a six-panel synthesis across five analytical domains"),
     ]
     return pd.DataFrame(rows, columns=["legacy_source", "legacy_artifact", "successor", "status"])
@@ -1760,9 +1917,12 @@ def metric_definitions() -> pd.DataFrame:
         ("Author productivity band", "Mutually exclusive grouping of resolved authors by their number of UK Biobank publications: 1, 2-4, 5-9 or 10+."),
         ("Modal author assignment", "An author's most frequent FOR, institution or country after each paper is split equally across that paper's multiple assignments; ties are deterministic."),
         ("Author home assignment", "Current organization metadata when its GRID record resolves; otherwise the author's modal observed affiliation, with the source flagged."),
-        ("Female-name share", "Female-category author-paper pairs divided by female- plus male-category pairs; unknown and androgynous names are reported but excluded from this denominator."),
-        ("Expanded name rule", "gender_guesser female/mostly_female and male/mostly_male calls grouped as Female and Male; all other calls Unknown."),
-        ("Strict name rule", "Only exact female and male dictionary calls are classified; mostly_* and androgynous calls remain Unknown."),
+        ("Female-name share", "Female-category author-paper pairs divided by Female- plus Male-category pairs; unknown and androgynous names are reported but excluded from this denominator."),
+        ("Strict name rule", "Only gender_guesser exact female and male calls are classified; mostly_* and androgynous calls remain Unknown."),
+        ("Expanded name rule", "Adds gender_guesser mostly_female/mostly_male calls after Unicode-safe cleanup, leading-initial removal and diacritic-normalized retry."),
+        ("Offline ensemble name rule", f"Combines one local vote each from gender_guesser, gender_detector, nomquamgender, names-dataset and gename. Non-conflicting available votes are accepted; conflicts require at least {NG.ENSEMBLE_MIN_MAJORITY_VOTES} winning votes and a {NG.ENSEMBLE_MIN_VOTE_MARGIN}-vote margin."),
+        ("Primary name rule", "Offline ensemble classification plus within-researcher propagation when all directly classified name observations agree; every row for identities with conflicting direct calls remains Unknown."),
+        ("Name-category limitation", "Female and Male are binary statistical name categories, not observed sex or self-identified gender; Unknown is retained because error and non-classification are culturally patterned."),
         ("Effective entities", "Exponentiated Shannon entropy of annual fractional country or institution credit."),
         ("Institutional concentration", "Share of annual observed institutional fractional credit assigned to that year's leading one or ten institutions."),
         ("Coauthor tie", "An undirected link between two resolved authors appearing on at least one common paper."),
@@ -1775,6 +1935,10 @@ def metric_definitions() -> pd.DataFrame:
 
 
 def analysis_parameters(source, papers) -> pd.DataFrame:
+    libraries = NG.offline_library_versions()
+    library_versions = ", ".join(
+        libraries.apply(lambda row: f"{row['library']}={row['version']}", axis=1)
+    )
     rows = [
         ("input", P.raw_path(P.SHOWCASE_PLUS)),
         ("source_records", len(source)),
@@ -1784,7 +1948,15 @@ def analysis_parameters(source, papers) -> pd.DataFrame:
         ("provisional_years_excluded", ", ".join(map(str, sorted(source.loc[source["year"].gt(LAST_COMPLETE_YEAR), "year"].dropna().unique())))),
         ("author_identity", "Dimensions researcher_id"),
         ("unresolved_identity", "paper-local key; no cross-paper linkage"),
-        ("name_gender_dictionary", "gender_guesser; offline"),
+        ("name_gender_dictionary", "gender_guesser strict and expanded rules; offline"),
+        ("name_gender_normalization", "Unicode-safe; skip leading initials; retry de-accented token"),
+        ("name_gender_inference_mode", "offline package-bundled data only; no APIs or remote caches"),
+        ("name_gender_offline_libraries", library_versions),
+        ("name_gender_probability_threshold", NG.OFFLINE_MIN_PROBABILITY),
+        ("name_gender_nomquam_min_count", NG.NOMQUAM_MIN_COUNT),
+        ("name_gender_conflict_min_votes", NG.ENSEMBLE_MIN_MAJORITY_VOTES),
+        ("name_gender_conflict_min_margin", NG.ENSEMBLE_MIN_VOTE_MARGIN),
+        ("name_gender_identity_linkage", "Dimensions researcher_id; unanimous direct evidence only"),
         ("hyperauthor_threshold", HYPERAUTHOR_THRESHOLD),
         ("leiden_resolution", LEIDEN_RESOLUTION),
         ("leiden_seed", LEIDEN_SEED),
@@ -1804,49 +1976,72 @@ def figure_captions() -> OrderedDict:
             "every resolved author plotted. Node colour distinguishes isolates, components of 2-5 authors, "
             "intermediate components and the giant component. All ties outside the giant component are "
             "shown; giant-component edges use a connected actual-edge backbone comprising a breadth-first "
-            f"tree and up to {NETWORK_BACKBONE_REPEAT_LIMIT:,} repeated coauthorship ties. (B) "
+            f"tree and up to {NETWORK_BACKBONE_REPEAT_LIMIT:,} repeated coauthorship ties. The stacked "
+            "strip reports the share of resolved authors in each component class. (B) "
             "Cumulative shares of resolved-author fractional publication credit held by authors ranked "
-            "in the top 1%, 5%, 10%, 25% and 50% of the credit distribution. (C) Annual share "
+            "in the top 1%, 5%, 10%, 25% and 50% of the credit distribution. (C) Cumulative number of "
+            "unique author-affiliation countries observed through each publication year. (D) Annual share "
             "of author-paper pairs assigned to the Female name category among pairs assigned Female or "
             "Male, with 95% Wilson confidence intervals. Name categories are algorithmically inferred "
-            "and are not self-identified gender. (D) Geographic distribution of fractional publication "
-            "credit by author-affiliation country on a linear navy-to-yellow scale. (E) Distribution of "
-            "resolved authors across mutually exclusive UK Biobank publication-count bands (1, 2-4, "
-            "5-9 and 10+ papers). (F) Annual concentration of observed institutional credit in the "
+            "and are not self-identified gender. (E) Geographic distribution of fractional publication "
+            "credit by author-affiliation country on a linear navy-to-yellow scale. (F) Annual "
+            "concentration of observed institutional credit in the "
             "leading institution and leading ten institutions. "
             "Records from provisional year 2026 were excluded."
         ),
         "supplementary_figure_01_caption.txt": (
             "Supplementary Figure 1 | UK Biobank-specific author productivity and impact. (A) "
-            "Complementary cumulative distribution of publication counts. (B) Distribution of UKB "
-            "h-index values, truncated at the 99.5th percentile for legibility. (C) Association between "
+            "Complementary cumulative distribution of publication counts, annotated with the median, "
+            "interquartile range, upper-tail share and maximum. (B) Distribution of UKB "
+            "h-index values, truncated at the 99.5th percentile for legibility and annotated with "
+            "distributional summaries. (C) Association between "
             "UKB publication count and UKB h-index, with the Spearman rank correlation reported. (D) Authors with the "
-            "highest UKB h-index, with publication counts. Citation measures are snapshot values and "
+            "ten highest UKB h-index values, with publication and citation counts. Citation measures are snapshot values and "
             "the UKB h-index uses only publications in the analysed corpus."
         ),
         "supplementary_figure_02_caption.txt": (
             "Supplementary Figure 2 | Name-inferred gender composition of UK Biobank authorships. "
             "(A) Annual author-paper counts assigned Female, Male or Unknown/androgynous. (B) Annual "
-            "classification coverage under expanded and strict dictionary rules. (C) Female-name share "
+            "classification coverage under strict dictionary, expanded dictionary, five-library "
+            "offline ensemble and primary identity-linked rules. The ensemble uses only package-bundled "
+            "local data with explicit disagreement thresholds; the primary rule adds conflict-safe "
+            "linkage across records carrying the same Dimensions researcher ID. "
+            "(C) Female-name share "
             "among classified names by authorship position, with 95% Wilson intervals. Corresponding "
             "authorship can overlap positional roles. (D) Female-name share in the 12 FOR divisions with "
-            "the most classified author-paper memberships. These categories are probabilistic proxies "
-            "from names, not self-identified gender, and classification coverage varies culturally."
+            "the most classified author-paper memberships. Panel D uses a sequential blue scale for "
+            "legibility, not a second variable. These binary categories are probabilistic proxies from "
+            "names, not observed sex or self-identified gender; Unknown is retained because both error "
+            "and non-classification vary culturally."
         ),
         "supplementary_figure_03_caption.txt": (
-            "Supplementary Figure 3 | Geographic distribution and diversification of UK Biobank "
-            "authorship. (A) Countries with the largest shares of geolocated fractional publication "
-            "credit. (B) Distinct papers by author-affiliation country. (C) Distinct papers by the source "
-            "publication's research-organization countries. (D) Author-paper rows per paper among countries "
-            "represented on at least 20 papers. Maps B-D use logarithmic scales. (E) Cumulative number of "
-            "represented affiliation countries. (F) Mean annual effective number of countries in four "
-            "publication-year periods, defined as exponentiated Shannon entropy of fractional country "
-            "credit. Period aggregation reduces sensitivity to annual endpoint lag. Credit is split across authors and "
-            "each author's distinct affiliation countries; papers with unresolved geography retain their "
-            "author credit but do not contribute to mapped totals."
+            "Supplementary Figure 3 | Geographic distribution of UK Biobank authorship. "
+            "(A) Distinct papers by author-affiliation country. (B) Distinct papers by the source "
+            "publication's research-organisation countries. Panels A and B use a shared logarithmic "
+            "colour scale. (C) Author-paper rows per paper among countries represented on at least "
+            "20 papers, shown on a separate logarithmic scale. Countries without eligible records are "
+            "shown in light grey."
         ),
         "supplementary_figure_04_caption.txt": (
-            "Supplementary Figure 4 | Institutional participation in UK Biobank research. (A) Leading "
+            "Supplementary Figure 4 | Geographic reach and diversification of UK Biobank authorship. "
+            "(A) Countries with the largest shares of geolocated fractional publication credit. "
+            "(B) Country-level agreement between distinct paper counts from author-affiliation metadata "
+            "and source research-organisation metadata, with a one-to-one reference and Spearman rank "
+            "correlation; labelled countries have the largest proportional discrepancies among countries "
+            "with at least ten papers under both definitions. Separate callouts identify the shared "
+            "minimum-count point and the country with the largest geometric mean count across definitions. "
+            "(C) Period-specific shares of geolocated "
+            "fractional publication credit for the eight "
+            "leading countries across all years; colour uses a logarithmic scale and annotations report "
+            "the exact percentage. (D) Mean annual effective "
+            "number of countries in four publication-year periods, defined as exponentiated Shannon "
+            "entropy of fractional country credit. Period aggregation reduces sensitivity to annual "
+            "endpoint lag. Credit is split across authors and each author's distinct affiliation "
+            "countries; papers with unresolved geography retain their author credit but do not contribute "
+            "to geolocated totals."
+        ),
+        "supplementary_figure_05_caption.txt": (
+            "Supplementary Figure 5 | Institutional participation in UK Biobank research. (A) Leading "
             "institutions by fractional publication credit, partitioned across all reported FOR L2 "
             "divisions with multi-label credit split equally. (B) Cumulative number of observed "
             "institutions. (C) Institutional UKB h-index against fractional publication credit, with the "
@@ -1854,8 +2049,8 @@ def figure_captions() -> OrderedDict:
             "Affiliations are fractional across authors "
             "and multiple affiliations."
         ),
-        "supplementary_figure_05_caption.txt": (
-            "Supplementary Figure 5 | UK Biobank coauthorship structure. (A) Modal FOR composition of "
+        "supplementary_figure_06_caption.txt": (
+            "Supplementary Figure 6 | UK Biobank coauthorship structure. (A) Modal FOR composition of "
             "the 12 largest Leiden communities in the full resolved-author network. (B) Newly resolved "
             "authors entering the cumulative network each year. (C) Association between UK Biobank "
             "publication count and the number of distinct coauthors among connected authors. Hexagon "
@@ -1873,6 +2068,30 @@ def methods_text(source, papers, core: CoreTables, network: NetworkTables) -> st
     missing_papers = len(papers) - core.authorships["paper_id"].nunique()
     unresolved = int((~core.authorships["identity_resolved"]).sum())
     unknown = int(core.authorships["name_gender"].eq("Unknown").sum())
+    coverage = NG.inference_coverage(core.authorships).set_index("stage")
+    offline_assignments = int(
+        core.authorships["name_gender_direct"].isin(NG.CLASSIFIED_CATEGORIES).sum()
+    )
+    accepted_conflicts = int(
+        core.authorships["name_gender_method"]
+        .eq("offline_ensemble_majority")
+        .sum()
+    )
+    linked_assignments = int(
+        core.authorships["name_gender_method"].eq(
+            "researcher_identity_consensus"
+        ).sum()
+    )
+    identity_conflicts = int(
+        core.authorships.loc[
+            core.authorships["name_gender_identity_conflict"], "researcher_id"
+        ].nunique()
+    )
+    library_versions = ", ".join(
+        NG.offline_library_versions().apply(
+            lambda row: f"{row['library']} {row['version']}", axis=1
+        )
+    )
     return (
         "Author-characteristics analysis. The analysis used the Showcase+ all-endpoints-wide "
         f"publication parquet ({len(source):,} records at the source snapshot). Primary analyses "
@@ -1897,12 +2116,33 @@ def methods_text(source, papers, core: CoreTables, network: NetworkTables) -> st
         "or countries. Author home institutions used resolvable current-organization metadata with the "
         "modal observed affiliation as an explicitly flagged fallback. Country identifiers "
         "were harmonized to ISO-3 and mapped to Natural Earth 1:110m Admin 0 geometry. "
-        "Name-based gender categories were assigned offline with gender_guesser. The expanded rule "
-        "grouped female/mostly_female as Female and male/mostly_male as Male; androgynous, unknown, "
-        f"initial-only and missing names remained Unknown ({unknown:,} author-paper pairs). Female-name "
-        "shares used Female plus Male as the denominator, while Unknown was shown separately. These "
-        "categories are not self-identified gender and are culturally differential proxies; strict-rule "
-        "coverage and country/field intersection tables are supplied for sensitivity. Coauthorship "
+        "Name-based categories were inferred through one shared, auditable and entirely offline "
+        "pipeline used by every active project analysis. Given-name strings were cleaned without "
+        "restricting Unicode alphabets; leading one-letter initials were skipped, and an "
+        "accent-normalized retry was made when needed. The strict gender_guesser rule retained exact "
+        "female/male calls, whereas the expanded rule grouped mostly_female/mostly_male as "
+        f"Female/Male and classified {int(coverage.loc['Expanded dictionary', 'classified_author_paper_pairs']):,} "
+        "author-paper pairs. The direct rule combined one vote from each installed local-data package: "
+        f"{library_versions}. nomquamgender and names-dataset votes required probability >= "
+        f"{NG.OFFLINE_MIN_PROBABILITY:.2f}; nomquamgender additionally required at least "
+        f"{NG.NOMQUAM_MIN_COUNT:,} underlying records. Non-conflicting available votes were accepted. "
+        f"When packages disagreed, classification required at least {NG.ENSEMBLE_MIN_MAJORITY_VOTES} "
+        f"winning votes and a {NG.ENSEMBLE_MIN_VOTE_MARGIN}-vote margin; otherwise the name remained "
+        "Unknown. Each package contributed at most one vote, including one internally consensus-checked "
+        "vote across gender-detector's UK, US, Argentina and Uruguay tables. The ensemble classified "
+        f"{offline_assignments:,} author-paper pairs directly, including {accepted_conflicts:,} assignments "
+        "accepted under the conflicting-vote majority rule. No API client, network request or remotely "
+        "populated name cache was used. For Dimensions-resolved researchers, an unknown row was "
+        "assigned from other records only when every direct Female/Male call for that researcher agreed "
+        f"({linked_assignments:,} rows recovered). All rows for the {identity_conflicts:,} researchers "
+        "with conflicting direct calls were conservatively returned to Unknown. Unresolved library "
+        f"conflicts, low-confidence, low-support, initial-only and missing cases remained Unknown ({unknown:,} "
+        "author-paper pairs). Female-name shares used Female plus Male as the denominator, while Unknown "
+        "was shown separately. These binary statistical name categories are neither observed sex nor "
+        "self-identified gender. Name-based inference has culturally patterned error and non-classification "
+        "(Lockhart, King and Munsch, 2023; doi:10.1038/s41562-023-01587-9); strict/expanded coverage, "
+        "method counts and unresolved query tables are therefore supplied as sensitivity and audit "
+        "outputs. Coauthorship "
         "networks included Dimensions-resolved authors. An undirected edge linked authors sharing at "
         "least one paper. Raw tie strength counted shared papers; fractional strength assigned each "
         "edge on an n-author paper weight 1/(n-1), so each author's collaboration credit from that "
@@ -1935,6 +2175,12 @@ def export_analysis_artifacts(
     headline = headline_statistics(core, network)
     concentration = author_credit_concentration(core.author_metrics)
     productivity = author_productivity_bands(core.author_metrics)
+    gender_coverage = NG.inference_coverage(core.authorships)
+    gender_coverage_by_year = NG.inference_coverage(core.authorships, "year")
+    gender_methods = NG.inference_method_counts(core.authorships)
+    gender_library_audit = NG.offline_library_audit(core.authorships)
+    gender_library_versions = NG.offline_library_versions()
+    unresolved_name_queries = NG.unresolved_query_queue(core.authorships)
     definitions = metric_definitions()
     parameters = analysis_parameters(source, papers)
     crosswalk = legacy_artifact_crosswalk()
@@ -1970,6 +2216,12 @@ def export_analysis_artifacts(
         "gender_by_for_division.csv": core.gender_by_field,
         "gender_by_country.csv": core.gender_by_country,
         "gender_by_institution.csv": core.gender_by_institution,
+        "name_gender_inference_coverage.csv": gender_coverage,
+        "name_gender_inference_coverage_by_year.csv": gender_coverage_by_year,
+        "name_gender_inference_method_counts.csv": gender_methods,
+        "name_gender_offline_library_audit.csv": gender_library_audit,
+        "name_gender_offline_library_versions.csv": gender_library_versions,
+        "name_gender_unresolved_queries.csv": unresolved_name_queries,
         "country_metrics_by_year.csv": core.country_by_year,
         "institution_metrics_by_year.csv": core.institution_by_year,
         "network_metrics_by_year.csv": network.metrics_by_year,
@@ -2003,6 +2255,10 @@ def export_analysis_artifacts(
         "Gender by FOR": core.gender_by_field,
         "Gender by country": core.gender_by_country,
         "Gender by institution": core.gender_by_institution,
+        "Name inference coverage": gender_coverage,
+        "Name coverage by year": gender_coverage_by_year,
+        "Name inference methods": gender_methods,
+        "Unresolved name queries": unresolved_name_queries,
         "Country by year": core.country_by_year,
         "Institution by year": core.institution_by_year,
         "Network by year": network.metrics_by_year,
@@ -2058,6 +2314,9 @@ def export_analysis_artifacts(
         "author_table": author_table,
         "concentration": concentration,
         "productivity": productivity,
+        "gender_coverage": gender_coverage,
+        "gender_methods": gender_methods,
+        "unresolved_name_queries": unresolved_name_queries,
         "audit": audit,
         "checks": checks,
         "headline": headline,

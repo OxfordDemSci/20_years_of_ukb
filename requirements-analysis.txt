@@ -1,0 +1,6 @@
+# Name-category inference is fully offline after package installation.
+gender-guesser==0.4.0
+gender-detector==0.1.0
+nomquamgender==0.1.4
+names-dataset==3.3.1
+gename==0.0.7

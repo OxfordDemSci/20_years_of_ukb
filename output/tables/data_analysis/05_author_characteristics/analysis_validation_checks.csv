@@ -12,6 +12,11 @@ ukb_h_index_bounded_by_papers,True,77,<= n_ukb_papers
 author_credit_concentration_monotonic,True,"20.5, 44.0, 57.5, 76.9, 91.3",nondecreasing; 0-100
 author_productivity_bands_exhaustive,True,69237,69237
 gender_shares_bounded,True,0-100,0-100
+name_gender_categories_valid,True,"Female, Male, Unknown","Female, Male, Unknown"
+name_gender_dictionary_sensitivity_ordered,True,strict <= expanded <= enhanced direct,strict <= expanded <= enhanced direct
+resolved_name_categories_consistent,True,at most one classified category per researcher,at most one classified category per researcher
+offline_name_libraries_available,True,"gender_guesser=0.4.0, gender_detector=0.1.0, nomquamgender=0.1.4, names_dataset=3.3.1, gename=0.0.7",all pinned offline libraries available
+offline_conflicting_votes_meet_majority_rule,True,>=3 votes; >=2 margin,>=3 votes; >=2 margin
 network_years_complete,True,13,13
 network_author_coverage,True,69237,69237
 community_membership_complete,True,69237,69237

@@ -42,10 +42,15 @@ style:
     annot_fs:  10
     legend_fs: 11
 
+    # marker diameters are in points; scatter areas are in points squared
+    marker_size:      8.5
+    dot_marker_area: 76
+
     # misc
     dpi: 300
     cmap: ocean
     edgecolor: grey
+    grid_linestyle: "--"
     save: false                                  # set true to write figures out
     formats: [pdf]
     savedir: output/figures/data_analysis
@@ -78,6 +83,8 @@ style:
       annot_fs: 14
       legend_fs: 14
       body_fs: 14
+      marker_size: 9.5
+      dot_marker_area: 92
       grid_linestyle: "--"
       axes_linewidth: 1.1
       tick_length: 6
@@ -118,6 +125,11 @@ style:
         geography: 3
         institutions: 1
         networks: 2
+      author_metric_colors:
+        productivity: 1
+        h_index: 0
+        association: 2
+        leaders: 3
       gender_colors:
         Female: 0
         Male: 3
@@ -131,6 +143,8 @@ style:
       annot_fs: 11
       legend_fs: 11
       body_fs: 12
+      marker_size: 9.5
+      dot_marker_area: 92
       grid_linestyle: "--"
       axes_linewidth: 1.1
       tick_length: 5.5

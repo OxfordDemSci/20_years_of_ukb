@@ -21,6 +21,8 @@ import numpy as np
 import pandas as pd
 from cycler import cycler
 
+from .shared_style import DEFAULT_DOT_MARKER_AREA, DEFAULT_MARKER_SIZE
+
 DEFAULT_DATA_CANDIDATES = [
     Path("output/non_academic_flagged_full_company.xlsx"),
     Path("output/non_academic_flagged_full_company.progress.csv"),
@@ -1140,6 +1142,7 @@ def apply_project_plot_style() -> None:
             "xtick.labelsize": 10,
             "ytick.labelsize": 10,
             "legend.fontsize": 10,
+            "lines.markersize": DEFAULT_MARKER_SIZE,
             "axes.prop_cycle": cycler(
                 color=[
                     "#1b9e77",
@@ -1809,7 +1812,7 @@ def plot_top_journal_company_share(journal_df: pd.DataFrame, top_n: int = 15) ->
         plot_df["uk_company_share"] * 100,
         y,
         color="#345995",
-        s=35,
+        s=DEFAULT_DOT_MARKER_AREA,
         zorder=3,
         label="UK company share",
     )

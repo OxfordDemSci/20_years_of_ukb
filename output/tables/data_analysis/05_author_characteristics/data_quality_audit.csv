@@ -15,9 +15,22 @@ Authorship rows with no affiliation,14287.0,excluded only from affiliation analy
 Geolocated fractional paper credit,22915.97,out of papers with parsed authors
 Institutional fractional paper credit,23090.55,out of papers with parsed authors
 Duplicate institution metadata variants collapsed,52.0,same author-paper institution; counted once for credit
-Name-classified author-paper pairs,166938.0,expanded dictionary rule
-Unknown/androgynous name pairs,107665.0,kept and reported
+Strict dictionary-classified name pairs,160424.0,gender_guesser exact female/male calls
+Expanded dictionary-classified name pairs,168755.0,adds mostly_female/mostly_male after shared name normalization
+Primary name-classified author-paper pairs,217785.0,offline ensemble plus conflict-safe researcher linkage
+Offline ensemble-classified name pairs,212627.0,five local libraries; no APIs or remote caches
+Offline package-vote conflicts,8915.0,retained only when the configured supermajority rule was met
+Accepted conflicting-vote majorities,855.0,>=3 winning votes and >=2-vote margin
+Researcher-linkage name assignments,8384.0,unknown row linked only when all direct calls for that researcher agreed
+Researchers with conflicting direct name calls,163.0,all rows conservatively returned to Unknown
+Unknown/androgynous name pairs,56818.0,kept in totals and excluded only from Female/Male share denominators
+Unresolved normalized names after offline ensemble,11488.0,retained as Unknown; exported with all package votes
 Papers missing FOR L2,20.0,kept as unclassified
 Papers with >=2 FOR L2 divisions,9024.0,multi-label; no primary field assumed
 Largest parsed author team,2119.0,network sensitivity threshold is 100
 Papers with parsed list shorter than authors_count,0.0,possible source truncation
+gender_guesser classified name pairs,168755.0,offline package 0.4.0; 61.5% coverage
+gender_detector classified name pairs,181686.0,offline package 0.1.0; 66.2% coverage
+nomquamgender classified name pairs,166987.0,offline package 0.1.4; 60.8% coverage
+names_dataset classified name pairs,177034.0,offline package 3.3.1; 64.5% coverage
+gename classified name pairs,203827.0,offline package 0.0.7; 74.2% coverage

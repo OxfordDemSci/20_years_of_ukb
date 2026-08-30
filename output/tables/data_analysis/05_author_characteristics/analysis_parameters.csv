@@ -7,7 +7,15 @@ last_complete_year,2025
 provisional_years_excluded,2026
 author_identity,Dimensions researcher_id
 unresolved_identity,paper-local key; no cross-paper linkage
-name_gender_dictionary,gender_guesser; offline
+name_gender_dictionary,gender_guesser strict and expanded rules; offline
+name_gender_normalization,Unicode-safe; skip leading initials; retry de-accented token
+name_gender_inference_mode,offline package-bundled data only; no APIs or remote caches
+name_gender_offline_libraries,"gender_guesser=0.4.0, gender_detector=0.1.0, nomquamgender=0.1.4, names_dataset=3.3.1, gename=0.0.7"
+name_gender_probability_threshold,0.9
+name_gender_nomquam_min_count,20
+name_gender_conflict_min_votes,3
+name_gender_conflict_min_margin,2
+name_gender_identity_linkage,Dimensions researcher_id; unanimous direct evidence only
 hyperauthor_threshold,100
 leiden_resolution,1.0
 leiden_seed,48652

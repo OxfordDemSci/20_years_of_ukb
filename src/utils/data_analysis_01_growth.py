@@ -16,6 +16,9 @@ from matplotlib.colors import to_rgb, to_rgba
 from matplotlib.patches import Rectangle
 
 from .shared_showcase import load_showcase
+from .shared_style import compact_count as shared_compact_count
+from .shared_style import marker_area as shared_marker_area
+from .shared_style import panel_label as shared_panel_label
 from .shared_style import sequential_colormap
 
 ENDPOINT_SPECS = OrderedDict({
@@ -1194,17 +1197,15 @@ class GrowthPlotter:
     grid_kws: Mapping
 
     def panel_label(self, ax, label, x=-0.12, y=1.08, in_layout=True):
-        artist = ax.text(
-            x,
-            y,
+        return shared_panel_label(
+            ax,
             label,
-            transform=ax.transAxes,
-            fontsize=self.style["title_fs"],
-            fontweight="bold",
+            self.style,
+            x=x,
+            y=y,
             va="top",
+            in_layout=in_layout,
         )
-        artist.set_in_layout(in_layout)
-        return artist
 
     def format_year_axis(self, ax):
         ticks = [
@@ -1221,14 +1222,7 @@ class GrowthPlotter:
 
     @staticmethod
     def compact_count(value):
-        value = float(value)
-        if value >= 1_000_000:
-            return f"{value / 1_000_000:.1f}m"
-        if value >= 10_000:
-            return f"{value / 1_000:.1f}k"
-        if value >= 1_000:
-            return f"{value / 1_000:.1f}k"
-        return f"{value:,.0f}"
+        return shared_compact_count(value)
 
     def inset_sparkline(self, ax, series, title, color):
         x = series.index.to_numpy(dtype=float)
@@ -1236,7 +1230,13 @@ class GrowthPlotter:
         ax.set_facecolor("#FCFCFB")
         ax.plot(x, y, color=color, linewidth=1.8, zorder=2)
         ax.fill_between(x, y, color=color, alpha=0.11, zorder=1)
-        ax.scatter(x[-1], y[-1], color=color, s=15, zorder=3)
+        ax.scatter(
+            x[-1],
+            y[-1],
+            color=color,
+            s=shared_marker_area(self.style, scale=0.38),
+            zorder=3,
+        )
         ax.set_xlim(self.first_year, self.last_complete_year + 0.35)
         ax.set_ylim(0, max(y[-1] * 1.28, 1))
         ax.set_xticks([self.first_year, self.baseline, self.last_complete_year])
@@ -1365,7 +1365,7 @@ def plot_growth_and_reach(
         color=metric_colors["publications"],
         edgecolor="white",
         linewidth=1.0,
-        s=52,
+        s=shared_marker_area(style, scale=0.90),
         zorder=4,
     )
     ax_main.set_ylabel("Cumulative Publications")
@@ -1474,7 +1474,7 @@ def plot_growth_and_reach(
         ax_rates.scatter(
             value,
             y_position,
-            s=48,
+            s=shared_marker_area(style),
             color=color,
             edgecolor="white",
             linewidth=0.8,

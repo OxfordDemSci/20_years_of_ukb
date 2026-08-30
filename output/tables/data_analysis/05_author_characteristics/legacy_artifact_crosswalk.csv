@@ -1,16 +1,16 @@
 legacy_source,legacy_artifact,successor,status
 05_authors_1_metrics,author_analytics.xlsx,supplementary_author_characteristics.xlsx + author_metrics.csv,retained and expanded; h-index explicitly UKB-specific
-05_authors_2 / 3_CHECK,"geographic maps (whole, fractional, intensity, org basis)",Figure 1D + Supplementary Figure 3B-D + country_metrics.csv,all four geographic views retained with harmonized ISO-3 entities
-05_geography_4 / 5,static geography composite,Figure 1D + Supplementary Figure 3,redesigned across the headline and geography-only evidence
-05_geography_4 / 5,geography evolution GIF,Supplementary Figure 3 temporal panels,converted to static cumulative and diversity trajectories
-05_authors_2 / 3_CHECK,top-institution FOR bars,Supplementary Figure 4,retained with fractional multi-affiliation credit
+05_authors_2 / 3_CHECK,"geographic maps (whole, fractional, intensity, org basis)",Figure 1E + Supplementary Figure 3A-C + country_metrics.csv,all four geographic views retained with harmonized ISO-3 entities
+05_geography_4 / 5,static geography composite,Figure 1E + Supplementary Figures 3-4,separated into map-only and quantitative geography evidence
+05_geography_4 / 5,geography evolution GIF,Figure 1C + Supplementary Figure 4D,cumulative country reach promoted to the headline; period-averaged diversity retained as a nonduplicative static summary
+05_authors_2 / 3_CHECK,top-institution FOR bars,Supplementary Figure 5,retained with fractional multi-affiliation credit
 05_institutional_metrics,institutional_analytics.xlsx,supplementary_author_characteristics.xlsx + institution_metrics.csv,retained and corrected for paper/field duplication
-05_authors_2 / 3_CHECK,gender trends,Figure 1C + Supplementary Figure 2,trend promoted to headline; coverage/roles/fields in supplement
-05_network_over_time,network evolution with metrics,Figure 1A + Supplementary Figure 5 + network_metrics_by_year.csv,"retained as one static topology view, nonredundant structural summaries and a complete annual table"
+05_authors_2 / 3_CHECK,gender trends,Figure 1D + Supplementary Figure 2,trend promoted to headline; coverage/roles/fields in supplement
+05_network_over_time,network evolution with metrics,Figure 1A + Supplementary Figure 6 + network_metrics_by_year.csv,"retained as one static topology view, nonredundant structural summaries and a complete annual table"
 05_network_over_time,"annual degree, component and tie-strength metrics",network_metrics_by_year.csv,retained for all papers and a hyperauthorship sensitivity
-05_network_over_time,Leiden community network and CSV tables,Figure 1A + Supplementary Figure 5A + community CSVs,retained using igraph Leiden and fractional edge weights
+05_network_over_time,Leiden community network and CSV tables,Figure 1A + Supplementary Figure 6A + community CSVs,retained using igraph Leiden and fractional edge weights
 05_network_over_time,paper and author topic/institution assignments,paper_for_assignments.csv + author_metrics.csv + network_community_membership.csv,retained without imposing a first-listed primary FOR category
 05_network_over_time,full community L2/L4/institution count and summary tables,network_community_*_counts.csv + network_community_*_summary.csv,retained and expanded with country and name-category intersections
-05_network_over_time,collapsed community L2/L4/institution tables,Supplementary Figure 5A + network_collapsed_*_counts.csv + network_collapsed_*_summary.csv,retained for the 12-community composition display
-05_authors_1_metrics,author productivity distribution,Figure 1F + Supplementary Figure 1A + author_productivity_bands.csv,compact mutually exclusive bands promoted to the headline; complete survival curve retained in the author supplement
+05_network_over_time,collapsed community L2/L4/institution tables,Supplementary Figure 6A + network_collapsed_*_counts.csv + network_collapsed_*_summary.csv,retained for the 12-community composition display
+05_authors_1_metrics,author productivity distribution,Supplementary Figure 1A + author_productivity_bands.csv,complete survival curve and mutually exclusive band table retained in the author supplement
 05_authors_2 / 3_CHECK,paper_combined,Figure 1,replaced by a six-panel synthesis across five analytical domains

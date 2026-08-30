@@ -1,14 +1,14 @@
 plot_node,n_authors,n_communities,modal_for_l2,modal_for_l4,modal_institution,female_name_share
-Community 1,6891,1,Biological Sciences,Genetics,University Medical Center Groningen,43.56400143420581
-Community 10,1599,1,Biomedical and Clinical Sciences,Clinical Sciences,National Institutes of Health,45.48238897396631
-Community 11,1580,1,Biomedical and Clinical Sciences,Ophthalmology and Optometry,University of Leeds,39.10614525139665
-Community 12,1564,1,Biomedical and Clinical Sciences,Biological Psychology,University of Glasgow,49.60443037974684
-Community 2,3646,1,Biomedical and Clinical Sciences,Oncology and Carcinogenesis,National Cancer Institute,50.78864353312303
-Community 3,3236,1,Biological Sciences,Genetics,Massachusetts General Hospital,42.33511586452763
-Community 4,2581,1,Biomedical and Clinical Sciences,Biological Psychology,University of Oslo,41.640042598509055
-Community 5,2201,1,Biological Sciences,Genetics,Princess Royal Hospital,66.53824986241057
-Community 6,1963,1,Biomedical and Clinical Sciences,Clinical Sciences,University College London,37.163978494623656
-Community 7,1754,1,Biological Sciences,Genetics,Regeneron Pharmaceuticals Inc,39.77110157367668
-Community 8,1748,1,Biomedical and Clinical Sciences,Clinical Sciences,University of Pennsylvania,39.45902943516309
-Community 9,1609,1,Biomedical and Clinical Sciences,Epidemiology,University of Exeter,46.927374301675975
-Other communities,38865,1850,Biomedical and Clinical Sciences,Clinical Sciences,Southern Medical University,16.181366907916715
+Community 1,6891,1,Biological Sciences,Genetics,University Medical Center Groningen,44.04337973454192
+Community 10,1599,1,Biomedical and Clinical Sciences,Clinical Sciences,National Institutes of Health,46.883468834688344
+Community 11,1580,1,Biomedical and Clinical Sciences,Ophthalmology and Optometry,University of Leeds,40.4996214988645
+Community 12,1564,1,Biomedical and Clinical Sciences,Biological Psychology,University of Glasgow,49.64028776978417
+Community 2,3646,1,Biomedical and Clinical Sciences,Oncology and Carcinogenesis,National Cancer Institute,50.72868217054263
+Community 3,3236,1,Biological Sciences,Genetics,Massachusetts General Hospital,42.42093784078517
+Community 4,2581,1,Biomedical and Clinical Sciences,Biological Psychology,University of Oslo,41.278538812785385
+Community 5,2201,1,Biological Sciences,Genetics,Princess Royal Hospital,66.39839034205231
+Community 6,1963,1,Biomedical and Clinical Sciences,Clinical Sciences,University College London,37.46364165212333
+Community 7,1754,1,Biological Sciences,Genetics,Regeneron Pharmaceuticals Inc,39.582013932868904
+Community 8,1748,1,Biomedical and Clinical Sciences,Clinical Sciences,University of Pennsylvania,39.93333333333333
+Community 9,1609,1,Biomedical and Clinical Sciences,Epidemiology,University of Exeter,46.85920577617328
+Other communities,38865,1850,Biomedical and Clinical Sciences,Clinical Sciences,Southern Medical University,38.156221873407816
