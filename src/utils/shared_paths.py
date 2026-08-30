@@ -80,6 +80,11 @@ NON_ACADEMIC = ANALYSIS / "non_academic"
 CLINICAL_TRIALS = NON_ACADEMIC / "clinical_trials"
 PATENT = NON_ACADEMIC / "patent"
 POLICY = NON_ACADEMIC / "policy"
+# The collaborator-tagging arm. Its output used to land in `output/` next to the figures,
+# which put an expensive, re-derivable *input* to the analysis among the deliverables. It
+# is an analysis-derived table like every other file under `data/analysis/`, so it lives
+# here with them.
+COLLABORATION = NON_ACADEMIC / "collaboration"
 
 # -- named files that more than one notebook reads ---------------------------------
 AUTHOR_PAPER_CACHE = AUTHOR_ANALYSIS / "df_author_paper.parsed.pkl"
@@ -89,21 +94,48 @@ FIELD_COVERAGE = FOR_COUNTS / "field_coverage.parquet"
 CT_CSV = CLINICAL_TRIALS / "clinical_trials.csv"
 CT_UKBB_PAPERS = CLINICAL_TRIALS / "ct_ukbb_papers.csv"
 PATENTS_DETAILED = PATENT / "patents_detailed.csv"
+# RCDC macro-cluster partition (Louvain) behind §4.1 of the patents notebook. Reached as a
+# bare "file/paten_rcdc_macro/..." until 2026-08-26 — a directory that has never existed
+# here, so the notebook died on that cell. (Directory name misspelled on disk; kept.)
+PATENT_RCDC_MACRO = PATENT / "paten_rcdc_macro"
+PATENT_RCDC_SUMMARY = PATENT_RCDC_MACRO / "cluster_label_summary_louvain.csv"
 POLICY_CSV = POLICY / "policy_documents.csv"
-# API snapshot collected from the showcase_plus publication PIDs.
-ALTMETRIC_CSV = DATA / "altmetric" / "altmetric.csv"
-# Offline fallback rebuilt from the corpus + the policy pull. It is NOT equivalent
-# to the API snapshot above: it carries no news mentions, and its "Policy mentions"
-# are Dimensions policy citations. See
-# data_analysis_04_non_academic_altmetric_from_corpus.py.
+# The real Altmetric Explorer export, with its audit trail and raw response cache beside
+# it. Read as a bare "altmetric.csv" / "output/..." relative to the notebook's cwd until
+# 2026-08-26 (so it resolved differently depending on where the kernel was launched), then
+# pointed at `data/analysis/non_academic/` where no export had ever been placed. It is a
+# SOURCE, not an analysis output, so it belongs under `data/` beside the other pulls.
+ALTMETRIC_DIR = DATA / "altmetric"
+ALTMETRIC_CSV = ALTMETRIC_DIR / "altmetric.csv"
+# The Altmetric export above is NOT in the repo and has no provenance record. This
+# is the substitute rebuilt from the corpus + the policy pull: same column names,
+# so a real export can be dropped in later and the notebook switches by path alone.
+# It is NOT equivalent — it carries no news mentions, and its "Policy mentions" are
+# Dimensions policy citations. See data_analysis_04_non_academic_altmetric_from_corpus.py.
 ALTMETRIC_DERIVED = NON_ACADEMIC / "altmetric_from_corpus.csv"
-COLLAB_FLAGGED = ROOT / "output" / "non_academic_flagged_full_company.xlsx"
+# CSV, not xlsx: `_write_frame` JSON-encodes the list columns, and `authors` on the
+# largest paper in the corpus (2,119 author slots) serialises well past Excel's
+# 32,767-character cell limit -- openpyxl would raise or silently truncate. The helpers
+# read either suffix and parse the JSON back, so the choice costs nothing downstream.
+COLLAB_FLAGGED = COLLABORATION / "non_academic_flagged_full_company.csv"
+# Per-institution-set classifier cache, keyed on the institution tuple and fsynced per
+# batch. It is what makes a re-run free, so it is named here rather than in the notebook.
+COLLAB_CACHE = COLLABORATION / "collab_classifier_cache.jsonl"
 
 # -- static reference data ----------------------------------------------------------
-WORLD_SHP = DATA / "ne_110m_admin_0_countries" / "ne_110m_admin_0_countries.shp"
+# Natural Earth 110m admin-0 countries, v5.1.1. The old constant named a directory that
+# has never existed on this machine, so every choropleth raised; the shapefile is in
+# `data/shapefile/`, with its provenance in the README beside it.
+WORLD_SHP = DATA / "shapefile" / "ne_110m_admin_0_countries" / "ne_110m_admin_0_countries.shp"
 # FOR id <-> code <-> name (80003 <-> 32 <-> 'Biomedical and Clinical Sciences'). It sits
 # in doc/ rather than data/ because it ships with the repo and the methodology cites it.
 FOR_2020_CODES = ROOT / "doc" / "category_for_2020_codes.csv"
+
+# -- credentials --------------------------------------------------------------------
+# Same shape and same gitignore rule as the Dimensions key in config/dsl.ini: the file
+# itself is never committed, config/anthropic.ini.example shows the section and key names.
+# Read only by the collaboration classifier, and only when ANTHROPIC_API_KEY is unset.
+ANTHROPIC_INI = ROOT / "config" / "anthropic.ini"
 
 # -- deliverables: everything a notebook exports lands under output/ -----------------
 # The notebooks' savedirs are configured in universal_settings.yml; these constants are
@@ -165,7 +197,7 @@ def ensure_dirs() -> None:
     """Create the output directories that notebooks write into, if missing."""
     for d in (AUTHOR_ANALYSIS, ACADEMIC_IMPACT, FOR_COUNTS, FOR_COUNTS_API,
               CONTENT, BERTOPIC_CACHE, CLINICAL_TRIALS, PATENT,
-              POLICY, DIMENSION_CACHE, DIMENSION_FLAT, OUTPUT_TABLES,
+              POLICY, COLLABORATION, DIMENSION_CACHE, DIMENSION_FLAT, OUTPUT_TABLES,
               FIG_GROWTH, TABLE_GROWTH, TABLE_CONTENT,
               FIG_AUTHORS, FIG_AUTHOR_CHARACTERISTICS,
               TABLE_AUTHOR_CHARACTERISTICS, FIG_CONTENT, FIG_NETWORK, FIG_NON_ACADEMIC,

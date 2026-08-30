@@ -166,8 +166,19 @@ style:
 
     02_content:
       # Topic-modelling and category-flow figures: streamgraphs, ridge waves and bump
-      # charts over many categories, so the palette is extended by extended_palette(n)
-      # rather than the four base colours.
+      # charts over many categories, so the four base colours are not enough — this
+      # section carries its own 12-colour palette instead.
+      #
+      # These twelve are the STREAM_COLOURS literal that 02_content_1_bert_topic.ipynb
+      # defines inline (its PRODUCTION_STREAM_CMAP anchors). They are lifted here so the
+      # category-flow notebook draws the same figure family in the same colours; twelve
+      # anchors is exactly TOP_N_FLOW, so extended_palette(12) returns them unchanged
+      # rather than interpolating, and the closing "All other categories" band keeps its
+      # grey. When 02_content_1 gains its load_style call it should drop the literal and
+      # read these.
+      colors: ["#264653", "#2A6F83", "#2A9D8F", "#55A868",
+               "#86B94E", "#C7C94A", "#E9C46A", "#F4A261",
+               "#E76F51", "#B65C7A", "#7B4EA3", "#4C4E9D"]
       save: true
       formats: [pdf, svg, png]
       savedir: output/figures/data_analysis/02_content

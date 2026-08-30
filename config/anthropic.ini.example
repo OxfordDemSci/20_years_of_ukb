@@ -1,0 +1,15 @@
+# Anthropic API credential for the collaborator-tagging step of
+# src/data_analysis/04_non_academic_04_collaboration.ipynb.
+#
+# Copy this file to config/anthropic.ini and paste your key in. The real file is
+# gitignored by the same `config/*.ini` rule that protects the Dimensions key in
+# dsl.ini -- it must never be committed.
+#
+# This file is only consulted when ANTHROPIC_API_KEY is unset in the environment.
+# An exported ANTHROPIC_API_KEY, or an `ant auth login` profile, both work instead
+# and both take precedence.
+#
+# Get a key at https://console.anthropic.com/settings/keys
+
+[anthropic]
+api_key = sk-ant-REPLACE-ME

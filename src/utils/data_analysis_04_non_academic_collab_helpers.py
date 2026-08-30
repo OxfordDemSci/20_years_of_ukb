@@ -23,7 +23,11 @@ from cycler import cycler
 
 from .shared_style import DEFAULT_DOT_MARKER_AREA, DEFAULT_MARKER_SIZE
 
+# The canonical output first; the `output/` entries below it are pre-2026-08-26 homes,
+# kept only so a stale file on someone's disk is still found rather than silently missed.
+# `find_data_path` picks the NEWEST match, so a fresh run always wins over a stale one.
 DEFAULT_DATA_CANDIDATES = [
+    Path("data/analysis/non_academic/collaboration/non_academic_flagged_full_company.csv"),
     Path("output/non_academic_flagged_full_company.xlsx"),
     Path("output/non_academic_flagged_full_company.progress.csv"),
     Path("output/non_academic_flagged.xlsx"),
@@ -47,6 +51,20 @@ _COMPANY_SUFFIX_RE = re.compile(
     r"\b(inc|llc|ltd|plc|corp|corporation|gmbh|ag|sa|nv|oy|oyj|ab|as|bv|pte|sarl|limited)\b",
     re.IGNORECASE,
 )
+
+
+def _figure_dir() -> Path:
+    """Where this notebook's figures go: output/figures/data_analysis/04_non_academic.
+
+    The three plot functions below used to derive their default from `Path.cwd()` and a
+    `is this "src"?` walk. `shared_paths.bootstrap()` makes cwd the repo ROOT, so that
+    walk resolved to the repo root itself and every run dropped loose PDFs/PNGs at the
+    top of the checkout. Anchor on the registry instead, like every other notebook.
+    """
+    from . import shared_paths as P
+
+    P.FIG_NON_ACADEMIC.mkdir(parents=True, exist_ok=True)
+    return P.FIG_NON_ACADEMIC
 
 
 def find_data_path(
@@ -1289,8 +1307,12 @@ def plot_cumulative_by_type(df: pd.DataFrame, start_year: int = 2014, end_year: 
         series_spec = [
             (label, sector_flag_col(label), color_map.get(label, "#BDBDBD"))
             for label in NON_ACADEMIC_SECTOR_LABELS
+            if label != "University/HEI"
         ]
-        title = f"Cumulative papers by taxonomy sector ({start_year}-{end_year})"
+        title = (
+            "Cumulative papers by taxonomy sector, excl. University/HEI "
+            f"({start_year}-{end_year})"
+        )
     else:
         series_spec = [
             ("Any taxonomy collaborator", "non_academic_flag", "#D4AF37"),
@@ -1551,14 +1573,7 @@ def plot_flag_overlap_heatmap(
     if save_path is not None:
         base_out = Path(save_path).with_suffix("")
     else:
-        base_dir = Path.cwd()
-        if base_dir.name == "src":
-            target_dir = base_dir
-        elif (base_dir / "src").exists():
-            target_dir = base_dir / "src"
-        else:
-            target_dir = base_dir
-        base_out = target_dir / "collaboration_flag_overlap_heatmap"
+        base_out = _figure_dir() / "collaboration_flag_overlap_heatmap"
     base_out.parent.mkdir(parents=True, exist_ok=True)
 
     saved_paths: dict[str, Path] = {}
@@ -2015,14 +2030,7 @@ def plot_for_company_share_scatter(
     if save_path is not None:
         base_out = Path(save_path).with_suffix("")
     else:
-        base_dir = Path.cwd()
-        if base_dir.name == "src":
-            target_dir = base_dir
-        elif (base_dir / "src").exists():
-            target_dir = base_dir / "src"
-        else:
-            target_dir = base_dir
-        base_out = target_dir / "for_level2_volume_vs_company_collaborator_share"
+        base_out = _figure_dir() / "for_level2_volume_vs_company_collaborator_share"
     base_out.parent.mkdir(parents=True, exist_ok=True)
 
     saved_paths: dict[str, Path] = {}
@@ -3183,10 +3191,7 @@ def plot_publication_figure(
         if save_path is not None:
             base_out = Path(save_path).with_suffix("")
         else:
-            base_dir = Path.cwd()
-            if base_dir.name == "src":
-                base_dir = base_dir.parent
-            base_out = base_dir / "output" / "non_academic_collab_publication_figure"
+            base_out = _figure_dir() / "non_academic_collab_publication_figure"
         base_out.parent.mkdir(parents=True, exist_ok=True)
 
         saved_paths: dict[str, Path] = {}
