@@ -1767,12 +1767,46 @@ def _pick_journal_name(row: pd.Series) -> str:
     return ""
 
 
+# Sector series drawn over the journal bars. Every entry is a non-academic tag —
+# University/HEI is deliberately absent, this figure is about who else is in the
+# author list — plus a combined company series so UK and non-UK company
+# collaboration can be read as one number. Colours match the sector palette used
+# elsewhere in the module; the marker shapes carry the distinction when two
+# sectors land on nearly the same share.
+JOURNAL_SECTOR_MARKER_SPEC = [
+    ("Company (all)", "company_flag", "#5E548E", "o"),
+    ("UK company", sector_flag_col("UK company"), "#D4AF37", "D"),
+    ("Hospital/Clinical", sector_flag_col("Hospital/Clinical"), "#2A9D8F", "s"),
+    ("Government/Public", sector_flag_col("Government/Public"), "#8D99AE", "^"),
+    ("Research institute/Centre", sector_flag_col("Research institute/Centre"), "#6A994E", "v"),
+    ("Nonprofit/Charity", sector_flag_col("Nonprofit/Charity"), "#A1C181", "P"),
+]
+
+
+def journal_share_col(label: str) -> str:
+    """Column holding a journal's share of papers carrying `label`."""
+    return f"share_{_sector_slug(label)}"
+
+
+def _journal_marker_spec(df: pd.DataFrame):
+    """The marker series whose flag columns actually exist on `df`."""
+    return [spec for spec in JOURNAL_SECTOR_MARKER_SPEC if spec[1] in df.columns]
+
+
 def build_journal_company_table(
     df: pd.DataFrame,
     top_n: int = 20,
     min_papers: int = 25,
 ) -> pd.DataFrame:
-    """Build journal-level paper volume and company collaboration share table."""
+    """Build journal-level paper volume and non-academic collaboration shares.
+
+    Every share is over ALL publications the journal has in the corpus, not only
+    the ones with a taxonomy collaborator: `papers` is the raw journal count and
+    is the denominator throughout. Shares are produced for each non-academic
+    sector in `JOURNAL_SECTOR_MARKER_SPEC`, for their union
+    (`non_academic_share`), and — kept for callers that predate the sector
+    breakdown — for companies and any taxonomy sector including University/HEI.
+    """
     journal_df = df.copy()
     journal_df["any_sector_collab_flag"] = _any_sector_collab_mask(journal_df).astype(int)
     journal_df["journal_name"] = journal_df.apply(_pick_journal_name, axis=1)
@@ -1780,14 +1814,32 @@ def build_journal_company_table(
     if journal_df.empty:
         return pd.DataFrame()
 
+    marker_spec = _journal_marker_spec(journal_df)
+
+    # The bar is the union of the marker series, so a journal's bar can never sit
+    # below one of its own markers. University/HEI and Other/Unknown stay out of
+    # it: the first is academia, the second says nothing about the sector.
+    union_cols = [col for _, col, _, _ in marker_spec]
+    if union_cols:
+        journal_df["non_academic_sector_flag"] = (
+            journal_df[union_cols].fillna(0).astype(int).max(axis=1)
+        )
+    else:
+        journal_df["non_academic_sector_flag"] = 0
+
+    agg = {
+        "papers": ("journal_name", "size"),
+        "company_papers": ("company_flag", "sum"),
+        "uk_company_papers": ("uk_company_flag", "sum"),
+        "any_sector_papers": ("any_sector_collab_flag", "sum"),
+        "non_academic_papers": ("non_academic_sector_flag", "sum"),
+    }
+    for label, col, _, _ in marker_spec:
+        agg[f"papers_{_sector_slug(label)}"] = (col, "sum")
+
     grouped = (
         journal_df.groupby("journal_name", as_index=False)
-        .agg(
-            papers=("journal_name", "size"),
-            company_papers=("company_flag", "sum"),
-            uk_company_papers=("uk_company_flag", "sum"),
-            any_sector_papers=("any_sector_collab_flag", "sum"),
-        )
+        .agg(**agg)
         .sort_values("papers", ascending=False)
     )
 
@@ -1798,50 +1850,85 @@ def build_journal_company_table(
     grouped["company_share"] = grouped["company_papers"] / grouped["papers"]
     grouped["uk_company_share"] = grouped["uk_company_papers"] / grouped["papers"]
     grouped["any_sector_share"] = grouped["any_sector_papers"] / grouped["papers"]
+    grouped["non_academic_share"] = grouped["non_academic_papers"] / grouped["papers"]
+    for label, _, _, _ in marker_spec:
+        grouped[journal_share_col(label)] = (
+            grouped[f"papers_{_sector_slug(label)}"] / grouped["papers"]
+        )
 
     grouped = grouped.sort_values("papers", ascending=False).head(top_n).reset_index(drop=True)
     return grouped
 
 
-def plot_top_journal_company_share(journal_df: pd.DataFrame, top_n: int = 15) -> None:
-    """Plot company and UK-company shares for top journals."""
+def plot_top_journal_company_share(
+    journal_df: pd.DataFrame,
+    top_n: int = 15,
+    sort_by: str = "non_academic_share",
+) -> None:
+    """Plot non-academic collaboration shares for the highest-volume journals.
+
+    The bar is the share of the journal's papers with any non-academic sector
+    collaborator; the markers split that into the individual sectors. Both are
+    shares of all the journal's publications.
+    """
     if journal_df.empty:
         print("No journal data available for plotting.")
         return
 
+    bar_col = "non_academic_share" if "non_academic_share" in journal_df.columns else "company_share"
+    if sort_by not in journal_df.columns:
+        sort_by = bar_col
+
     plot_df = journal_df.sort_values("papers", ascending=False).head(top_n).copy()
-    plot_df = plot_df.sort_values("company_share", ascending=True)
+    plot_df = plot_df.sort_values(sort_by, ascending=True)
     y = np.arange(len(plot_df))
 
-    fig, ax = plt.subplots(figsize=(12, 7), dpi=300)
+    marker_spec = [
+        (label, color, marker)
+        for label, _, color, marker in JOURNAL_SECTOR_MARKER_SPEC
+        if journal_share_col(label) in plot_df.columns
+    ]
+
+    fig, ax = plt.subplots(figsize=(12, 7.5), dpi=300)
     ax.barh(
         y,
-        plot_df["company_share"] * 100,
-        color="#2a9d8f",
+        plot_df[bar_col] * 100,
+        color="#CBD5D1",
         edgecolor="black",
         linewidth=0.4,
-        alpha=0.85,
-        label="Any company share",
+        alpha=0.9,
+        label="Any non-academic sector",
     )
-    ax.scatter(
-        plot_df["uk_company_share"] * 100,
-        y,
-        color="#345995",
-        s=DEFAULT_DOT_MARKER_AREA,
-        zorder=3,
-        label="UK company share",
-    )
+    for label, color, marker in marker_spec:
+        ax.scatter(
+            plot_df[journal_share_col(label)] * 100,
+            y,
+            color=color,
+            marker=marker,
+            s=42,
+            zorder=3,
+            edgecolor="white",
+            linewidth=0.5,
+            label=label,
+        )
 
     for yi, papers in zip(y, plot_df["papers"]):
-        ax.text(100.5, yi, f"n={int(papers)}", va="center", ha="left", fontsize=9)
+        ax.text(101, yi, f"n={int(papers)}", va="center", ha="left", fontsize=9)
 
     ax.set_yticks(y)
     ax.set_yticklabels(plot_df["journal_name"])
     ax.set_xlim(0, 115)
-    ax.set_xlabel("Share of papers (%)")
+    ax.set_xlabel("Share of the journal's papers (%)")
     ax.set_ylabel("Journal")
-    ax.set_title("Company collaboration share among top journals")
-    ax.legend(frameon=False, loc="lower right")
+    ax.set_title("Non-academic collaboration share among top journals")
+    # Below the axes: seven entries in the corner would sit on top of the bars.
+    ax.legend(
+        frameon=False,
+        loc="upper center",
+        bbox_to_anchor=(0.5, -0.11),
+        ncol=4,
+        fontsize=9,
+    )
     ax.grid(True, axis="x", alpha=0.25)
     plt.tight_layout()
     plt.show()

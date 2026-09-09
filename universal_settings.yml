@@ -50,7 +50,14 @@ style:
     dpi: 300
     cmap: ocean
     edgecolor: grey
+
+    # Dashed gridlines are the project default, on both axes and BOTH tick levels.
+    # shared_style.grid_on() is what applies them; ax.grid() by hand will get the dash
+    # (this rcParam) but not the minor level, so prefer the helper.
     grid_linestyle: "--"
+    grid_linewidth: 0.6
+    grid_color: "#B0B0B0"
+    grid_alpha: 0.6
     save: false                                  # set true to write figures out
     formats: [pdf]
     savedir: output/figures/data_analysis
@@ -197,13 +204,77 @@ style:
       legend_fs: 10
       savedir: output/figures/data_analysis/03_academic_impact
 
-    04_non_academic_00_all:
+    04_non_academic_99_all:
+      # The assembled main + SI panels for analysis 04. This section owns the palette the
+      # whole non-academic story is drawn in: seven named colours, listed here in the same
+      # order as shared_style.PALETTE, so an integer role below and a `palette("navy")`
+      # call in the panel module resolve to the same hex.
+      #
+      #   0 red  1 cream  2 light_blue  3 blue  4 steel_blue  5 navy  6 green
+      colors: ["#E66859", "#FEE7BA", "#75BBD4", "#74ADD1",
+               "#416FA0", "#274668", "#74D1AF"]
+      font_family: Helvetica
+      title_fs: 15
+      label_fs: 12
+      tick_fs: 10
+      annot_fs: 9
+      legend_fs: 10
+      body_fs: 11
+      panel_label_fs: 15          # the bold A / B / C stamped on each sub-panel
+      # Per-figure type scale. Every font size above is multiplied by the entry for the
+      # figure being drawn, so the family can be tuned figure by figure without a second
+      # style section that would drift from this one.
+      #
+      # The numbers track how tall each page is, because that is what sets the zoom it is
+      # read at: a figure drawn two pages tall is viewed at half the magnification of a
+      # one-page figure, so its type has to be correspondingly larger to land the same
+      # size on screen. si2 is 1.30x the base height; si1_patents is back to 1.0x now
+      # that the RCDC cluster heatmap has a page of its own.
+      fs_scale:
+        main: 1.32
+        si1_patents: 1.15
+        si1b_patent_clusters: 1.20
+        si2_clinical_trials: 1.25
+      axes_linewidth: 1.0
+      tick_length: 4
+      tick_width: 1.0
+      tick_pad: 3
+      minor_tick_length: 2.5
+      minor_tick_width: 0.7
+      edgecolor: black
+      figsize_main: [17, 15]      # the one main-paper panel (sized for main_fs_scale)
+      figsize_si:   [15, 11]      # one SI panel per section
+      dpi: 600
+      save: true
+      formats: [pdf, svg, png]
       savedir: output/figures/data_analysis/04_non_academic
       roles:
-        c_accent:  0        # red
-        c_gold:    1        # gold
-        c_green:   2        # green
-        c_primary: 3        # blue
+        c_primary:   5            # navy
+        c_secondary: 4            # steel blue
+        c_accent:    0            # red
+        c_light:     2            # light blue
+        c_green:     6            # green
+        c_cream:     1            # cream
+      # One colour per evidence stream, held constant across every panel in the figure
+      # family: a reader who learns "steel blue = patents" in panel A keeps it in panel F.
+      stream_colors:
+        publications:    3        # blue
+        patents:         4        # steel blue
+        clinical_trials: 5        # navy  — the arm's own notebook draws in LCDS blue
+        policy:          0        # red   #344874; navy #274668 is the palette's nearest
+        altmetric:       2        # light blue
+        collaboration:   6        # green — freed when trials took the navy
+      # The collaborator taxonomy's eight sectors. Company sectors take the warm end of
+      # the palette so they separate from the public-sector blues at a glance.
+      sector_colors:
+        "University/HEI":            3
+        "Hospital/Clinical":         2
+        "Government/Public":         4
+        "Research institute/Centre": 6
+        "Nonprofit/Charity":         1
+        "Company (non-UK)":          5
+        "UK company":                0
+        "Other/Unknown":             "#BDBDBD"
 
     04_non_academic_01_clinical_trials:
       colors: ["#344874",   # LCDS blue
