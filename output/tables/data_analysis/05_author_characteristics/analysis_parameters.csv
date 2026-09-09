@@ -1,5 +1,5 @@
 parameter,value
-input,data/showcase/showcase_plus/showcase_plus_all_endpoints_wide.parquet
+input,data/showcase/showcase+/showcase_plus_all_endpoints_wide.parquet
 source_records,26109
 primary_records,23442
 first_year,2013

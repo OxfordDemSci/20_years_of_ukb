@@ -28,6 +28,7 @@ from .shared_style import (
     marker_area,
     marker_size,
     mask_grid_region,
+    palette,
     panel_grid,
     panel_label,
     percent_axis,
@@ -54,18 +55,23 @@ _NETWORK_LAYOUT_CACHE = {}
 
 
 def _map_colormap(style):
-    """Use the colourblind-safe navy-to-yellow geography scale."""
-    return plt.get_cmap("cividis")
+    """The choropleth ramp: white through to the geography domain colour.
+
+    Was Matplotlib's `cividis`, chosen for being colourblind-safe. A single-hue ramp off
+    the project's own navy is safe on the same grounds — it varies in lightness, not hue —
+    and it keeps the maps in the palette every other panel is drawn in (D29), so a map and
+    the bars beside it read as one figure rather than two.
+    """
+    return sequential_colormap(semantic_colors("domain_colors", style)["geography"])
 
 
-def _component_colors():
-    """Return the component-class colours shared by all network panels."""
-    return {
-        "Isolate": "#B80C09",
-        "Small (2-5)": "#D4AF37",
-        "Intermediate (6-55)": "#6E8B3D",
-        "Giant component": "#345995",
-    }
+def _component_colors(style=None):
+    """Return the component-class colours shared by all network panels.
+
+    Configured as `component_colors` in the 05 style section rather than written here, so
+    the four classes take their colours from the one project palette.
+    """
+    return semantic_colors("component_colors", style)
 
 
 def _short_label(value, width=28):
@@ -502,9 +508,11 @@ def plot_gender_supplement(core: A.CoreTables, style):
     ax = axes[0, 1]
     coverage = NG.inference_coverage(core.authorships, "year")
     coverage_styles = {
+        # Grey is deliberate for the strict dictionary: it is the baseline the other
+        # three are read against, not a fourth identity. The rest are palette colours.
         "Strict dictionary": {"color": "#6B6B6B", "marker": "^", "linestyle": "--"},
         "Expanded dictionary": {"color": colors["Male"], "marker": "s", "linestyle": "-"},
-        "Offline ensemble": {"color": "#D4AF37", "marker": "D", "linestyle": "-"},
+        "Offline ensemble": {"color": palette("green"), "marker": "D", "linestyle": "-"},
         "Primary + identity linkage": {"color": colors["Female"], "marker": "o", "linestyle": "-"},
     }
     coverage_labels = {
@@ -639,7 +647,10 @@ def _draw_country_map(
         column=value_col,
         cmap=cmap,
         norm=norm,
-        missing_kwds={"color": "#F2F2F2", "edgecolor": "black"},
+        # Hatched, not merely pale: the ramp now runs white-to-navy, so a flat light
+        # grey for "no record" would sit right next to the lowest measured value. The
+        # hatch says absence in a way no point on the scale can.
+        missing_kwds={"color": "#EFEFEF", "edgecolor": "black", "hatch": "///"},
         edgecolor="black",
         linewidth=0.38,
     )
@@ -770,8 +781,8 @@ def _draw_country_basis_agreement(ax, core: A.CoreTables, style):
     y_col = "org_basis_unique_papers"
     countries = core.country_metrics.dropna(subset=[x_col, y_col]).copy()
     countries = countries[countries[x_col].gt(0) & countries[y_col].gt(0)]
-    project_blue = semantic_colors("domain_colors", style)["geography"]
-    project_yellow = style["colors"][1]
+    geography_color = semantic_colors("domain_colors", style)["geography"]
+    highlight_color = palette("cream")
 
     lower = 0.5 * countries[[x_col, y_col]].min().min()
     upper = 1.8 * countries[[x_col, y_col]].max().max()
@@ -787,7 +798,7 @@ def _draw_country_basis_agreement(ax, core: A.CoreTables, style):
         countries[x_col],
         countries[y_col],
         s=marker_area(style, scale=0.72),
-        color=project_blue,
+        color=geography_color,
         edgecolor="black",
         linewidth=0.55,
         alpha=0.72,
@@ -803,7 +814,7 @@ def _draw_country_basis_agreement(ax, core: A.CoreTables, style):
         outliers[x_col],
         outliers[y_col],
         s=marker_area(style, scale=1.05),
-        color=project_yellow,
+        color=highlight_color,
         edgecolor="black",
         linewidth=0.75,
         zorder=3,
@@ -853,7 +864,7 @@ def _draw_country_basis_agreement(ax, core: A.CoreTables, style):
         extrema[y_col],
         s=marker_area(style, scale=0.95),
         marker="D",
-        facecolor=project_blue,
+        facecolor=geography_color,
         edgecolor="black",
         linewidth=0.9,
         zorder=4,
@@ -914,7 +925,7 @@ def _draw_country_basis_agreement(ax, core: A.CoreTables, style):
         ax,
         [
             f"Spearman rho = {association:.3f}  (n = {len(countries):,})",
-            "Yellow: largest proportional discrepancies",
+            "Cream: largest proportional discrepancies",
             "Dashed: equal counts",
         ],
         style,
@@ -1363,7 +1374,7 @@ def _draw_component_network(ax, network, style, *, compact=False, meta_ax=None):
     positions = layout["positions"]
     categories = layout["categories"]
     degrees = layout["degrees"]
-    shared_colors = _component_colors()
+    shared_colors = _component_colors(style)
     colors = {
         "isolate": shared_colors["Isolate"],
         "small": shared_colors["Small (2-5)"],
@@ -1535,7 +1546,9 @@ def _draw_component_network(ax, network, style, *, compact=False, meta_ax=None):
                     va="center",
                     fontsize=style["annot_fs"] - 2,
                     fontweight="bold",
-                    color="white" if key in {"intermediate", "giant"} else "black",
+                    # Only the navy giant is dark enough to carry white text; the
+                    # intermediate class is now light blue, so it reads in black.
+                    color="white" if key == "giant" else "black",
                 )
             left += share
     else:
@@ -1618,10 +1631,8 @@ def _draw_community_composition(ax, core, network, style, n=12):
 
 def plot_network_supplement(core: A.CoreTables, network: A.NetworkTables, style):
     colors = semantic_colors("domain_colors", style)
-    project_red = colors["name_gender"]
-    project_blue = colors["author_metrics"]
-    project_yellow = colors["institutions"]
-    component_colors = _component_colors()
+    author_color = colors["author_metrics"]
+    component_colors = _component_colors(style)
     summaries = A.network_figure_tables(network)
     fig, gs = gridspec_figure(
         3,
@@ -1680,7 +1691,7 @@ def plot_network_supplement(core: A.CoreTables, network: A.NetworkTables, style)
         gridsize=34,
         mincnt=1,
         bins="log",
-        cmap="Blues",
+        cmap=sequential_colormap(author_color),
         edgecolors="none",
         rasterized=True,
     )
@@ -1707,7 +1718,9 @@ def plot_network_supplement(core: A.CoreTables, network: A.NetworkTables, style)
     # D: most unique collaborations occur on only one shared paper.
     ax_d = fig.add_subplot(gs[1, 1])
     tie_distribution = summaries["network_tie_strength_distribution.csv"].iloc[::-1]
-    tie_palette = ["#345995", "#5F7FB2", "#93AAD0", "#C8D5E8"]
+    # Four ordered bands, so an ordered walk through the palette's blues rather than a
+    # hand-mixed tint ramp off one of them.
+    tie_palette = palette("navy", "steel_blue", "blue", "light_blue")
     bars = ax_d.barh(
         tie_distribution["strength_band"].astype(str),
         tie_distribution["tie_share_percent"],
@@ -1737,18 +1750,16 @@ def plot_network_supplement(core: A.CoreTables, network: A.NetworkTables, style)
         "Small (2-5)": "s",
         "Intermediate (6-55)": "^",
     }
-    rank_size_colors = {
-        "Isolate": project_red,
-        "Small (2-5)": project_yellow,
-        "Intermediate (6-55)": project_blue,
-    }
+    # The three non-giant classes are the same classes panel A colours, so they take the
+    # same colours rather than a second mapping that could drift from it.
+    rank_size_colors = component_colors
     for component_class, values in non_giant.groupby("component_class", sort=False):
         ax_e.scatter(
             values["non_giant_rank"],
             values["component_size"],
             s=marker_area(style, scale=0.22),
             marker=component_markers.get(component_class, "o"),
-            color=rank_size_colors.get(component_class, project_blue),
+            color=rank_size_colors.get(component_class, author_color),
             edgecolor="black",
             linewidth=0.25,
             alpha=0.78,
@@ -1791,7 +1802,7 @@ def plot_network_supplement(core: A.CoreTables, network: A.NetworkTables, style)
         np.full(len(y), 100),
         y,
         s=marker_area(style),
-        facecolor=project_blue,
+        facecolor=author_color,
         edgecolor="black",
         linewidth=0.9,
         zorder=3,
@@ -1802,7 +1813,7 @@ def plot_network_supplement(core: A.CoreTables, network: A.NetworkTables, style)
         y,
         s=marker_area(style),
         marker="s",
-        color=project_yellow,
+        color=palette("red"),
         edgecolor="black",
         linewidth=0.6,
         zorder=3,

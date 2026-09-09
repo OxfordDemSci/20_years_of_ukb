@@ -1984,7 +1984,7 @@ def figure_captions() -> OrderedDict:
             "of author-paper pairs assigned to the Female name category among pairs assigned Female or "
             "Male, with 95% Wilson confidence intervals. Name categories are algorithmically inferred "
             "and are not self-identified gender. (E) Geographic distribution of fractional publication "
-            "credit by author-affiliation country on a linear navy-to-yellow scale. (F) Annual "
+            "credit by author-affiliation country on a linear white-to-navy scale. (F) Annual "
             "concentration of observed institutional credit in the "
             "leading institution and leading ten institutions. "
             "Records from provisional year 2026 were excluded."
@@ -2020,7 +2020,7 @@ def figure_captions() -> OrderedDict:
             "publication's research-organisation countries. Panels A and B use a shared logarithmic "
             "colour scale. (C) Author-paper rows per paper among countries represented on at least "
             "20 papers, shown on a separate logarithmic scale. Countries without eligible records are "
-            "shown in light grey."
+            "hatched, so that an absent record is not read as a low value at the pale end of the scale."
         ),
         "supplementary_figure_04_caption.txt": (
             "Supplementary Figure 4 | Geographic reach and diversification of UK Biobank authorship. "

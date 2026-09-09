@@ -1,12 +1,11 @@
 figure,panel,caption
-main,A,"UK Biobank publications carrying each kind of non-academic linkage, as a count and as a share of the 26,109-publication corpus."
-main,B,"The same linkages accumulated over time, dated by the publication's own year (log scale)."
-main,C,"Patents citing UK Biobank research, by patent publication year and filing status."
-main,D,"Clinical trials citing UK Biobank research, by trial start year and study type. Both tails are binned: seven trials start in or before 2015, and the 60 in the closing bin are registered but not yet under way."
-main,E,"Altmetric Attention Score against substantive (news + policy) mentions, for publications with at least one of each."
-main,F,Share of each year's publications with at least one collaborator in each non-academic sector.
+main,A,"UK Biobank publications carrying each non-academic linkage, accumulated over time and dated by the publication's own year (log scale). Patent, trial and policy linkage is Dimensions' publication index, so it counts every artefact Dimensions knows of rather than only those in this project's pulls."
+main,B,"Legal status of the patents citing UK Biobank research, by patent publication year; the number above each bar is that year's total. These are the 513 patents of this project's pull, which is what carries legal status; panel A's patent line counts PUBLICATIONS (513 of them, from a fuller index of 767 patents), so the two 513s are a coincidence, not the same quantity."
+main,C,"Clinical trials citing UK Biobank research, by trial start year and study type. Both tails are binned: six trials start in or before 2014, and the 60 in the closing bin are registered but not yet under way."
+main,D,Share of each year's publications with at least one collaborator in each non-academic sector.
+main,E,"Altmetric Attention Score against substantive (news + policy) mentions, for the 5,601 publications with at least one of each. The two most-mentioned publications are named."
 si_patents,A,"Research divisions (FOR 2020, top level) the patents are classified into."
-si_patents,B,"Legal status of the patents, by publication year."
+si_patents,B,"Patents by publication year, split application against granted."
 si_patents,C,Number of research divisions one patent spans.
 si_patents,D,Research-division mix within each of the eight largest assignee countries.
 si_patent_clusters,—,"RCDC macro-clusters (Louvain communities of the tag co-occurrence graph) against the four categories carrying the most patents in each. The matrix is block-diagonal — a category belongs to exactly one cluster — so it reads down the columns, not across the rows."

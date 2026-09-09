@@ -1,117 +1,113 @@
 plot_node,modal_for_l2,n_authors,group_authors,author_share,rank
-Community 1,Biological Sciences,4386,6891,0.6364823683064867,1
-Community 1,Biomedical and Clinical Sciences,1898,6891,0.275431722536642,2
-Community 1,Health Sciences,436,6891,0.06327093310114643,3
-Community 1,Psychology,113,6891,0.016398200551443913,4
-Community 1,"Agricultural, Veterinary and Food Sciences",26,6891,0.003773037295022493,5
-Community 1,Information and Computing Sciences,15,6891,0.0021767522855899,6
-Community 1,Human Society,9,6891,0.00130605137135394,7
-Community 1,Mathematical Sciences,4,6891,0.0005804672761573066,8
-Community 1,Environmental Sciences,3,6891,0.00043535045711797995,9
-Community 1,Economics,1,6891,0.00014511681903932666,10
-Community 10,Biomedical and Clinical Sciences,868,1599,0.5428392745465916,1
-Community 10,Biological Sciences,571,1599,0.35709818636647905,2
-Community 10,Health Sciences,99,1599,0.06191369606003752,3
-Community 10,Psychology,22,1599,0.013758599124452783,4
-Community 10,Mathematical Sciences,15,1599,0.009380863039399626,5
-Community 10,Environmental Sciences,10,1599,0.006253908692933083,6
-Community 10,Chemical Sciences,8,1599,0.0050031269543464665,7
-Community 10,Information and Computing Sciences,6,1599,0.00375234521575985,8
-Community 11,Biomedical and Clinical Sciences,1012,1580,0.640506329113924,1
-Community 11,Biological Sciences,366,1580,0.23164556962025318,2
-Community 11,Health Sciences,140,1580,0.08860759493670886,3
-Community 11,Information and Computing Sciences,26,1580,0.016455696202531647,4
-Community 11,Engineering,18,1580,0.01139240506329114,5
-Community 11,Psychology,13,1580,0.008227848101265823,6
-Community 11,"Agricultural, Veterinary and Food Sciences",4,1580,0.002531645569620253,7
-Community 11,Mathematical Sciences,1,1580,0.0006329113924050633,8
-Community 12,Biomedical and Clinical Sciences,818,1564,0.5230179028132992,1
-Community 12,Health Sciences,296,1564,0.18925831202046037,2
-Community 12,Psychology,235,1564,0.15025575447570333,3
-Community 12,Biological Sciences,202,1564,0.12915601023017903,4
-Community 12,"Agricultural, Veterinary and Food Sciences",6,1564,0.0038363171355498722,5
-Community 12,Law and Legal Studies,5,1564,0.00319693094629156,6
-Community 12,"Commerce, Management, Tourism and Services",1,1564,0.0006393861892583121,7
-Community 12,Information and Computing Sciences,1,1564,0.0006393861892583121,8
-Community 2,Biomedical and Clinical Sciences,2284,3646,0.6264399341744378,1
-Community 2,Biological Sciences,1062,3646,0.29127811300054857,2
-Community 2,Health Sciences,281,3646,0.07707076247942951,3
-Community 2,Mathematical Sciences,10,3646,0.0027427317608337905,4
-Community 2,Information and Computing Sciences,4,3646,0.0010970927043335162,5
-Community 2,"Agricultural, Veterinary and Food Sciences",3,3646,0.0008228195282501371,6
-Community 2,Built Environment and Design,1,3646,0.00027427317608337906,7
-Community 2,Engineering,1,3646,0.00027427317608337906,8
-Community 3,Biological Sciences,1440,3236,0.44499381953028433,1
-Community 3,Biomedical and Clinical Sciences,1392,3236,0.43016069221260816,2
-Community 3,Health Sciences,350,3236,0.10815822002472188,3
-Community 3,Information and Computing Sciences,28,3236,0.00865265760197775,4
-Community 3,Psychology,11,3236,0.003399258343634116,5
-Community 3,Mathematical Sciences,9,3236,0.002781211372064277,6
-Community 3,"History, Heritage and Archaeology",4,3236,0.0012360939431396785,7
-Community 3,Economics,1,3236,0.00030902348578491963,8
-Community 3,Engineering,1,3236,0.00030902348578491963,9
-Community 4,Biomedical and Clinical Sciences,898,2581,0.3479271600154979,1
-Community 4,Psychology,801,2581,0.3103448275862069,2
-Community 4,Biological Sciences,496,2581,0.19217357613328168,3
-Community 4,Health Sciences,205,2581,0.07942657884540875,4
-Community 4,Information and Computing Sciences,125,2581,0.048430840759395584,5
-Community 4,Physical Sciences,25,2581,0.009686168151879117,6
-Community 4,Mathematical Sciences,13,2581,0.005036807438977141,7
-Community 4,Engineering,10,2581,0.0038744672607516468,8
-Community 4,Education,7,2581,0.0027121270825261525,9
-Community 4,Earth Sciences,1,2581,0.0003874467260751647,10
-Community 5,Biological Sciences,1813,2201,0.8237164925034075,1
-Community 5,Biomedical and Clinical Sciences,215,2201,0.09768287142208087,2
-Community 5,Health Sciences,173,2201,0.07860063607451158,3
-Community 6,Biomedical and Clinical Sciences,1304,1963,0.6642893530310748,1
-Community 6,Health Sciences,242,1963,0.12328069281711666,2
-Community 6,Biological Sciences,213,1963,0.10850738665308202,3
-Community 6,Information and Computing Sciences,166,1963,0.08456444218033622,4
-Community 6,Engineering,22,1963,0.011207335710646969,5
-Community 6,Psychology,11,1963,0.0056036678553234845,6
-Community 6,"Commerce, Management, Tourism and Services",3,1963,0.0015282730514518594,7
-Community 6,"Agricultural, Veterinary and Food Sciences",1,1963,0.0005094243504839531,8
-Community 6,Unclassified,1,1963,0.0005094243504839531,9
-Community 7,Biological Sciences,1131,1754,0.644811858608894,1
-Community 7,Biomedical and Clinical Sciences,533,1754,0.30387685290763966,2
-Community 7,Health Sciences,72,1754,0.04104903078677309,3
-Community 7,"Agricultural, Veterinary and Food Sciences",11,1754,0.006271379703534778,4
-Community 7,Mathematical Sciences,4,1754,0.002280501710376283,5
-Community 7,Psychology,3,1754,0.0017103762827822121,6
-Community 8,Biomedical and Clinical Sciences,1063,1748,0.6081235697940504,1
-Community 8,Biological Sciences,542,1748,0.3100686498855835,2
-Community 8,Health Sciences,115,1748,0.06578947368421052,3
-Community 8,Psychology,17,1748,0.009725400457665904,4
-Community 8,Information and Computing Sciences,11,1748,0.006292906178489702,5
-Community 9,Biomedical and Clinical Sciences,717,1609,0.44561839651957735,1
-Community 9,Biological Sciences,463,1609,0.2877563704164077,2
-Community 9,Health Sciences,370,1609,0.22995649471721566,3
-Community 9,Environmental Sciences,24,1609,0.014916096954630205,4
-Community 9,Psychology,22,1609,0.013673088875077687,5
-Community 9,Economics,3,1609,0.0018645121193287756,6
-Community 9,Information and Computing Sciences,3,1609,0.0018645121193287756,7
-Community 9,Mathematical Sciences,3,1609,0.0018645121193287756,8
-Community 9,Human Society,2,1609,0.001243008079552517,9
-Community 9,"Commerce, Management, Tourism and Services",1,1609,0.0006215040397762585,10
-Community 9,Education,1,1609,0.0006215040397762585,11
-Other communities,Biomedical and Clinical Sciences,22178,38865,0.5706419657789785,1
-Other communities,Biological Sciences,8780,38865,0.22591020198121703,2
-Other communities,Health Sciences,5680,38865,0.1461469188215618,3
-Other communities,Psychology,990,38865,0.02547279042840602,4
-Other communities,Information and Computing Sciences,453,38865,0.011655731377846392,5
-Other communities,Environmental Sciences,240,38865,0.0061752219220378235,6
-Other communities,Engineering,170,38865,0.004374115528110125,7
-Other communities,"Agricultural, Veterinary and Food Sciences",97,38865,0.0024958188601569534,8
-Other communities,"History, Heritage and Archaeology",96,38865,0.0024700887688151292,9
-Other communities,Mathematical Sciences,77,38865,0.0019812170333204683,10
-Other communities,Human Society,22,38865,0.0005660620095201338,11
-Other communities,Chemical Sciences,20,38865,0.0005146018268364853,12
-Other communities,Physical Sciences,19,38865,0.000488871735494661,13
-Other communities,Earth Sciences,14,38865,0.00036022127878553966,14
-Other communities,"Commerce, Management, Tourism and Services",8,38865,0.0002058407307345941,15
-Other communities,Philosophy and Religious Studies,5,38865,0.00012865045670912132,16
-Other communities,Economics,4,38865,0.00010292036536729706,17
-Other communities,Education,4,38865,0.00010292036536729706,18
-Other communities,Unclassified,4,38865,0.00010292036536729706,19
-Other communities,Law and Legal Studies,3,38865,7.719027402547279e-05,20
-Other communities,Built Environment and Design,1,38865,2.5730091341824264e-05,21
+Community 1,Biological Sciences,4602,6959,0.6613019111941371,1
+Community 1,Biomedical and Clinical Sciences,1755,6959,0.25219140681132346,2
+Community 1,Health Sciences,468,6959,0.06725104181635293,3
+Community 1,Psychology,93,6959,0.013363989078890645,4
+Community 1,Information and Computing Sciences,16,6959,0.0022991809167983907,5
+Community 1,Human Society,10,6959,0.0014369880729989942,6
+Community 1,"Agricultural, Veterinary and Food Sciences",9,6959,0.0012932892656990947,7
+Community 1,Mathematical Sciences,5,6959,0.0007184940364994971,8
+Community 1,Economics,1,6959,0.00014369880729989942,9
+Community 10,Biomedical and Clinical Sciences,826,1519,0.543778801843318,1
+Community 10,Biological Sciences,537,1519,0.3535220539828835,2
+Community 10,Health Sciences,98,1519,0.06451612903225806,3
+Community 10,Psychology,22,1519,0.014483212639894667,4
+Community 10,Mathematical Sciences,11,1519,0.007241606319947334,5
+Community 10,Environmental Sciences,10,1519,0.0065832784726793945,6
+Community 10,Chemical Sciences,8,1519,0.005266622778143515,7
+Community 10,Information and Computing Sciences,7,1519,0.004608294930875576,8
+Community 11,Biomedical and Clinical Sciences,833,1505,0.5534883720930233,1
+Community 11,Biological Sciences,459,1505,0.30498338870431896,2
+Community 11,Health Sciences,185,1505,0.12292358803986711,3
+Community 11,Information and Computing Sciences,16,1505,0.0106312292358804,4
+Community 11,Psychology,11,1505,0.007308970099667774,5
+Community 11,Mathematical Sciences,1,1505,0.000664451827242525,6
+Community 12,Biomedical and Clinical Sciences,764,1497,0.5103540414161657,1
+Community 12,Health Sciences,297,1497,0.19839679358717435,2
+Community 12,Psychology,214,1497,0.14295257181028725,3
+Community 12,Biological Sciences,209,1497,0.1396125584502338,4
+Community 12,"Agricultural, Veterinary and Food Sciences",6,1497,0.004008016032064128,5
+Community 12,Law and Legal Studies,5,1497,0.0033400133600534404,6
+Community 12,"Commerce, Management, Tourism and Services",1,1497,0.0006680026720106881,7
+Community 12,Information and Computing Sciences,1,1497,0.0006680026720106881,8
+Community 2,Biomedical and Clinical Sciences,2308,3657,0.6311184030626197,1
+Community 2,Biological Sciences,1045,3657,0.2857533497402242,2
+Community 2,Health Sciences,285,3657,0.07793273174733388,3
+Community 2,Mathematical Sciences,10,3657,0.0027344818156959257,4
+Community 2,Information and Computing Sciences,4,3657,0.0010937927262783702,5
+Community 2,"Agricultural, Veterinary and Food Sciences",3,3657,0.0008203445447087777,6
+Community 2,Built Environment and Design,1,3657,0.00027344818156959256,7
+Community 2,Engineering,1,3657,0.00027344818156959256,8
+Community 3,Biomedical and Clinical Sciences,860,2646,0.3250188964474679,1
+Community 3,Psychology,807,2646,0.30498866213151926,2
+Community 3,Biological Sciences,579,2646,0.21882086167800455,3
+Community 3,Health Sciences,204,2646,0.07709750566893424,4
+Community 3,Information and Computing Sciences,132,2646,0.049886621315192746,5
+Community 3,Physical Sciences,25,2646,0.00944822373393802,6
+Community 3,Mathematical Sciences,17,2646,0.006424792139077854,7
+Community 3,Engineering,14,2646,0.005291005291005291,8
+Community 3,Education,7,2646,0.0026455026455026454,9
+Community 3,Earth Sciences,1,2646,0.0003779289493575208,10
+Community 4,Biological Sciences,1813,2207,0.8214771182600815,1
+Community 4,Biomedical and Clinical Sciences,216,2207,0.0978704123244223,2
+Community 4,Health Sciences,178,2207,0.08065246941549614,3
+Community 5,Biological Sciences,996,2086,0.47746883988494726,1
+Community 5,Biomedical and Clinical Sciences,839,2086,0.40220517737296263,2
+Community 5,Health Sciences,194,2086,0.09300095877277086,3
+Community 5,"Agricultural, Veterinary and Food Sciences",28,2086,0.013422818791946308,4
+Community 5,Psychology,23,2086,0.01102588686481304,5
+Community 5,Mathematical Sciences,6,2086,0.0028763183125599234,6
+Community 6,Biomedical and Clinical Sciences,974,1948,0.5,1
+Community 6,Biological Sciences,710,1948,0.364476386036961,2
+Community 6,Health Sciences,201,1948,0.10318275154004107,3
+Community 6,Information and Computing Sciences,44,1948,0.022587268993839837,4
+Community 6,Mathematical Sciences,10,1948,0.00513347022587269,5
+Community 6,Engineering,4,1948,0.002053388090349076,6
+Community 6,Psychology,4,1948,0.002053388090349076,7
+Community 6,Economics,1,1948,0.000513347022587269,8
+Community 7,Biomedical and Clinical Sciences,1203,1819,0.6613523914238593,1
+Community 7,Biological Sciences,213,1819,0.1170973062122045,2
+Community 7,Health Sciences,200,1819,0.10995052226498075,3
+Community 7,Information and Computing Sciences,165,1819,0.09070918086860913,4
+Community 7,Engineering,22,1819,0.012094557449147883,5
+Community 7,Psychology,11,1819,0.006047278724573941,6
+Community 7,"Commerce, Management, Tourism and Services",3,1819,0.0016492578339747114,7
+Community 7,"Agricultural, Veterinary and Food Sciences",1,1819,0.0005497526113249038,8
+Community 7,Unclassified,1,1819,0.0005497526113249038,9
+Community 8,Biomedical and Clinical Sciences,1033,1649,0.6264402668283808,1
+Community 8,Biological Sciences,385,1649,0.23347483323226198,2
+Community 8,Health Sciences,163,1649,0.09884778653729533,3
+Community 8,Information and Computing Sciences,26,1649,0.015767131594906003,4
+Community 8,Engineering,18,1649,0.010915706488781079,5
+Community 8,Psychology,18,1649,0.010915706488781079,6
+Community 8,"Agricultural, Veterinary and Food Sciences",4,1649,0.002425712553062462,7
+Community 8,Human Society,1,1649,0.0006064281382656155,8
+Community 8,Mathematical Sciences,1,1649,0.0006064281382656155,9
+Community 9,Biomedical and Clinical Sciences,842,1520,0.5539473684210526,1
+Community 9,Biological Sciences,375,1520,0.24671052631578946,2
+Community 9,Health Sciences,262,1520,0.1723684210526316,3
+Community 9,Environmental Sciences,21,1520,0.01381578947368421,4
+Community 9,Psychology,10,1520,0.006578947368421052,5
+Community 9,Information and Computing Sciences,9,1520,0.0059210526315789476,6
+Community 9,Engineering,1,1520,0.0006578947368421052,7
+Other communities,Biomedical and Clinical Sciences,22727,40225,0.5649968924798011,1
+Other communities,Biological Sciences,9542,40225,0.23721566190180235,2
+Other communities,Health Sciences,5724,40225,0.14229956494717216,3
+Other communities,Psychology,1025,40225,0.0254816656308266,4
+Other communities,Information and Computing Sciences,418,40225,0.010391547545059042,5
+Other communities,Environmental Sciences,246,40225,0.006115599751398384,6
+Other communities,Engineering,162,40225,0.004027346177750155,7
+Other communities,"History, Heritage and Archaeology",100,40225,0.002486016159105034,8
+Other communities,"Agricultural, Veterinary and Food Sciences",97,40225,0.0024114356743318833,9
+Other communities,Mathematical Sciences,75,40225,0.0018645121193287756,10
+Other communities,Human Society,22,40225,0.0005469235550031075,11
+Other communities,Chemical Sciences,20,40225,0.0004972032318210068,12
+Other communities,Physical Sciences,19,40225,0.0004723430702299565,13
+Other communities,Earth Sciences,14,40225,0.0003480422622747048,14
+Other communities,"Commerce, Management, Tourism and Services",9,40225,0.00022374145431945308,15
+Other communities,Economics,7,40225,0.0001740211311373524,16
+Other communities,Education,5,40225,0.0001243008079552517,17
+Other communities,Philosophy and Religious Studies,5,40225,0.0001243008079552517,18
+Other communities,Unclassified,4,40225,9.944064636420136e-05,19
+Other communities,Law and Legal Studies,3,40225,7.458048477315103e-05,20
+Other communities,Built Environment and Design,1,40225,2.486016159105034e-05,21

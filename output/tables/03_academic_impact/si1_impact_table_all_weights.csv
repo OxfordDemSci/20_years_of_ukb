@@ -1,0 +1,26 @@
+field,ukbb_papers,activity_x,rci_top10f,act_top10f,rci_top50f,act_top50f,rci_mncs,act_mncs
+Epidemiology,6256.0,12.003,1.965,12.902,1.134,14.367,1.797,44.029
+Clinical Sciences,5458.0,0.859,3.118,0.617,1.477,0.563,2.832,2.09
+Genetics,5321.0,6.201,2.484,4.774,1.196,4.433,2.719,19.496
+Biological Psychology,2244.0,2.42,2.064,1.926,1.104,1.986,2.123,6.854
+Cardiovascular Medicine and Haematology,1904.0,1.835,4.302,2.135,1.677,1.605,4.289,6.758
+Public Health,1864.0,0.932,3.231,1.647,1.453,1.428,3.111,5.918
+Oncology and Carcinogenesis,1359.0,0.738,1.946,0.382,1.37,0.518,1.624,1.029
+Health Services and Systems,1207.0,0.32,3.08,0.604,1.392,0.526,3.037,1.985
+Statistics,1136.0,6.695,2.088,2.229,1.23,2.532,2.594,8.838
+Neurosciences,1114.0,2.17,1.896,1.416,1.155,1.663,1.831,3.413
+Nutrition and Dietetics,1112.0,3.447,2.6,2.373,1.62,2.851,2.109,6.243
+Ophthalmology and Optometry,550.0,1.337,3.343,1.391,1.606,1.288,2.93,3.365
+Pharmacology and Pharmaceutical Sciences,543.0,0.83,1.925,0.435,1.19,0.519,1.743,1.242
+Medical Biochemistry and Metabolomics,483.0,3.76,1.541,2.095,1.085,2.845,1.522,4.915
+Immunology,395.0,0.587,1.608,0.315,1.349,0.51,1.35,0.681
+Biochemistry and Cell Biology,295.0,0.184,1.4,0.128,1.296,0.229,1.335,0.284
+Machine Learning,292.0,2.887,1.318,0.115,1.144,0.192,1.194,0.348
+Reproductive Medicine,268.0,0.349,3.551,0.385,1.74,0.363,3.626,1.086
+Bioinformatics and Computational Biology,241.0,0.539,2.58,0.557,1.288,0.536,2.99,1.865
+Clinical and Health Psychology,180.0,0.242,2.573,0.295,1.75,0.387,2.637,0.851
+Pollution and Contamination,146.0,3.159,1.728,0.345,1.826,0.703,1.685,0.656
+Cognitive and Computational Psychology,107.0,0.322,4.034,0.825,1.728,0.682,4.822,2.072
+Allied Health and Rehabilitation Science,100.0,0.093,3.21,0.246,1.639,0.242,3.175,0.604
+Dentistry,86.0,0.163,2.418,0.214,1.87,0.32,3.029,0.425
+Biomedical Engineering,85.0,9.417,1.765,0.202,1.234,0.273,2.394,0.356

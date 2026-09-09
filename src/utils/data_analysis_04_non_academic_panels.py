@@ -17,6 +17,16 @@ instead draws into an axes belonging to a figure the caller has already sized, u
 one `04_non_academic_99_all` style section, so a panel's type is the panel's type and
 "patents are steel blue" holds from panel A to panel F.
 
+**Two inventories, used deliberately.** How many publications reach a patent is answered
+by the *corpus*: `patents__linked_ids` in the wide export is Dimensions' full reverse
+index (767 patents, 513 papers). What those patents ARE — filing status, assignee country,
+research division — is answered by the *pull*, `patents_detailed.csv`, a filtered query
+that returned 513 patents reaching 372 papers. The reach and growth panels take the first;
+every SI panel takes the second, because the linkage columns carry none of those fields.
+`linked_papers()` is the single place that chooses, and it falls back to the pull when the
+corpus is the narrow 72-column export. Counting the corpus index is also what makes this
+figure agree with `01_growth`'s reach panel, which counts the same way.
+
 **The four sources.** Nothing here re-derives anything the source notebooks derive; it
 reads what they wrote:
 
@@ -365,11 +375,30 @@ def _top_counter(counter: Counter, n: int) -> pd.Series:
 # =============================================================================
 # 1. Loaders
 # =============================================================================
+#: Dimensions' own publication -> endpoint linkage, one column per stream, present only
+#: in the WIDE corpus export. `patents__linked_ids` on a publication row lists every
+#: patent Dimensions knows cites that paper.
+LINKED_ID_COLUMNS = {
+    "patents": "patents__linked_ids",
+    "clinical_trials": "clinical_trials__linked_ids",
+    "policy": "policy_documents__linked_ids",
+}
+
+
 def load_corpus() -> pd.DataFrame:
-    """id / year / doi / times_cited / altmetric for every UK Biobank publication."""
-    corpus = pd.read_parquet(
-        P.SHOWCASE_PLUS, columns=["id", "year", "doi", "times_cited", "altmetric"]
-    )
+    """id / year / doi / times_cited / altmetric, plus the endpoint linkage if present.
+
+    The linkage columns only exist in the wide export (317 columns); the narrow one has
+    72 and none of them. They are requested opportunistically rather than unconditionally
+    because `pd.read_parquet(columns=...)` raises on a column the file does not have, and
+    a missing linkage should degrade this module to its pull-based fallback, not stop it.
+    """
+    import pyarrow.parquet as pq
+
+    available = set(pq.read_schema(P.SHOWCASE_PLUS).names)
+    wanted = ["id", "year", "doi", "times_cited", "altmetric"]
+    wanted += [c for c in LINKED_ID_COLUMNS.values() if c in available]
+    corpus = pd.read_parquet(P.SHOWCASE_PLUS, columns=wanted)
     corpus["year"] = pd.to_numeric(corpus["year"], errors="coerce")
     corpus["doi_clean"] = corpus["doi"].astype("string").str.strip().str.lower()
     return corpus
@@ -489,6 +518,33 @@ def _linked_paper_ids(frame: pd.DataFrame, corpus_ids: set[str],
     return out
 
 
+def linked_papers(corpus: pd.DataFrame, stream: str, pull: pd.DataFrame) -> tuple[set, str]:
+    """Papers linked to `stream`, preferring the corpus's own index over the pull.
+
+    Two inventories answer "which papers does a patent cite", and they are not the same
+    size:
+
+    * the **corpus** column `patents__linked_ids` is Dimensions' full reverse index —
+      every patent it knows of that cites the paper (767 patents, 513 papers);
+    * the **pull** at `patents_detailed.csv` is a filtered query that returned 513
+      patents, whose `publication_ids` reach 372 corpus papers.
+
+    The corpus index is the more complete answer to "how far does this research travel",
+    and it is what `01_growth`'s reach panel counts, so the two analyses agree when this
+    module prefers it. The pull stays the source for everything ABOUT the artefacts —
+    their filing status, assignee country, conditions studied — because those fields are
+    parsed there and the linkage columns carry none of them.
+
+    Returns the paper-id set and a short label naming which inventory produced it, so a
+    caption can state its own provenance instead of leaving it to be inferred.
+    """
+    column = LINKED_ID_COLUMNS.get(stream)
+    if column and column in corpus.columns:
+        linked = corpus.loc[corpus[column].apply(lambda v: bool(_lst(v))), "id"]
+        return set(linked), "Dimensions publication index"
+    return _linked_paper_ids(pull, set(corpus["id"])), "artefact pull"
+
+
 def _links_long(frame: pd.DataFrame, corpus_ids: set[str], year_col: str,
                 col: str = "publication_ids") -> pd.DataFrame:
     """One row per (artefact, cited corpus paper) link, carrying the artefact's year."""
@@ -519,11 +575,11 @@ def build_reach(corpus, patents, trials, policy, altmetric, collab) -> pd.DataFr
 
     rows = [
         ("patents", "Cited by a patent",
-         len(_linked_paper_ids(patents, corpus_ids))),
+         len(linked_papers(corpus, "patents", patents)[0])),
         ("clinical_trials", "Cited by a clinical trial",
-         len(_linked_paper_ids(trials, corpus_ids))),
+         len(linked_papers(corpus, "clinical_trials", trials)[0])),
         ("policy", "Cited by a policy document",
-         len(_linked_paper_ids(policy, corpus_ids))),
+         len(linked_papers(corpus, "policy", policy)[0])),
         ("altmetric", "≥1 news mention",
          int((alt_by_paper["News mentions"] > 0).sum())),
         ("altmetric", "≥1 Altmetric policy mention",
@@ -536,6 +592,11 @@ def build_reach(corpus, patents, trials, policy, altmetric, collab) -> pd.DataFr
     reach = pd.DataFrame(rows, columns=["stream", "linkage", "papers"])
     reach["pct"] = 100 * reach["papers"] / n_corpus
     reach["n_corpus"] = n_corpus
+    sources = {stream: linked_papers(corpus, stream, pull)[1]
+               for stream, pull in [("patents", patents),
+                                    ("clinical_trials", trials),
+                                    ("policy", policy)]}
+    reach["source"] = reach["stream"].map(sources).fillna("")
     return reach
 
 
@@ -562,9 +623,9 @@ def build_reach_by_year(corpus, patents, trials, policy, altmetric, collab) -> p
     company_flag = collab[[_sector_flag(s) for s in COMPANY_SECTORS]].max(axis=1)
 
     series = {
-        "patents": cumulative(_linked_paper_ids(patents, corpus_ids)),
-        "clinical_trials": cumulative(_linked_paper_ids(trials, corpus_ids)),
-        "policy": cumulative(_linked_paper_ids(policy, corpus_ids)),
+        "patents": cumulative(linked_papers(corpus, "patents", patents)[0]),
+        "clinical_trials": cumulative(linked_papers(corpus, "clinical_trials", trials)[0]),
+        "policy": cumulative(linked_papers(corpus, "policy", policy)[0]),
         "altmetric": cumulative(news_ids),
         "collaboration": cumulative(collab.loc[company_flag == 1, "id"]),
     }
@@ -916,6 +977,38 @@ def build_policy_aggregates(policy: pd.DataFrame, corpus: pd.DataFrame) -> dict:
 
 
 # -------------------------------------------------------------- altmetric ----
+def _annotate_rows(rows: pd.DataFrame) -> pd.DataFrame:
+    """Attach first author and journal to a handful of scatter rows, for labelling.
+
+    Read back from the parquet with a row filter rather than carried through the whole
+    pipeline: `authors` is the widest column in the corpus and only these two rows need
+    it, so pulling it for 26,109 publications to label 2 of them would be the expensive
+    way round.
+    """
+    rows = rows.copy()
+    ids = [i for i in rows["id"].dropna().unique().tolist()]
+    if not ids:
+        rows["first_author"] = []
+        rows["journal"] = []
+        return rows
+    detail = pd.read_parquet(
+        P.SHOWCASE_PLUS, columns=["id", "authors", "journal_title_raw"],
+        filters=[("id", "in", ids)],
+    )
+
+    def first_author(cell) -> str:
+        for entry in _lst(cell):
+            if isinstance(entry, dict):
+                name = entry.get("last_name") or entry.get("first_name") or ""
+                if str(name).strip():
+                    return str(name).strip()
+        return "Author"
+
+    detail["first_author"] = detail["authors"].apply(first_author)
+    detail["journal"] = detail["journal_title_raw"].fillna("")
+    return rows.merge(detail[["id", "first_author", "journal"]], on="id", how="left")
+
+
 def build_altmetric_aggregates(altmetric: pd.DataFrame) -> dict:
     """Everything the altmetric panels draw."""
     out = {}
@@ -927,8 +1020,13 @@ def build_altmetric_aggregates(altmetric: pd.DataFrame) -> dict:
     scatter = alt[(alt["substantive"] > 0) & (alt["Altmetric Attention Score"] > 0)].copy()
     out["scatter"] = scatter[
         ["id", "substantive", "News mentions", "Policy mentions",
-         "Altmetric Attention Score", "times_cited", "year"]
+         "Altmetric Attention Score", "times_cited", "year", "DOI"]
     ]
+    # The two most-mentioned publications, with enough bibliographic detail to name them
+    # on the panel. `04_non_academic_03_altmetric` annotated these and the annotation is
+    # what turns an anonymous cloud into a claim a reader can check — the top-right point
+    # is a specific paper, and saying which one costs two labels.
+    out["scatter_top"] = _annotate_rows(scatter.nlargest(2, "substantive"))
 
     out["score_distribution"] = alt.loc[
         alt["Altmetric Attention Score"] > 0, "Altmetric Attention Score"
@@ -1277,14 +1375,17 @@ def _hbar(ax, series, color, xlabel, *, ylabel=None, annotate=True, pct_of=None,
 
 def _stacked_bars(ax, frame, colors, xlabel, ylabel, *, legend_title=None,
                   legend_loc="upper left", width=0.8, annotate=False,
-                  min_label_share=0.07):
+                  segment_labels=True, min_label_share=0.07):
     """Stacked vertical bars: rows are the x categories, columns the stack segments.
 
-    With `annotate`, each segment is labelled with its own count and each bar with its
-    total, and the grid is dropped — the same rule `_hbar` follows, for the same reason.
-    A segment smaller than `min_label_share` of the tallest bar is left unlabelled: the
-    number would not fit inside it and printing it anyway is how stacked bars turn into
-    a field of overlapping digits.
+    With `annotate`, each bar is labelled with its total and the grid is dropped — the
+    same rule `_hbar` follows, for the same reason. Segments are labelled too unless
+    `segment_labels=False`, which is what a seven-category stack needs: at that many
+    slices most segments are a few pixels tall and their labels become a column of
+    overlapping digits, so only the yearly total is worth printing.
+
+    A segment smaller than `min_label_share` of the tallest bar is left unlabelled for
+    the same reason, even when `segment_labels` is on.
     """
     st = _style()
     bottom = np.zeros(len(frame))
@@ -1296,7 +1397,7 @@ def _stacked_bars(ax, frame, colors, xlabel, ylabel, *, legend_title=None,
         ax.bar(x, values, bottom=bottom, width=width, label=str(column),
                color=colors[str(column)] if isinstance(colors, dict) else colors,
                edgecolor=st.get("edgecolor", "black"), linewidth=0.5)
-        if annotate:
+        if annotate and segment_labels:
             for xi, value, base in zip(x, values, bottom):
                 if value >= tallest * min_label_share:
                     ax.text(xi, base + value / 2, f"{int(value):,}", ha="center",
@@ -1399,8 +1500,7 @@ def draw_reach_by_year(ax, D):
 def draw_patents_by_year(ax, D):
     """Patents by publication year, split application vs granted."""
     frame = D["patents"]["status_by_year"]
-    base = _stream_colors()["patents"]
-    colors = {"Application": _sector_colors()["Hospital/Clinical"], "Grant": base}
+    colors = _two_way("Application", "Grant")
     _stacked_bars(ax, frame[["Application", "Grant"]], colors,
                   "Patent publication year", "Patents", legend_title="Filing status",
                   annotate=True)
@@ -1522,14 +1622,16 @@ def draw_patent_legal_status(ax, D):
     from utils.shared_style import extended_palette
     colors = dict(zip(order, extended_palette(len(order))))
     _stacked_bars(ax, frame[order], colors, "Patent publication year", "Patents",
-                  legend_title="Legal status")
+                  legend_title="Legal status", annotate=True, segment_labels=False)
     st = _style()
-    # Seven categories in a half-width panel: two columns of four and three rows' worth of
-    # headroom. Three columns would run past the axes' right edge at this width, and one
-    # row (which is what the full-page version of this panel used) needs a width this
+    # Seven categories in a half-width panel: two columns of four, which is five rows of
+    # legend once the title is counted. Three columns would run past the axes' right edge
+    # at this width, and the single row the full-page version used needs a width this
     # panel does not have. The headroom is made above the bars rather than taken from
-    # them — the tallest bar is 124 patents and the axis is opened to ~1.55x that.
-    ax.set_ylim(0, frame.sum(axis=1).max() * 1.55)
+    # them, and it has to clear the per-year totals as well as the bars themselves — the
+    # tallest bar is 124 patents, its total sits just above that, and the axis opens to
+    # ~1.9x so the legend starts well clear of both.
+    ax.set_ylim(0, frame.sum(axis=1).max() * 1.92)
     ax.legend(loc="upper left", ncol=2, columnspacing=1.0, handlelength=1.2,
               handletextpad=0.5, fontsize=st["legend_fs"] - 1,
               title="Legal status", title_fontsize=st["legend_fs"] - 1)
@@ -1556,16 +1658,21 @@ def draw_patent_lag(ax, D):
 
 
 # ---------------------------------------------------------- clinical trials --
-def _trial_type_colors() -> dict:
-    """Interventional / observational, in the trials stream's own blue plus a light one.
+#: Every two-category bar in the family uses this pair. A light/dark pair of the same hue
+#: needs a legend to be read at all; blue against red separates at a glance and survives
+#: the figure being printed small. It is the palette's own blue and red, so the panels
+#: still belong to the same family as everything around them.
+TWO_WAY_COLORS = ("steel_blue", "red")
 
-    The stream colour is navy — the arm's own notebook draws in LCDS blue #344874, and
-    navy #274668 is the palette's nearest — so every clinical-trials panel is blue, and
-    the study-type split is a light/dark pair inside that identity rather than a second
-    hue competing with it.
-    """
-    return {"Interventional": _stream_colors()["clinical_trials"],
-            "Observational": _sector_colors()["Hospital/Clinical"]}
+
+def _two_way(first: str, second: str) -> dict:
+    """Map two category names onto the shared blue/red pair, in that order."""
+    return dict(zip((first, second), palette(*TWO_WAY_COLORS)))
+
+
+def _trial_type_colors() -> dict:
+    """Interventional (blue) / observational (red)."""
+    return _two_way("Interventional", "Observational")
 
 
 def draw_trials_by_year(ax, D):
@@ -1879,6 +1986,52 @@ def draw_altmetric_scatter(ax, D):
             f"max {scatter['Altmetric Attention Score'].max():,.0f}",
             transform=ax.transAxes, va="top", ha="left", fontsize=st["annot_fs"],
             bbox=dict(boxstyle="round,pad=0.35", fc="white", ec="black", lw=0.8))
+    # Name the two most-mentioned publications. Curved leaders and a boxed label, placed
+    # down-left and down-right of their points so neither runs off the top of the axes:
+    # both outliers sit in the upper right by construction.
+    top = D["altmetric"].get("scatter_top")
+    if top is not None and len(top):
+        # Label positions are in AXES FRACTION, not data coordinates. The cloud runs
+        # bottom-left to top-right, so the empty band is along the top-left — but where
+        # that band starts in data terms depends on the axis limits, which depend on the
+        # data. Anchoring to the axes puts the boxes in the gap whatever the data does,
+        # and leaves the leaders to find their points.
+        # Positive `rad` bows the leader DOWN, into the panel. A negative one arcs it up
+        # and out of the axes over the panel above, which no amount of clipping fixes
+        # because the arrow is drawn in figure space.
+        # One box above the cloud, one below it. Stacking both above put the second one's
+        # lower edge on the rising data; the panel's other empty region is the wedge
+        # UNDER the cloud on the right, which is where the second box goes.
+        #
+        # Their leaders bow in OPPOSITE directions, and the sign is the whole trick. The
+        # lower box sits below-left of its point, so a leader that curves up-left cuts
+        # straight through the cloud; curving the other way sends it right along under
+        # the data and up to the point from beneath, touching nothing. Same reasoning
+        # mirrored for the upper box.
+        placements = [(0.44, 0.99, 0.12), (0.52, 0.40, 0.26)]
+        for (_, row), (fx, fy, rad) in zip(top.iterrows(), placements):
+            year = int(row["year"]) if pd.notna(row.get("year")) else None
+            cited = row.get("times_cited")
+            label = (
+                f"{row.get('first_author', 'Author')} et al."
+                f"{f' ({year})' if year else ''}\n"
+                f"{_shorten(row.get('journal') or '', 28)}\n"
+                f"AAS {row['Altmetric Attention Score']:,.0f} · "
+                f"{int(row['substantive']):,} mentions"
+                + (f" · {int(cited):,} citations" if pd.notna(cited) else "")
+            )
+            ax.annotate(
+                label,
+                xy=(row["substantive"], row["Altmetric Attention Score"]),
+                xytext=(fx, fy), textcoords="axes fraction",
+                ha="left", va="top", fontsize=st["annot_fs"] - 1,
+                bbox=dict(boxstyle="round,pad=0.3", fc="white", ec="black", lw=0.8),
+                arrowprops=dict(arrowstyle="-|>", color="black", lw=1.0,
+                                shrinkB=6,
+                                connectionstyle=f"arc3,rad={rad}"),
+                zorder=6,
+            )
+
     handles = [ax.scatter([], [], s=18 + 10 * np.sqrt(v),
                           color=_stream_colors()["altmetric"], alpha=0.45,
                           edgecolor="black", linewidth=0.4, label=f"{v:,}")
@@ -2111,25 +2264,29 @@ def draw_collab_citations(ax, D):
 # are written in the same place and cannot drift apart.
 
 MAIN_CAPTION = {
-    "A": "UK Biobank publications carrying each kind of non-academic linkage, as a count "
-         "and as a share of the 26,109-publication corpus.",
-    "B": "The same linkages accumulated over time, dated by the publication's own year "
-         "(log scale).",
-    "C": "Patents citing UK Biobank research, by patent publication year and filing "
-         "status.",
-    "D": "Clinical trials citing UK Biobank research, by trial start year and study "
-         "type. Both tails are binned: seven trials start in or before 2015, and the 60 "
+    "A": "UK Biobank publications carrying each non-academic linkage, accumulated over "
+         "time and dated by the publication's own year (log scale). Patent, trial and "
+         "policy linkage is Dimensions' publication index, so it counts every artefact "
+         "Dimensions knows of rather than only those in this project's pulls.",
+    "B": "Legal status of the patents citing UK Biobank research, by patent publication "
+         "year; the number above each bar is that year's total. These are the 513 patents "
+         "of this project's pull, which is what carries legal status; panel A's patent "
+         "line counts PUBLICATIONS (513 of them, from a fuller index of 767 patents), so "
+         "the two 513s are a coincidence, not the same quantity.",
+    "C": "Clinical trials citing UK Biobank research, by trial start year and study "
+         "type. Both tails are binned: six trials start in or before 2014, and the 60 "
          "in the closing bin are registered but not yet under way.",
-    "E": "Altmetric Attention Score against substantive (news + policy) mentions, for "
-         "publications with at least one of each.",
-    "F": "Share of each year's publications with at least one collaborator in each "
+    "D": "Share of each year's publications with at least one collaborator in each "
          "non-academic sector.",
+    "E": "Altmetric Attention Score against substantive (news + policy) mentions, for "
+         "the 5,601 publications with at least one of each. The two most-mentioned "
+         "publications are named.",
 }
 
 SI_CAPTIONS = {
     "patents": {
         "A": "Research divisions (FOR 2020, top level) the patents are classified into.",
-        "B": "Legal status of the patents, by publication year.",
+        "B": "Patents by publication year, split application against granted.",
         "C": "Number of research divisions one patent spans.",
         "D": "Research-division mix within each of the eight largest assignee countries.",
     },
@@ -2242,20 +2399,35 @@ def _assemble(spec, nrows, ncols, figsize, D, name, save=True, slots=None,
 
 
 def figure_main(D, save=True):
-    """The main-paper panel: six charts, one per row-pair of the argument.
+    """The main-paper panel: five charts, the attention scatter closing at full width.
 
-    Drawn at `main_fs_scale` — larger type than the SI panels, because this one is read at
+    The reach bars came out. They answered "how many publications carry each linkage",
+    which is the same question `01_growth`'s reach panel answers on the same numbers —
+    two figures in one paper making one point twice. `D["reach"]` is still built, so the
+    counts remain quotable in the text and in `panel_selection.csv`.
+
+    The attention scatter takes the freed row across both columns AND half again the
+    height of the rows above it. It is the one panel with 5,601 points and two named
+    outliers; the empty band the labels sit in is the space above a diagonal cloud, so
+    making the panel taller is what shortens the leaders — at equal row height the boxes
+    had to sit far left of their points to clear the data.
+
+    Drawn at the `main` type scale, larger than the SI panels because this one is read at
     figure width in a paper rather than full page on a screen.
     """
     st = _style()
     figsize = st["figsize_main"]
     with _font_scale(_fs_scale("main")):
         return _assemble(
-            [draw_reach, draw_reach_by_year,
-             draw_patents_by_year, draw_trials_by_year,
-             draw_altmetric_scatter, draw_collab_sector_share],
-            3, 2, figsize, D, "04_non_academic_main", save=save,
-            hspace=0.40, wspace=0.28,
+            [draw_reach_by_year,            # A
+             draw_patent_legal_status,      # B
+             draw_trials_by_year,           # C
+             draw_collab_sector_share,      # D
+             draw_altmetric_scatter],       # E - full width
+            3, 2, (figsize[0], figsize[1] * 1.18),
+            D, "04_01_figure_01_non_academic_reach", save=save,
+            slots=[(0, 0), (0, 1), (1, 0), (1, 1), (2, slice(0, 2))],
+            hspace=0.40, wspace=0.28, height_ratios=[1.0, 1.0, 1.55],
         )
 
 
@@ -2278,10 +2450,10 @@ def figure_si_patents(D, save=True):
         # ten-row bar chart and a four-bin histogram that read fine narrower.
         return _assemble(
             [draw_patent_topics,            # A
-             draw_patent_legal_status,      # B
+             draw_patents_by_year,          # B
              draw_patent_topic_count,       # C
              draw_patent_country_topics],   # D
-            2, 2, st["figsize_si"], D, "04_non_academic_si1_patents", save=save,
+            2, 2, st["figsize_si"], D, "04_02_supplementary_figure_01_patents", save=save,
             hspace=0.45, wspace=0.40, width_ratios=[1.0, 1.3],
         )
 
@@ -2297,7 +2469,7 @@ def figure_si_patent_clusters(D, save=True):
     with _font_scale(_fs_scale("si1b_patent_clusters")):
         return _assemble(
             [draw_patent_rcdc_clusters], 1, 1, (width, height * 1.15), D,
-            "04_non_academic_si1b_patent_clusters", save=save, label_panels=False,
+            "04_03_supplementary_figure_02_patent_clusters", save=save, label_panels=False,
         )
 
 
@@ -2318,7 +2490,7 @@ def figure_si_trials(D, save=True):
              draw_trial_rcdc,               # C  row 1, left
              draw_trial_enrollment,         # D  row 2, left
              draw_trial_country_sector],    # E  row 2, right
-            3, 2, (width, height * 1.30), D, "04_non_academic_si2_clinical_trials",
+            3, 2, (width, height * 1.30), D, "04_04_supplementary_figure_03_clinical_trials",
             save=save, slots=[(0, 0), (slice(0, 2), 1), (1, 0), (2, 0), (2, 1)],
             hspace=0.40, wspace=0.42, height_ratios=[1.0, 1.0, 1.05],
         )
@@ -2329,7 +2501,7 @@ def figure_si_policy(D, save=True):
     return _assemble(
         [draw_policy_by_year, draw_policy_countries, draw_policy_publishers,
          draw_policy_divisions, draw_policy_concentration, draw_policy_top_papers],
-        3, 2, st["figsize_si"], D, "04_non_academic_si3_policy", save=save,
+        3, 2, st["figsize_si"], D, "04_05_supplementary_figure_04_policy", save=save,
         hspace=0.45, wspace=0.62,
     )
 
@@ -2340,7 +2512,7 @@ def figure_si_altmetric(D, save=True):
     return _assemble(
         [draw_altmetric_distribution, draw_altmetric_mentions_by_year,
          draw_altmetric_coverage, draw_altmetric_vs_citations],
-        2, 2, (width, height * 0.72), D, "04_non_academic_si4_altmetric", save=save,
+        2, 2, (width, height * 0.72), D, "04_06_supplementary_figure_05_altmetric", save=save,
         hspace=0.38, wspace=0.32,
     )
 
@@ -2351,7 +2523,7 @@ def figure_si_collaboration(D, save=True):
         [draw_collab_sector_summary, draw_collab_sector_papers,
          draw_collab_sector_share, draw_collab_company_by_year,
          draw_collab_top_companies, draw_collab_divisions],
-        3, 2, st["figsize_si"], D, "04_non_academic_si5_collaboration", save=save,
+        3, 2, st["figsize_si"], D, "04_07_supplementary_figure_06_collaboration", save=save,
         hspace=0.45, wspace=0.55,
     )
 

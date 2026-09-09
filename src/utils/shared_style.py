@@ -215,22 +215,234 @@ def grid_on(ax, axis="both", which="both", style=None, **kwargs):
     return ax
 
 
-def panel_label(ax, letter, style=None, **kwargs):
-    """Stamp the bold panel letter (A, B, C ...) as the sub-panel's whole title.
+def panel_label(ax, letter, style=None, *, x=None, y=None, ha="left", va="bottom",
+                fontsize=None, in_layout=None, clip_on=False, **kwargs):
+    """Stamp the bold panel letter (A, B, C ...) on a sub-panel.
 
-    The letter IS the title — no descriptive text beside it — so the caption carries the
-    description and the panel carries only its address in that caption. Set as a
-    left-aligned axes title rather than as free text at fixed axes coordinates: a
-    horizontal bar panel with long category labels and a scatter panel with a narrow
-    y axis then put their letters in visually the same place, which free text at
-    `x=-0.08` does not.
+    Two placements, and which one you get depends on whether you name a position:
+
+    * **No `x`/`y` (the default).** The letter IS the title — no descriptive text beside
+      it — so the caption carries the description and the panel carries only its address
+      in that caption. Set as a left-aligned axes title rather than as free text at fixed
+      axes coordinates: a horizontal bar panel with long category labels and a scatter
+      panel with a narrow y axis then put their letters in visually the same place, which
+      free text at `x=-0.08` does not.
+    * **`x` and/or `y` given.** The letter is free text in axes coordinates. That is the
+      escape hatch for a hand-built gridspec whose panels are not on a common grid — 05's
+      headline figure letters a map, a network sidebar and three stacked charts inside one
+      page, and no single title offset lands all five where a reader expects them.
     """
     style = _resolve(style) if style is not None or _ACTIVE is not None else {}
-    kwargs.setdefault("fontsize", style.get("panel_label_fs", style.get("title_fs", 14)))
-    kwargs.setdefault("fontweight", "bold")
-    kwargs.setdefault("loc", "left")
-    kwargs.setdefault("pad", 8)
-    return ax.set_title(str(letter).upper(), **kwargs)
+    if fontsize is None:
+        fontsize = style.get("panel_label_fs", style.get("title_fs", 14))
+    if x is None and y is None:
+        kwargs.setdefault("fontweight", "bold")
+        kwargs.setdefault("loc", "left")
+        kwargs.setdefault("pad", 8)
+        return ax.set_title(str(letter).upper(), fontsize=fontsize, **kwargs)
+    artist = ax.text(
+        -0.12 if x is None else x,
+        1.07 if y is None else y,
+        str(letter).upper(),
+        transform=ax.transAxes,
+        ha=ha,
+        va=va,
+        fontsize=fontsize,
+        fontweight=kwargs.pop("fontweight", "bold"),
+        color=kwargs.pop("color", "black"),
+        clip_on=clip_on,
+        **kwargs,
+    )
+    if in_layout is not None:
+        artist.set_in_layout(in_layout)
+    return artist
+
+
+def label_panels(axes, labels, style=None, **kwargs):
+    """Apply sequential panel letters to any flat or array-like axes collection."""
+    flattened = axes.flat if hasattr(axes, "flat") else axes
+    return [
+        panel_label(ax, label, style=style, **kwargs)
+        for ax, label in zip(flattened, labels)
+    ]
+
+
+# =============================================================================
+# Figure and axis construction
+# =============================================================================
+def new_figure(style=None, *, figsize=None, figsize_key="figsize_panel", **kwargs):
+    """Create a figure using a configured size unless one is supplied explicitly."""
+    style = _resolve(style)
+    resolved_size = style[figsize_key] if figsize is None else figsize
+    return plt.figure(figsize=resolved_size, **kwargs)
+
+
+def gridspec_figure(
+    nrows,
+    ncols,
+    style=None,
+    *,
+    figsize=None,
+    figsize_key="figsize_panel",
+    figure_kwargs=None,
+    **gridspec_kwargs,
+):
+    """Create a styled figure and its top-level GridSpec together."""
+    fig = new_figure(
+        style,
+        figsize=figsize,
+        figsize_key=figsize_key,
+        **dict(figure_kwargs or {}),
+    )
+    return fig, fig.add_gridspec(nrows, ncols, **gridspec_kwargs)
+
+
+def panel_grid(
+    nrows,
+    ncols,
+    style=None,
+    *,
+    figsize=None,
+    figsize_key="figsize_panel",
+    adjust=None,
+    **subplot_kwargs,
+):
+    """Create a regular styled subplot grid and apply optional fixed margins."""
+    style = _resolve(style)
+    resolved_size = style[figsize_key] if figsize is None else figsize
+    fig, axes = plt.subplots(
+        nrows,
+        ncols,
+        figsize=resolved_size,
+        **subplot_kwargs,
+    )
+    if adjust:
+        fig.subplots_adjust(**dict(adjust))
+    return fig, axes
+
+
+def style_axis(
+    ax,
+    style=None,
+    *,
+    grid_axis="both",
+    grid=True,
+    zero=False,
+    grid_kws=None,
+):
+    """Apply the shared black-axis and dashed-grid treatment to an axis.
+
+    The grid goes on through `grid_on`, so an axis styled here carries the one project
+    grid (D29) — dashed, behind the data, on both tick levels — rather than a second
+    dashed-major-only variant that would read as a different figure family.
+    """
+    style = _resolve(style)
+    linewidth = style.get("axes_linewidth", 1.0)
+    for name in ("left", "bottom"):
+        ax.spines[name].set_visible(True)
+        ax.spines[name].set_color("black")
+        ax.spines[name].set_linewidth(linewidth)
+    ax.tick_params(colors="black")
+    ax.set_axisbelow(True)
+    if grid:
+        grid_on(ax, axis=grid_axis, style=style, **dict(grid_kws or {}))
+    else:
+        ax.grid(False, axis=grid_axis, which="both")
+    if zero:
+        ax.axhline(0, color="black", linewidth=0.8)
+    return ax
+
+
+def black_legend(ax, style=None, **kwargs):
+    """Create an opaque white legend with the project-standard black border."""
+    style = _resolve(style)
+    legend = ax.legend(
+        frameon=True,
+        facecolor="white",
+        edgecolor="black",
+        framealpha=1,
+        **kwargs,
+    )
+    legend.get_frame().set_linewidth(style.get("legend_linewidth", 0.9))
+    return legend
+
+
+def summary_box(
+    ax,
+    lines,
+    style=None,
+    *,
+    x,
+    y,
+    ha="left",
+    va="top",
+    fontsize=None,
+    zorder=5,
+    bbox_kws=None,
+):
+    """Place a consistently styled statistical summary inside an axis."""
+    style = _resolve(style)
+    text = lines if isinstance(lines, str) else "\n".join(lines)
+    box = {
+        "boxstyle": "square,pad=0.35",
+        "facecolor": "white",
+        "edgecolor": "k",
+        "linewidth": 0.9,
+        "alpha": 0.94,
+    }
+    box.update(dict(bbox_kws or {}))
+    return ax.text(
+        x,
+        y,
+        text,
+        transform=ax.transAxes,
+        ha=ha,
+        va=va,
+        fontsize=style["annot_fs"] if fontsize is None else fontsize,
+        bbox=box,
+        zorder=zorder,
+    )
+
+
+def compact_count(value, digits=1):
+    """Format a large count compactly for dense figure annotations."""
+    value = float(value)
+    if abs(value) >= 1_000_000:
+        return f"{value / 1_000_000:.{digits}f}m"
+    if abs(value) >= 1_000:
+        return f"{value / 1_000:.{digits}f}k"
+    return f"{value:,.0f}"
+
+
+def percent_axis(ax, *, axis="y", xmax=100, decimals=0):
+    """Apply Matplotlib's percentage formatter to one axis."""
+    import matplotlib.ticker as mticker
+
+    formatter = mticker.PercentFormatter(xmax=xmax, decimals=decimals)
+    target = ax.yaxis if axis == "y" else ax.xaxis
+    target.set_major_formatter(formatter)
+    return ax
+
+
+def style_colorbar(colorbar, label=None, *, edgecolor="black", linewidth=0.8):
+    """Apply the standard outline and optional label to a colorbar."""
+    if label is not None:
+        colorbar.set_label(label)
+    colorbar.outline.set_edgecolor(edgecolor)
+    colorbar.outline.set_linewidth(linewidth)
+    return colorbar
+
+
+def mask_grid_region(ax, start, end=None, *, color="white", zorder=1.5):
+    """Mask gridlines in a reserved annotation region without hiding text."""
+    end = ax.get_xlim()[1] if end is None else end
+    return ax.axvspan(
+        start,
+        end,
+        facecolor=color,
+        edgecolor="none",
+        zorder=zorder,
+    )
 
 
 #: The project's cold-to-warm ramp, walked through the palette itself: navy -> steel blue

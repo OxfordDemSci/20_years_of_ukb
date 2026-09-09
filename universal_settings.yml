@@ -101,7 +101,7 @@ style:
       minor_tick_width: 0.9
       dpi: 600
       save: true
-      formats: [pdf, svg, png]
+      formats: [pdf, png]
       savedir: output/figures/data_analysis/01_growth
       roles:
         c_primary: 3        # blue
@@ -124,23 +124,42 @@ style:
         unknown: "#BBBBBB"
 
     05_author_characteristics:
-      colors: ["#B80C09", "#D4AF37", "#6E8B3D", "#345995",
-               "#8C5A9E", "#008C95", "#B56A3B", "#4F6D7A"]
+      # The project palette (D29): the seven colours of shared_style.PALETTE_COLORS, in
+      # the same order, so an integer role below and a `palette("navy")` call in the plot
+      # module resolve to the same hex. This section used to carry an eight-colour
+      # literal of its own (crimson / gold / olive / royal blue / purple / teal / brown /
+      # slate); every semantic map below was re-pointed onto the shared colours, which is
+      # why the indexes changed as well as the palette.
+      #
+      #   0 red  1 cream  2 light_blue  3 blue  4 steel_blue  5 navy  6 green
+      colors: ["#E66859", "#FEE7BA", "#75BBD4", "#74ADD1",
+               "#416FA0", "#274668", "#74D1AF"]
+      # One colour per analytical domain, held constant across every figure in the family:
+      # a reader who learns "navy = geography" on the headline map keeps it through the
+      # geography supplements.
       domain_colors:
-        author_metrics: 3
-        name_gender: 0
-        geography: 3
-        institutions: 1
-        networks: 2
+        author_metrics: 4         # steel blue
+        name_gender: 0            # red
+        geography: 5              # navy
+        institutions: 6           # green
+        networks: 3               # blue
       author_metric_colors:
-        productivity: 1
-        h_index: 0
-        association: 2
-        leaders: 3
+        productivity: 4           # steel blue
+        h_index: 0                # red
+        association: 3            # blue
+        leaders: 5                # navy — ramped light-to-navy by sequential_colormap
       gender_colors:
-        Female: 0
-        Male: 3
-        Unknown: "#B7B7B7"
+        Female: 0                 # red
+        Male: 4                   # steel blue — also the ramp for the FOR-division bars
+        Unknown: "#B7B7B7"        # deliberately neutral: not a category, an absence
+      # The four network component classes, ordered cream -> light blue -> navy so the
+      # size ordering is legible as a ramp, with the red reserved for the isolates that
+      # sit outside that ordering.
+      component_colors:
+        Isolate: 0                # red
+        Small (2-5): 1            # cream
+        Intermediate (6-55): 2    # light blue
+        Giant component: 5        # navy
       figsize_main: [18.5, 10.4]
       figsize_panel: [15.5, 9.2]
       font_family: Helvetica
@@ -160,16 +179,18 @@ style:
       minor_tick_length: 3
       minor_tick_width: 0.8
       dpi: 600
-      cmap: Blues
+      # No `cmap` key: this section used to name `Blues`, which nothing read and which was
+      # off-palette anyway. The continuous scales come from shared_style —
+      # sequential_colormap(<a palette colour>) for the maps and heatmaps.
       edgecolor: black
       save: true
-      formats: [pdf, svg, png]
+      formats: [pdf, png]
       savedir: output/figures/data_analysis/05_author_characteristics
       roles:
-        c_primary: 3
-        c_accent: 0
-        c_gold: 1
-        c_green: 2
+        c_primary: 5              # navy
+        c_accent: 0               # red
+        c_gold: 1                 # cream
+        c_green: 6                # green
 
     02_content:
       # Topic-modelling and category-flow figures: streamgraphs, ridge waves and bump
@@ -187,7 +208,48 @@ style:
                "#86B94E", "#C7C94A", "#E9C46A", "#F4A261",
                "#E76F51", "#B65C7A", "#7B4EA3", "#4C4E9D"]
       save: true
-      formats: [pdf, svg, png]
+      formats: [pdf, png]
+      savedir: output/figures/data_analysis/02_content
+
+    02_content_99_all:
+      # The assembled main + SI panels for analysis 02. It keeps 02_content's TWELVE
+      # stream colours rather than the seven-colour project palette the 03/04 families
+      # use, because these pages are stacked composition streams: fifteen to eighteen
+      # adjacent bands need a ramp with enough anchors that neighbours separate, and
+      # extended_palette() interpolating seven colours over eighteen bands puts three
+      # near-identical blues next to each other. The closing remainder is always grey
+      # (#BBBBBB, in the panel module) and is the only grey on the page.
+      colors: ["#264653", "#2A6F83", "#2A9D8F", "#55A868",
+               "#86B94E", "#C7C94A", "#E9C46A", "#F4A261",
+               "#E76F51", "#B65C7A", "#7B4EA3", "#4C4E9D"]
+      font_family: Helvetica
+      title_fs: 15
+      label_fs: 12
+      tick_fs: 10
+      annot_fs: 9
+      legend_fs: 10
+      body_fs: 11
+      panel_label_fs: 15          # the bold A / B / C stamped on each sub-panel
+      # Per-figure type scale, as in the 03 and 04 families: every font size above is
+      # multiplied by the entry for the figure being drawn. The main page is three full
+      # rows tall and read at page width, so it carries the larger scale.
+      fs_scale:
+        main: 1.22
+        si1_rank_flow: 1.05
+      axes_linewidth: 1.0
+      tick_length: 4
+      tick_width: 1.0
+      tick_pad: 3
+      minor_tick_length: 2.5
+      minor_tick_width: 0.7
+      edgecolor: black
+      marker_size: 8.5
+      dot_marker_area: 76
+      figsize_main: [17, 20]      # three stacked streams, with a callout gutter at right
+      figsize_si:   [16, 15]      # two stacked bump charts, names in both margins
+      dpi: 600
+      save: true
+      formats: [pdf, png]
       savedir: output/figures/data_analysis/02_content
 
     04_non_academic_03_altmetric:
@@ -202,6 +264,48 @@ style:
       tick_fs:   10
       annot_fs:   9
       legend_fs: 10
+      savedir: output/figures/data_analysis/03_academic_impact
+
+    03_academic_impact_99_all:
+      # The assembled main + SI panels for analysis 03. Same seven named colours as
+      # 04_non_academic_99_all, listed in the same order as shared_style.PALETTE, so the
+      # two figure families belong to one paper (D29).
+      #
+      #   0 red  1 cream  2 light_blue  3 blue  4 steel_blue  5 navy  6 green
+      colors: ["#E66859", "#FEE7BA", "#75BBD4", "#74ADD1",
+               "#416FA0", "#274668", "#74D1AF"]
+      font_family: Helvetica
+      title_fs: 15
+      label_fs: 12
+      tick_fs: 10
+      annot_fs: 9
+      legend_fs: 10
+      body_fs: 11
+      panel_label_fs: 15          # the bold A / B / C stamped on each sub-panel
+      # Per-figure type scale, as in the 04 family: every font size above is multiplied
+      # by the entry for the figure being drawn. The main page is four grid rows tall and
+      # is read at figure width in a paper, so it carries the largest scale.
+      fs_scale:
+        main: 1.34
+        si1_impact_map: 1.05
+        si2_growth: 1.10
+        si3_author_arm: 1.15
+      axes_linewidth: 1.0
+      tick_length: 4
+      tick_width: 1.0
+      tick_pad: 3
+      minor_tick_length: 2.5
+      minor_tick_width: 0.7
+      edgecolor: black
+      marker_size: 8.5
+      dot_marker_area: 76
+      figsize_main:    [19, 18]   # A (2x2) with B and C stacked beside it, over D full width
+      figsize_si_wide: [14, 10]   # the single-panel impact map
+      figsize_si:      [16, 8]    # two panels side by side
+      figsize_si_tall: [14, 21]   # three panels stacked (cohorts, portfolio, fingerprint)
+      dpi: 600
+      save: true
+      formats: [pdf, png]
       savedir: output/figures/data_analysis/03_academic_impact
 
     04_non_academic_99_all:
@@ -246,7 +350,7 @@ style:
       figsize_si:   [15, 11]      # one SI panel per section
       dpi: 600
       save: true
-      formats: [pdf, svg, png]
+      formats: [pdf, png]
       savedir: output/figures/data_analysis/04_non_academic
       roles:
         c_primary:   5            # navy

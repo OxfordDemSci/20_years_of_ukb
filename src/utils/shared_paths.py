@@ -38,7 +38,18 @@ DATA = ROOT / "data"
 
 # -- the UK Biobank publication corpus (Dimensions records joined to the showcase) --
 SHOWCASE = DATA / "showcase"
+# Newest first. The WIDE export is the one to prefer: same 26,109 rows as the narrow
+# one, but 317 columns instead of 72 because it carries the Dimensions endpoint linkage
+# (`patents__linked_ids`, `clinical_trials__n_records`, and so on for all six endpoints).
+# It is a strict superset, so a notebook written against the narrow file keeps working.
+#
+# It is built by `src/data_creation/01_scraper_full_endpoint_collection_and_merge/
+# dimensions_endpoint_pipeline.py`, and it has landed in BOTH showcase directories over
+# the project's life — hence two wide entries rather than one. The narrow file is kept
+# last as a fallback, but note that anything reading a `*__linked_ids` column will raise
+# on it rather than silently return nothing (`pd.read_parquet(columns=...)` is strict).
 SHOWCASE_PLUS_CANDIDATES = (
+    SHOWCASE / "showcase+" / "showcase_plus_all_endpoints_wide.parquet",
     SHOWCASE / "showcase_plus" / "showcase_plus_all_endpoints_wide.parquet",
     SHOWCASE / "showcase+" / "showcase_plus_all_endpoint.parquet",
 )

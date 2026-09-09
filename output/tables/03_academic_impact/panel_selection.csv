@@ -1,0 +1,18 @@
+figure,panel,caption
+03_01_figure_01_academic_impact,A,"Where UK Biobank concentrates against where that work lands. Volume activity index — its share of a field against the field's share of the literature, measured within each field's own ANZSRC division — by relative citation impact, both log. The solid rule is UK Biobank's OWN average impact, not world parity: against the world essentially every field is above 1x, so its own standard is the informative reference. Dot area is UK Biobank papers."
+03_01_figure_01_academic_impact,B,"A's horizontal axis on its own, ranked: what UK Biobank is disproportionately about. 1x is parity with the literature; the axis is log, so 2x and 1/2 sit the same distance from it."
+03_01_figure_01_academic_impact,C,"A's vertical question over time, at the sharp end: UK Biobank's share of the papers clearing each field's measured top-decile citation cut-off, year by year. The dashed rule is its share across all fields."
+03_01_figure_01_academic_impact,D,"The footprint cut twice. UK Biobank's share of each field (line), split into the part in the field's most-cited tenth (solid) and the rest above the field's median (pale). Both cut-offs are measured per (year, field) against the whole database and fall steeply with publication year because citations accrue; the values are tabulated in the methods, not on the panels."
+03_02_supplementary_figure_01_impact_map_full,A,"The impact map at UK Biobank's 25 largest fields, every point labelled — main-figure panel B carries 16 and labels only the top eight plus the extremes."
+03_03_supplementary_figure_02_growth,A,"Compound annual growth 2021–2025 by field, UK Biobank (filled) against the same field in the whole database (hollow). Ranked on speed alone, with floors of 5 papers in 2021 and 20 in 2025."
+03_03_supplementary_figure_02_growth,B,"The absolute trajectories those rates summarise, log scale, so the slope is the growth rate. Dashed grey is all UK Biobank papers."
+03_04_supplementary_figure_03_author_arm,A,"Who produced the work. Share of authors, fractional paper and citation credit, top-decile credit and first/last authorship by the year an author first published in the corpus. Top-decile credit peaks at the 2021–23 cohort, not at the earliest one."
+03_04_supplementary_figure_03_author_arm,B,"Author output against field-normalised impact, one point per author with at least five papers. Colour is first/last-author share, dot area the h-index."
+03_04_supplementary_figure_03_author_arm,C,What each leading contributor is ahead on. Colour is percentile rank among recurrent authors (≥3 papers); the number is the observed value.
+(excluded),chart 1,"whole-database trends with UK Biobank stacked in. The slice is invisible in 7 of 8 panels - true, and the point of the 0.044% fact, but it cannot carry a panel. 01_growth owns output."
+(excluded),chart 2,"UK Biobank papers per field and share of field. Volume, not position; 01_growth owns it, and panel A divides the size out anyway."
+(excluded),chart 3,"annual growth speed, the first difference of chart 1. A diagnostic - the series is dominated by year-to-year sawtooth."
+(excluded),chart 6,the measures-agree dot chart and impact over time. Dropped in favour of chart 7 as the single impact headline; the IMPACT table now has to carry the measure-robustness result numerically. See the note in section 3.
+(excluded),chart 9a,chart 9 against the cut-offs themselves on a second axis.
+(excluded),chart 10,the size of each field's top-decile pool and UK Biobank's share of it.
+(excluded),sec 4.3,the marginal annual increase table (before vs after UKBB_YEAR).
