@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import math
 import random
+from textwrap import wrap
 
 import matplotlib.pyplot as plt
 import matplotlib.ticker as mticker
@@ -20,6 +21,7 @@ from . import data_analysis_05_author_characteristics as A
 from . import shared_name_gender as NG
 from . import shared_paths as P
 from .shared_style import (
+    academic_impact_colormap,
     black_legend,
     compact_count,
     extended_palette,
@@ -124,18 +126,284 @@ def _draw_top_country_bars(ax, core: A.CoreTables, style, n=8):
     return top
 
 
-def plot_headline_figure(core: A.CoreTables, network: A.NetworkTables, style, world=None):
-    """Six headline views anchored by the community network and geographic map."""
-    colors = semantic_colors("domain_colors", style)
-    fig, outer = gridspec_figure(
-        1,
-        2,
+def _portfolio_marker_area(values, style):
+    values = np.clip(np.asarray(values, dtype=float), 0, None)
+    return marker_area(style, scale=0.11) + marker_area(
+        style, scale=0.15
+    ) * np.sqrt(values)
+
+
+def _ratio_tick(value, _position=None):
+    if value <= 0:
+        return ""
+    if value >= 1:
+        return f"{value:g}x"
+    reciprocal = 1 / value
+    return f"1/{reciprocal:g}" if reciprocal < 10 else f"{value:g}x"
+
+
+def _spread_log_positions(values, low, high, minimum_gap=0.085):
+    """Separate ordered label anchors while preserving their vertical ordering."""
+    logs = np.log10(np.clip(np.asarray(values, dtype=float), low, high))
+    lo, hi = np.log10(low), np.log10(high)
+    if len(logs) < 2:
+        return 10**logs
+    gap = min(minimum_gap, 0.85 * (hi - lo) / (len(logs) - 1))
+    adjusted = np.clip(logs, lo, hi)
+    for index in range(1, len(adjusted)):
+        adjusted[index] = max(adjusted[index], adjusted[index - 1] + gap)
+    if adjusted[-1] > hi:
+        adjusted -= adjusted[-1] - hi
+    for index in range(len(adjusted) - 2, -1, -1):
+        adjusted[index] = min(adjusted[index], adjusted[index + 1] - gap)
+    if adjusted[0] < lo:
+        adjusted += lo - adjusted[0]
+    return 10**adjusted
+
+
+def _draw_author_impact_portfolio(ax, impact: A.HeadlineImpactTables, style):
+    """Draw publication volume against field-and-year-normalized author impact."""
+    data = impact.author_portfolio.copy()
+    positive = data.loc[data["mean_impact_metric"].gt(0), "mean_impact_metric"]
+    if positive.empty:
+        raise ValueError("The author-impact portfolio has no positive MNCS values")
+    y_low = max(0.05, float(positive.quantile(0.01)))
+    y_high = float(positive.quantile(0.98))
+    data["impact_plot"] = data["mean_impact_metric"].clip(y_low, y_high)
+
+    cmap = academic_impact_colormap()
+    scatter = ax.scatter(
+        data["showcase_paper_count"],
+        data["impact_plot"],
+        s=_portfolio_marker_area(data["showcase_h_index"], style),
+        c=data["leadership_share"],
+        cmap=cmap,
+        norm=Normalize(0, 1),
+        alpha=0.68,
+        edgecolor="black",
+        linewidth=0.24,
+        rasterized=True,
+        zorder=3,
+    )
+    ax.axhline(1, color=palette("red"), linewidth=1.5, zorder=2)
+    ax.annotate(
+        "Field-and-year average (1x)",
+        (0.985, 1),
+        xycoords=("axes fraction", "data"),
+        xytext=(0, 4),
+        textcoords="offset points",
+        ha="right",
+        va="bottom",
+        color=palette("red"),
+        fontsize=style["annot_fs"],
+        bbox={"facecolor": "white", "edgecolor": "none", "alpha": 0.82, "pad": 0.5},
+        zorder=6,
+    )
+
+    x_min = float(data["showcase_paper_count"].min()) / 1.18
+    x_max_data = float(data["showcase_paper_count"].max())
+    x_max = x_max_data * 3.7
+    ax.set_xscale("log")
+    ax.set_yscale("log")
+    ax.set_xlim(x_min, x_max)
+    ax.set_ylim(y_low / 1.22, y_high * 1.22)
+    x_ticks = [
+        value
+        for value in (5, 10, 25, 50, 100, 250, 500, 1_000)
+        if x_min <= value <= x_max
+    ]
+    y_ticks = [
+        value
+        for value in (0.1, 0.25, 0.5, 1, 2, 5, 10, 25, 50)
+        if y_low / 1.22 <= value <= y_high * 1.22
+    ]
+    ax.set_xticks(x_ticks)
+    ax.set_yticks(y_ticks)
+    ax.xaxis.set_major_formatter(mticker.FuncFormatter(lambda value, _: f"{value:g}"))
+    ax.yaxis.set_major_formatter(mticker.FuncFormatter(_ratio_tick))
+    ax.xaxis.set_minor_formatter(mticker.NullFormatter())
+    ax.yaxis.set_minor_formatter(mticker.NullFormatter())
+    ax.set_xlabel("Citation-eligible UK Biobank papers (log scale)")
+    ax.set_ylabel("Mean normalized citation score (log scale)")
+    ax.set_title(
+        f"Author impact portfolios, {A.IMPACT_FIRST_YEAR}-{A.IMPACT_LAST_YEAR}",
+        loc="left",
+        fontsize=style["label_fs"],
+        fontweight="bold",
+        pad=10,
+    )
+    style_axis(ax, style)
+
+    label_x = x_max_data * 1.28
+    mask_grid_region(ax, x_max_data * 1.12, x_max, zorder=1.5)
+    labels = impact.author_labels.merge(
+        data[["researcher_id", "impact_plot"]],
+        on="researcher_id",
+        how="left",
+        validate="one_to_one",
+    ).sort_values("impact_plot")
+    label_y = _spread_log_positions(
+        labels["impact_plot"],
+        y_low / 1.08,
+        y_high * 1.08,
+    )
+    label_layout = list(zip(labels.itertuples(), label_y))
+    connector_x = label_x / 1.05
+
+    # Draw every connector before any text. When text and leader are one Annotation,
+    # a later author's leader can be painted across an earlier author's name.
+    for index, (row, y_text) in enumerate(label_layout):
+        curvature = 0.08 if index % 2 else -0.08
+        ax.annotate(
+            "",
+            xy=(row.showcase_paper_count, row.impact_plot),
+            xytext=(connector_x, y_text),
+            textcoords="data",
+            arrowprops={
+                "arrowstyle": "-|>",
+                "color": "#666666",
+                "linewidth": 0.75,
+                "mutation_scale": 8.5,
+                "connectionstyle": f"arc3,rad={curvature}",
+                "shrinkA": 0,
+                "shrinkB": 4,
+            },
+            zorder=4,
+        )
+
+    for row, y_text in label_layout:
+        ax.text(
+            label_x,
+            y_text,
+            _short_label(row.author_name, 25),
+            ha="left",
+            va="center",
+            fontsize=style["annot_fs"] - 1,
+            color="black",
+            bbox={"facecolor": "white", "edgecolor": "none", "alpha": 1, "pad": 0.8},
+            zorder=8,
+        )
+
+    cax = ax.inset_axes([0.785, 0.52, 0.19, 0.026])
+    colorbar = ax.figure.colorbar(scatter, cax=cax, orientation="horizontal")
+    colorbar.ax.xaxis.set_major_formatter(mticker.PercentFormatter(1))
+    colorbar.ax.tick_params(labelsize=style["annot_fs"] - 2, pad=1)
+    style_colorbar(colorbar, "First/last/sole-author share")
+    colorbar.set_label("First/last/sole-author share", fontsize=style["annot_fs"] - 1)
+
+    size_handles = [
+        ax.scatter(
+            [],
+            [],
+            s=_portfolio_marker_area(value, style),
+            facecolor=cmap(0.68),
+            edgecolor="black",
+            linewidth=0.4,
+            label=f"h = {value}",
+        )
+        for value in (5, 15, 30)
+    ]
+    black_legend(
+        ax,
         style,
-        figsize_key="figsize_main",
+        handles=size_handles,
+        title="UKB h-index",
+        loc="lower right",
+        bbox_to_anchor=(0.99, 0.02),
+        ncol=1,
+        fontsize=style["annot_fs"] - 1,
+        title_fontsize=style["annot_fs"],
+        borderaxespad=0,
+    )
+    ax.text(
+        0.015,
+        0.975,
+        f"{len(data):,} resolved authors; MNCS display clipped at 1st/98th percentiles",
+        transform=ax.transAxes,
+        ha="left",
+        va="top",
+        fontsize=style["annot_fs"] - 1,
+        color="#555555",
+        bbox={"facecolor": "white", "edgecolor": "none", "alpha": 0.84, "pad": 0.6},
+        zorder=6,
+    )
+
+
+def _draw_venue_impact(ax, impact: A.HeadlineImpactTables, style):
+    """Draw the citation-stock ranking of eligible publication venues."""
+    data = impact.venue_plot.copy()
+    cmap = academic_impact_colormap()
+    normalizer = Normalize(data["papers"].min(), data["papers"].max())
+    bars = ax.barh(
+        np.arange(len(data)),
+        data["total_citations"],
+        color=cmap(normalizer(data["papers"])),
+        edgecolor="black",
+        linewidth=0.55,
+        height=0.72,
+        zorder=3,
+    )
+    ax.set_yticks(
+        np.arange(len(data)),
+        ["\n".join(wrap(str(value), width=26)) for value in data["venue"]],
+    )
+    maximum = float(data["total_citations"].max())
+    ax.set_xlim(0, maximum * 1.34)
+    for bar, row in zip(bars, data.itertuples(index=False)):
+        ax.text(
+            bar.get_width() + maximum * 0.014,
+            bar.get_y() + bar.get_height() / 2,
+            f"{compact_count(row.total_citations)} cites; {row.papers:,} papers",
+            ha="left",
+            va="center",
+            fontsize=style["annot_fs"] - 2,
+            color="black",
+        )
+    ax.set_xlabel("Total citations")
+    ax.set_title(
+        "Leading publication venues by citation impact",
+        loc="left",
+        fontsize=style["label_fs"],
+        fontweight="bold",
+        pad=10,
+    )
+    ax.xaxis.set_major_formatter(
+        mticker.FuncFormatter(lambda value, _: compact_count(value, digits=0))
+    )
+    ax.tick_params(axis="y", labelsize=style["tick_fs"] - 3)
+    style_axis(ax, style, grid_axis="x")
+
+    mapper = plt.cm.ScalarMappable(norm=normalizer, cmap=cmap)
+    mapper.set_array([])
+    colorbar = ax.figure.colorbar(mapper, ax=ax, fraction=0.032, pad=0.018)
+    style_colorbar(colorbar, "Number of papers")
+    colorbar.ax.tick_params(labelsize=style["annot_fs"] - 1)
+
+
+def plot_headline_figure(
+    core: A.CoreTables,
+    network: A.NetworkTables,
+    impact: A.HeadlineImpactTables,
+    style,
+    world=None,
+):
+    """Eight headline views spanning author structure, reach, and citation impact."""
+    colors = semantic_colors("domain_colors", style)
+    fig, page = gridspec_figure(
+        2,
+        1,
+        style,
+        figsize_key="figsize_headline",
         left=0.045,
         right=0.985,
-        bottom=0.085,
+        bottom=0.055,
         top=0.965,
+        hspace=0.17,
+        height_ratios=[1.72, 1],
+    )
+    outer = page[0].subgridspec(
+        1,
+        2,
         wspace=0.11,
         width_ratios=[1.45, 1],
     )
@@ -165,6 +433,14 @@ def plot_headline_figure(core: A.CoreTables, network: A.NetworkTables, style, wo
     ax_c = fig.add_subplot(right[0])
     ax_d = fig.add_subplot(right[1])
     ax_f = fig.add_subplot(right[2])
+    impact_row = page[1].subgridspec(
+        1,
+        2,
+        width_ratios=[1.34, 1],
+        wspace=0.29,
+    )
+    ax_g = fig.add_subplot(impact_row[0])
+    ax_h = fig.add_subplot(impact_row[1])
 
     # A: component-aware author network with an actual-edge topology backbone.
     _draw_component_network(
@@ -282,6 +558,11 @@ def plot_headline_figure(core: A.CoreTables, network: A.NetworkTables, style, wo
     style_axis(ax_f, style)
     black_legend(ax_f, style, loc="upper right")
 
+    # G-H: citation-normalized author portfolios and venue citation stock, promoted
+    # from analysis 03 and redrawn in the shared 05 figure system.
+    _draw_author_impact_portfolio(ax_g, impact, style)
+    _draw_venue_impact(ax_h, impact, style)
+
     panel_label(
         ax_a_meta,
         "A",
@@ -304,7 +585,14 @@ def plot_headline_figure(core: A.CoreTables, network: A.NetworkTables, style, wo
         x=-0.08,
         y=0.93,
     )
-    return save_figure(fig, "05_01_figure_01_author_characteristics", style)
+    for ax, label in zip([ax_g, ax_h], "GH"):
+        panel_label(ax, label, style, x=-0.07, y=1.055)
+    return save_figure(
+        fig,
+        "05_01_figure_01_author_characteristics",
+        style,
+        formats=["pdf", "png", "svg"],
+    )
 
 
 def plot_author_metrics_supplement(core: A.CoreTables, style):

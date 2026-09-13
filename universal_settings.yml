@@ -161,6 +161,7 @@ style:
         Intermediate (6-55): 2    # light blue
         Giant component: 5        # navy
       figsize_main: [18.5, 10.4]
+      figsize_headline: [18.5, 15.5]
       figsize_panel: [15.5, 9.2]
       font_family: Helvetica
       title_fs: 20
@@ -302,7 +303,7 @@ style:
       figsize_main:    [19, 18]   # A (2x2) with B and C stacked beside it, over D full width
       figsize_si_wide: [14, 10]   # the single-panel impact map
       figsize_si:      [16, 8]    # two panels side by side
-      figsize_si_tall: [14, 21]   # three panels stacked (cohorts, portfolio, fingerprint)
+      figsize_si_author: [14, 15] # two stacked author panels; B has 25 labelled rows
       dpi: 600
       save: true
       formats: [pdf, png]

@@ -164,6 +164,7 @@ TABLE_GROWTH = TABLE_DATA_ANALYSIS / "01_growth"
 # directly under output/tables/. 02 follows 03, the more recent of the two. The split is an
 # inconsistency, recorded rather than fixed here.
 TABLE_CONTENT = OUTPUT_TABLES / "02_content"
+TABLE_ACADEMIC_IMPACT = OUTPUT_TABLES / "03_academic_impact"
 FIG_AUTHORS = FIG_DATA_ANALYSIS / "01_authors"
 FIG_AUTHOR_CHARACTERISTICS = FIG_DATA_ANALYSIS / "05_author_characteristics"
 TABLE_AUTHOR_CHARACTERISTICS = TABLE_DATA_ANALYSIS / "05_author_characteristics"
@@ -211,7 +212,8 @@ def ensure_dirs() -> None:
               POLICY, COLLABORATION, DIMENSION_CACHE, DIMENSION_FLAT, OUTPUT_TABLES,
               FIG_GROWTH, TABLE_GROWTH, TABLE_CONTENT,
               FIG_AUTHORS, FIG_AUTHOR_CHARACTERISTICS,
-              TABLE_AUTHOR_CHARACTERISTICS, FIG_CONTENT, FIG_NETWORK, FIG_NON_ACADEMIC,
+              TABLE_ACADEMIC_IMPACT, TABLE_AUTHOR_CHARACTERISTICS,
+              FIG_CONTENT, FIG_NETWORK, FIG_NON_ACADEMIC,
               FIG_CLINICAL_TRIALS, FIG_ACADEMIC_IMPACT, FIG_PATENT):
         d.mkdir(parents=True, exist_ok=True)
 

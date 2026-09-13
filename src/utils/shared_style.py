@@ -65,6 +65,11 @@ PALETTE_COLORS = {
 #: The same seven colours as an ordered list (the shape `style["colors"]` takes).
 PALETTE = list(PALETTE_COLORS.values())
 
+# Ordered blue sequence used for normalized citation and author-impact measures. This is
+# the academic-impact ramp introduced with the shared project palette: low values remain
+# visible as cream, while the upper end resolves to the project's navy.
+ACADEMIC_IMPACT_ANCHORS = ("cream", "light_blue", "steel_blue", "navy")
+
 
 def palette(*names):
     """Look colours up by name: ``palette("navy")`` -> str, ``palette("navy", "red")`` -> list.
@@ -127,6 +132,7 @@ def apply_style(style=None):
         "figure.dpi": 110,            # on-screen
         "savefig.dpi": style["dpi"],  # exported
         "font.size": style.get("body_fs", style["annot_fs"]),
+        "lines.markersize": style.get("marker_size", DEFAULT_MARKER_SIZE),
         "axes.titlesize": style["title_fs"],
         "axes.labelsize": style["label_fs"],
         "axes.linewidth": style.get("axes_linewidth", 0.8),
@@ -453,13 +459,34 @@ def mask_grid_region(ax, start, end=None, *, color="white", zorder=1.5):
 WARM_COLD_ANCHORS = ["navy", "steel_blue", "blue", "light_blue", "cream", "red"]
 
 
-def warm_cold_colormap(reverse: bool = False):
-    """The cold-to-warm palette ramp as a Matplotlib colormap (low = navy, high = red)."""
+def palette_colormap(*names, name="project_palette", reverse=False, n=256):
+    """Build a continuous map from named anchors in the shared project palette."""
     from matplotlib.colors import LinearSegmentedColormap
-    colors = [PALETTE_COLORS[name] for name in WARM_COLD_ANCHORS]
+
+    if len(names) < 2:
+        raise ValueError("palette_colormap requires at least two named colours")
+    colors = palette(*names)
     if reverse:
         colors = colors[::-1]
-    return LinearSegmentedColormap.from_list("warm_cold", colors, N=256)
+    return LinearSegmentedColormap.from_list(name, colors, N=n)
+
+
+def academic_impact_colormap(reverse: bool = False):
+    """Return the project's cream-to-navy academic-impact ramp."""
+    return palette_colormap(
+        *ACADEMIC_IMPACT_ANCHORS,
+        name="academic_impact",
+        reverse=reverse,
+    )
+
+
+def warm_cold_colormap(reverse: bool = False):
+    """The cold-to-warm palette ramp as a Matplotlib colormap (low = navy, high = red)."""
+    return palette_colormap(
+        *WARM_COLD_ANCHORS,
+        name="warm_cold",
+        reverse=reverse,
+    )
 
 
 def sequential_colormap(color):
@@ -493,6 +520,14 @@ def savefig(fig, name, style=None, formats=None, dpi=None, **kwargs):
         if ext in {"png", "jpg", "jpeg", "tif", "tiff"}:
             save_kwargs.setdefault("dpi", dpi or style["dpi"])
         fig.savefig(dest, format=ext, **save_kwargs)
+        if ext == "svg":
+            # Matplotlib leaves spaces at the end of multiline path-data rows. They are
+            # visually inert but make generated SVGs fail `git diff --check`.
+            svg = dest.read_text(encoding="utf-8")
+            dest.write_text(
+                "\n".join(line.rstrip() for line in svg.splitlines()) + "\n",
+                encoding="utf-8",
+            )
         saved.append(dest)
         try:
             shown = dest.relative_to(ROOT).as_posix()

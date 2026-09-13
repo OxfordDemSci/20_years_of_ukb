@@ -19,7 +19,8 @@ has already sized, under the one `03_academic_impact_99_all` style section.
 **The palette.** Everything is drawn from `shared_style.PALETTE_COLORS` — the same seven
 named colours analysis 04 is drawn in (D29), so the two figure families belong to one
 paper. Where a chart needs more than seven categories or an ordered ramp, it is derived
-from those anchors by `_shade()` / `_ramp()` rather than reaching for a new hue. Nothing
+from those anchors by `_shade()` or the shared palette colormaps rather than reaching for
+a new hue. Nothing
 here reads `STYLE["colors"]` by integer index.
 
 **What it reads.** Nothing here re-derives what a source notebook derives:
@@ -98,8 +99,6 @@ COHORT_ORDER = [label for _, _, label in COHORT_BINS]
 ACT_TOP_M_MAIN, ACT_TOP_M_SI = 10, 20
 MAP_M_MAIN, MAP_M_SI = 16, 25
 
-#: Minimum recurrent-author papers for the SI portfolio map — the author notebook's floor.
-AUTHOR_MIN_PAPERS = 5
 FINGERPRINT_TOP = 25
 
 
@@ -109,7 +108,8 @@ FINGERPRINT_TOP = 25
 from matplotlib.colors import LinearSegmentedColormap, to_hex, to_rgb   # noqa: E402
 
 from utils.shared_style import (                                        # noqa: E402
-    PALETTE_COLORS, grid_on, panel_label, savefig, year_ticks,
+    PALETTE_COLORS, academic_impact_colormap, grid_on, panel_label, savefig,
+    year_ticks,
 )
 
 
@@ -163,18 +163,11 @@ def field_palette(n: int) -> list:
     return FIELD_CYCLE + [ramp(i / (n - 1)) for i in range(len(FIELD_CYCLE), n)]
 
 
-def _ramp(*names, n: int = 256):
-    """An ordered colormap through named palette anchors, for a sequence not a category."""
-    return LinearSegmentedColormap.from_list(
-        "ukb_ordered", [PALETTE_COLORS[x] if x in PALETTE_COLORS else x for x in names],
-        N=n)
-
-
 #: Author-entry cohorts are an ORDERED sequence — successive waves, not unrelated kinds —
 #: so they take a ramp rather than four categorical colours. The source notebook built
 #: one from `STYLE["colors"][3]`; this is the same idea through the project palette, pale
 #: cream at the early end to navy at the recent one.
-COHORT_RAMP = _ramp("cream", "light_blue", "steel_blue", "navy")
+COHORT_RAMP = academic_impact_colormap()
 COHORT_COLORS = [COHORT_RAMP(v) for v in (0.06, 0.40, 0.72, 1.0)]
 
 
@@ -1017,68 +1010,6 @@ def draw_growth_trajectories(ax, D):
 
 
 # ------------------------------------------------------------------ SI: author arm
-def draw_author_portfolio(ax, D):
-    """Author output volume against field-normalised impact, one dot per author.
-
-    Volume and impact are independent questions, so they get an axis each. Every point is
-    an author with at least five papers in the window; colour is the share of those on
-    which they were first or last author, so the dark points are the ones leading the
-    work rather than joining large consortia.
-    """
-    st = _style()
-    s = D["author"]["summary"]
-    s = s[(s.showcase_paper_count >= AUTHOR_MIN_PAPERS)
-          & s.mean_impact_metric.notna() & (s.mean_impact_metric > 0)].copy()
-    clip = float(s.mean_impact_metric.quantile(0.98))
-    s["y"] = s.mean_impact_metric.clip(upper=clip)
-
-    sc = ax.scatter(s.showcase_paper_count, s.y,
-                    s=8 + 2.2 * s.showcase_h_index.fillna(0),
-                    c=s.leadership_share.clip(0, 1), cmap=_ramp("cream", "steel_blue", "navy"),
-                    alpha=0.72, linewidth=0.3, edgecolor="white", vmin=0, vmax=1)
-    cb = ax.figure.colorbar(sc, ax=ax, pad=0.015, fraction=0.040)
-    cb.set_label("first/last-author share", fontsize=st["label_fs"])
-    cb.ax.tick_params(labelsize=st["tick_fs"])
-    cb.ax.yaxis.set_major_formatter(mticker.FuncFormatter(lambda v, _: f"{100 * v:.0f}%"))
-
-    ax.axhline(1.0, color=C_ABOVE, lw=1.4)
-    ax.annotate("field average (1x)", (ax.get_xlim()[1], 1.0), color=C_ABOVE,
-                fontsize=st["annot_fs"], va="bottom", ha="right", xytext=(-4, 3),
-                textcoords="offset points")
-    # The most PROLIFIC authors, not the highest-scoring ones: the top of the influence
-    # ranking all sits at the y clip ceiling and prints as one illegible pile, while the
-    # top of the paper count spreads along the x axis. Their y values are still close
-    # together, so the nudge gap is an absolute one in log space rather than a share of
-    # their own narrow span, and the axis is widened to give the labels somewhere to go.
-    marked = s.nlargest(8, "showcase_paper_count")
-    for value, ly, x, name in _nudge(
-            [(float(r.y), float(r.showcase_paper_count), str(r.author_name))
-             for _, r in marked.iterrows()], 0.085):
-        if abs(np.log10(ly) - np.log10(value)) > 0.01:
-            ax.plot([x, x], [value, ly], color=C_INK, lw=0.7, alpha=0.5, zorder=1)
-        ax.annotate(name, (x, ly), fontsize=st["annot_fs"] - 1, color=C_INK,
-                    va="center", xytext=(7, 0), textcoords="offset points",
-                    bbox=dict(fc="white", ec="none", alpha=0.7, pad=0.5))
-
-    ax.set_xscale("log")
-    ax.set_yscale("log")
-    # After set_xscale, never before: a limit set while the axis is still linear is
-    # reinterpreted on the switch and collapses the scatter into a single column.
-    ax.set_xlim(float(s.showcase_paper_count.min()) / 1.15,
-                float(s.showcase_paper_count.max()) * 2.8)
-    ax.xaxis.set_major_formatter(mticker.FuncFormatter(lambda v, _: f"{v:,.0f}"))
-    ax.yaxis.set_major_formatter(mticker.FuncFormatter(_times_fmt))
-    ax.yaxis.set_minor_formatter(mticker.NullFormatter())
-    ax.set_xlabel("UK Biobank papers by author (log scale)")
-    ax.set_ylabel("mean MNCS vs the author's own fields (log scale)")
-    ax.annotate(f"{len(s):,} authors with ≥{AUTHOR_MIN_PAPERS} papers   ·   y clipped at "
-                f"the 98th percentile ({clip:.1f}x)   ·   dot area = h-index",
-                (0.01, 0.985), xycoords="axes fraction", ha="left", va="top",
-                fontsize=st["annot_fs"] - 1, color=C_INK)
-    grid_on(ax)
-    return ax
-
-
 def draw_author_fingerprint(ax, D):
     """What each leading contributor is ahead ON, rather than a single leaderboard rank.
 
@@ -1104,7 +1035,7 @@ def draw_author_fingerprint(ax, D):
         [100 * (recurrent[c] < v).mean() if v == v else np.nan for v in top[c]]
         for c, _, _ in cols])
 
-    im = ax.imshow(ranks, cmap=_ramp("cream", "light_blue", "steel_blue", "navy"),
+    im = ax.imshow(ranks, cmap=academic_impact_colormap(),
                    aspect="auto", vmin=0, vmax=100)
     cb = ax.figure.colorbar(im, ax=ax, pad=0.015, fraction=0.030)
     cb.set_label("percentile rank among recurrent authors", fontsize=st["label_fs"])
@@ -1168,10 +1099,7 @@ SI_CAPTIONS = {
               "credit, top-decile credit and first/last authorship by the year an author "
               "first published in the corpus. Top-decile credit peaks at the 2021–23 "
               "cohort, not at the earliest one."),
-        "B": ("Author output against field-normalised impact, one point per author with "
-              "at least five papers. Colour is first/last-author share, dot area the "
-              "h-index."),
-        "C": ("What each leading contributor is ahead on. Colour is percentile rank "
+        "B": ("What each leading contributor is ahead on. Colour is percentile rank "
               "among recurrent authors (≥3 papers); the number is the observed value."),
     },
 }
@@ -1253,7 +1181,7 @@ def figure_si_growth(D, save=True):
     """SI 2 — growth, not size. A growth result inside an impact analysis, hence SI."""
     st = _style()
     with _font_scale(_fs_scale("si2_growth")):
-        fig = plt.figure(figsize=st["figsize_si"])
+        fig = plt.figure(figsize=st["figsize_si_author"])
         gs = fig.add_gridspec(1, 2, wspace=0.30, width_ratios=[1.15, 1.0])
         axes = _assemble_axes(fig, gs, [(0, 0), (0, 1)])
         draw_growth_rates(axes[0], D)
@@ -1266,22 +1194,20 @@ def figure_si_growth(D, save=True):
 
 
 def figure_si_author_arm(D, save=True):
-    """SI 3 — the author arm, all three panels.
+    """SI 3 — the non-duplicated author cohort and influence panels.
 
     The cohort profile (A) was the main page's panel E until 2026-09-09, when the page was
     rebuilt on three columns and no longer had room for it. It comes here rather than
-    being dropped: the 2021-23 cohort holding the largest share of top-decile credit is a
-    result, and this is the figure the rest of the author arm already lives in.
+    being dropped. The former portfolio panel is now Figure 5G and is not repeated here.
     """
     st = _style()
     with _font_scale(_fs_scale("si3_author_arm")):
-        fig = plt.figure(figsize=st["figsize_si_tall"])
-        gs = fig.add_gridspec(3, 1, hspace=0.34, height_ratios=[0.62, 1.0, 1.35])
-        axes = _assemble_axes(fig, gs, [(0, 0), (1, 0), (2, 0)])
+        fig = plt.figure(figsize=st["figsize_si"])
+        gs = fig.add_gridspec(2, 1, hspace=0.38, height_ratios=[0.62, 1.35])
+        axes = _assemble_axes(fig, gs, [(0, 0), (1, 0)])
         draw_author_cohorts(axes[0], D)
-        draw_author_portfolio(axes[1], D)
-        draw_author_fingerprint(axes[2], D)
-        for ax, letter in zip(axes, "ABC"):
+        draw_author_fingerprint(axes[1], D)
+        for ax, letter in zip(axes, "AB"):
             panel_label(ax, letter)
         if save:
             savefig(fig, "03_04_supplementary_figure_03_author_arm")

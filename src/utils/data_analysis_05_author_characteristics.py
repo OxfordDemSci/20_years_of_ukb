@@ -1,7 +1,8 @@
 """Reusable data and statistical utilities for analysis 05.
 
-The analysis has one canonical source: the Showcase+ all-endpoints-wide parquet.
-All person-level longitudinal metrics use Dimensions researcher IDs. Authorships with
+Showcase+ is the canonical publication, authorship, venue, and affiliation source. The
+headline author-impact panel additionally uses analysis 03's frozen field-normalized
+citation pathway. All person-level longitudinal metrics use Dimensions researcher IDs. Authorships with
 no researcher ID remain in paper-level descriptive denominators, but receive a
 paper-local key so equal names are never silently treated as the same person.
 
@@ -33,10 +34,11 @@ import pandas as pd
 from scipy import sparse as sp
 from scipy.sparse.csgraph import connected_components
 
+from . import data_analysis_03_academic_impact_analysis as AI
 from . import shared_name_gender as NG
 from . import shared_paths as P
 from .shared_for import add_for_columns
-from .shared_showcase import load_showcase, parse_listcol
+from .shared_showcase import load_showcase, parse_dictcol, parse_listcol
 
 FIRST_YEAR = 2013
 LAST_COMPLETE_YEAR = 2025
@@ -46,6 +48,17 @@ LEIDEN_SEED = 48652
 NETWORK_LAYOUT_ITERATIONS = 100
 NETWORK_BACKBONE_REPEAT_LIMIT = 80_000
 AUTHOR_CONCENTRATION_THRESHOLDS = (1, 5, 10, 25, 50)
+IMPACT_FIRST_YEAR = 2015
+IMPACT_LAST_YEAR = 2025
+PORTFOLIO_MIN_PAPERS = 5
+PORTFOLIO_LABEL_COUNT = 8
+VENUE_FIRST_YEAR = 2014
+VENUE_MIN_PAPERS = 20
+VENUE_TOP_N = 15
+CITATION_SNAPSHOT_YEAR = 2026
+LEGACY_AUTHOR_IMPACT = (
+    P.TABLE_ACADEMIC_IMPACT / "author_summary_with_impact_metrics.csv"
+)
 
 SHOWCASE_COLUMNS = [
     "id",
@@ -60,6 +73,7 @@ SHOWCASE_COLUMNS = [
     "researchers",
     "research_orgs",
     "research_org_countries",
+    "source_title",
     "category_for_2020",
 ]
 
@@ -97,6 +111,17 @@ class NetworkTables:
     collapsed_edges: pd.DataFrame
     adjacency: sp.csr_matrix
     modularity: float
+
+
+@dataclass
+class HeadlineImpactTables:
+    """Citation and venue tables promoted from analysis 03 into Figure 5."""
+
+    author_portfolio: pd.DataFrame
+    author_labels: pd.DataFrame
+    venue_metrics: pd.DataFrame
+    venue_plot: pd.DataFrame
+    provenance: pd.DataFrame
 
 
 def load_author_papers(
@@ -1017,6 +1042,264 @@ def build_core_tables(papers: pd.DataFrame) -> CoreTables:
     )
 
 
+def _clean_source_title(value) -> str:
+    """Return a journal/source title from Dimensions' scalar or JSON representation."""
+    if isinstance(value, list):
+        return _clean_source_title(value[0]) if value else ""
+    parsed = parse_dictcol(value)
+    if parsed:
+        return _normalise_text(parsed.get("title") or parsed.get("name")) or ""
+    text = _normalise_text(value) or ""
+    return "" if text.startswith(("{", "[")) else text
+
+
+def _current_author_leadership(core: CoreTables) -> pd.DataFrame:
+    """Correct first/last-author shares for resolved authors in the impact window."""
+    stable = core.authorships[
+        core.authorships["identity_resolved"]
+        & core.authorships["year"].between(IMPACT_FIRST_YEAR, IMPACT_LAST_YEAR)
+    ].drop_duplicates(["author_id", "paper_id"])
+    stable = stable.assign(
+        is_leadership=stable["authorship_role"].isin(
+            ["First author", "Last author", "Single author"]
+        )
+    )
+    summary = (
+        stable.groupby("author_id", as_index=False)
+        .agg(
+            author_name_current=("full_name", _mode),
+            current_window_papers=("paper_id", "nunique"),
+            leadership_share_current=("is_leadership", "mean"),
+        )
+        .rename(columns={"author_id": "researcher_id"})
+    )
+    return summary
+
+
+def _author_impact_from_paper_cache(core: CoreTables) -> pd.DataFrame:
+    """Recompute the promoted author panel from the frozen 03 per-paper cache."""
+    paper_impact = AI.paper_impact(
+        P.FOR_COUNTS_API,
+        "for",
+        level="L4",
+        year_min=IMPACT_FIRST_YEAR,
+        year_max=IMPACT_LAST_YEAR,
+        verbose=False,
+    ).rename(
+        columns={
+            "id": "paper_id",
+            "times_cited": "impact_times_cited",
+        }
+    )
+    stable = core.authorships.loc[
+        core.authorships["identity_resolved"]
+        & core.authorships["year"].between(IMPACT_FIRST_YEAR, IMPACT_LAST_YEAR),
+        ["author_id", "full_name", "paper_id", "authorship_role"],
+    ].drop_duplicates(["author_id", "paper_id"])
+    author_papers = stable.merge(
+        paper_impact[["paper_id", "impact_times_cited", "n_mncs"]],
+        on="paper_id",
+        how="inner",
+        validate="many_to_one",
+    )
+    if author_papers.empty:
+        raise ValueError("The 03 citation cache did not match any resolved authorships")
+
+    author_papers["is_leadership"] = author_papers["authorship_role"].isin(
+        ["First author", "Last author", "Single author"]
+    )
+    grouped = author_papers.groupby("author_id", sort=False)
+    summary = grouped.agg(
+        showcase_paper_count=("paper_id", "nunique"),
+        total_dataset_citations=("impact_times_cited", "sum"),
+        mean_impact_metric=("n_mncs", "mean"),
+        median_impact_metric=("n_mncs", "median"),
+        showcase_h_index=("impact_times_cited", h_index),
+        leadership_share=("is_leadership", "mean"),
+    )
+    summary["author_name"] = _fast_modal(author_papers, "author_id", "full_name")
+    summary.index.name = "researcher_id"
+    return summary.reset_index()
+
+
+def _author_impact_from_legacy_summary(core: CoreTables) -> pd.DataFrame:
+    """Read the retained 03 author table when its frozen per-paper cache is absent."""
+    if not LEGACY_AUTHOR_IMPACT.exists():
+        raise FileNotFoundError(
+            "Author impact needs either the 03 per-paper citation cache or "
+            f"{P.raw_path(LEGACY_AUTHOR_IMPACT)}"
+        )
+    required = [
+        "researcher_id",
+        "author_name",
+        "showcase_paper_count",
+        "total_dataset_citations",
+        "mean_impact_metric",
+        "median_impact_metric",
+        "showcase_h_index",
+    ]
+    legacy = pd.read_csv(LEGACY_AUTHOR_IMPACT, usecols=required)
+    legacy["researcher_id"] = legacy["researcher_id"].astype("string")
+    legacy = legacy[
+        legacy["researcher_id"].notna()
+        & legacy["researcher_id"].str.startswith("ur.", na=False)
+    ].copy()
+    current = _current_author_leadership(core)
+    summary = legacy.merge(
+        current,
+        on="researcher_id",
+        how="inner",
+        validate="one_to_one",
+    )
+    summary["author_name"] = summary["author_name_current"].fillna(
+        summary["author_name"]
+    )
+    summary["leadership_share"] = summary["leadership_share_current"]
+    return summary.drop(
+        columns=[
+            "author_name_current",
+            "current_window_papers",
+            "leadership_share_current",
+        ]
+    )
+
+
+def _select_portfolio_labels(portfolio: pd.DataFrame) -> pd.DataFrame:
+    """Select a compact set spanning prolific and high-h-index authors."""
+    ranked = portfolio.copy()
+    ranked["paper_rank"] = ranked["showcase_paper_count"].rank(
+        ascending=False, method="min"
+    )
+    ranked["h_index_rank"] = ranked["showcase_h_index"].rank(
+        ascending=False, method="min"
+    )
+    ranked["label_score"] = (
+        ranked["showcase_paper_count"].rank(pct=True)
+        + ranked["showcase_h_index"].rank(pct=True)
+    )
+    candidates = pd.concat(
+        [
+            ranked.nsmallest(PORTFOLIO_LABEL_COUNT, "paper_rank"),
+            ranked.nsmallest(PORTFOLIO_LABEL_COUNT, "h_index_rank"),
+        ],
+        ignore_index=True,
+    ).drop_duplicates("researcher_id")
+    labels = candidates.nlargest(PORTFOLIO_LABEL_COUNT, "label_score").copy()
+    labels["label_reason"] = np.select(
+        [labels["paper_rank"].le(5), labels["h_index_rank"].le(5)],
+        ["top-five publication count", "top-five h-index"],
+        default="high combined publication and h-index rank",
+    )
+    return labels.sort_values("mean_impact_metric").reset_index(drop=True)
+
+
+def build_headline_impact_tables(
+    papers: pd.DataFrame,
+    core: CoreTables,
+) -> HeadlineImpactTables:
+    """Build the author-impact and venue panels promoted from analysis 03.
+
+    The field-normalised author metric is recomputed when all three frozen 03
+    per-paper inputs are available. The retained 03 author summary is an explicit,
+    validated fallback for lightweight checkouts that omit those ignored caches.
+    """
+    cache_paths = [
+        P.FOR_COUNTS_API / "api_ukbb_records.json",
+        P.FOR_COUNTS_API / "api_whole.for.parquet",
+        P.FOR_COUNTS_API / "field_thresholds.for.csv",
+    ]
+    if all(path.exists() for path in cache_paths):
+        author_summary = _author_impact_from_paper_cache(core)
+        author_source = "recomputed from frozen 03 per-paper citation cache"
+        author_path = "; ".join(P.raw_path(path) for path in cache_paths)
+    else:
+        author_summary = _author_impact_from_legacy_summary(core)
+        author_source = "retained 03 resolved-author impact summary"
+        author_path = P.raw_path(LEGACY_AUTHOR_IMPACT)
+
+    portfolio = author_summary.replace([np.inf, -np.inf], np.nan)
+    portfolio = portfolio[
+        portfolio["showcase_paper_count"].ge(PORTFOLIO_MIN_PAPERS)
+        & portfolio["mean_impact_metric"].notna()
+        & portfolio["mean_impact_metric"].ge(0)
+    ].copy()
+    portfolio["leadership_share"] = portfolio["leadership_share"].clip(0, 1)
+    portfolio["citation_source"] = author_source
+    portfolio = portfolio.sort_values(
+        ["showcase_paper_count", "showcase_h_index"], ascending=False
+    ).reset_index(drop=True)
+    if portfolio.empty or portfolio["researcher_id"].duplicated().any():
+        raise ValueError("Author-impact portfolio must contain unique recurrent authors")
+    author_labels = _select_portfolio_labels(portfolio)
+
+    venue_rows = papers[papers["year"].ge(VENUE_FIRST_YEAR)].copy()
+    venue_rows["venue"] = venue_rows["source_title"].map(_clean_source_title)
+    venue_rows["citation_age_years"] = (
+        CITATION_SNAPSHOT_YEAR - venue_rows["year"] + 1
+    ).clip(lower=1)
+    venue_rows["citations_per_year"] = (
+        venue_rows["times_cited"] / venue_rows["citation_age_years"]
+    )
+    venue_metrics = (
+        venue_rows[venue_rows["venue"].ne("")]
+        .groupby("venue", as_index=False)
+        .agg(
+            papers=("id", "nunique"),
+            total_citations=("times_cited", "sum"),
+            median_citations=("times_cited", "median"),
+            median_citations_per_year=("citations_per_year", "median"),
+        )
+        .sort_values("total_citations", ascending=False)
+        .reset_index(drop=True)
+    )
+    venue_metrics["eligible_for_headline"] = venue_metrics["papers"].ge(
+        VENUE_MIN_PAPERS
+    )
+    venue_metrics["headline_rank"] = pd.Series(pd.NA, index=venue_metrics.index, dtype="Int64")
+    eligible_index = venue_metrics.index[venue_metrics["eligible_for_headline"]]
+    venue_metrics.loc[eligible_index, "headline_rank"] = (
+        venue_metrics.loc[eligible_index, "total_citations"]
+        .rank(ascending=False, method="first")
+        .astype("Int64")
+    )
+    venue_metrics["selected_for_headline"] = venue_metrics["headline_rank"].le(
+        VENUE_TOP_N
+    ).fillna(False)
+    venue_plot = (
+        venue_metrics[venue_metrics["selected_for_headline"]]
+        .sort_values("total_citations")
+        .reset_index(drop=True)
+    )
+    if venue_plot.empty or venue_metrics["venue"].duplicated().any():
+        raise ValueError("Venue-impact table must contain unique eligible venues")
+
+    provenance = pd.DataFrame(
+        [
+            {
+                "panel": "G",
+                "measure": "author mean MNCS and UKB h-index",
+                "source": author_source,
+                "path": author_path,
+                "records_plotted": len(portfolio),
+            },
+            {
+                "panel": "H",
+                "measure": "venue citation stock",
+                "source": "Showcase+ citation snapshot",
+                "path": P.raw_path(P.SHOWCASE_PLUS),
+                "records_plotted": len(venue_plot),
+            },
+        ]
+    )
+    return HeadlineImpactTables(
+        author_portfolio=portfolio,
+        author_labels=author_labels,
+        venue_metrics=venue_metrics,
+        venue_plot=venue_plot,
+        provenance=provenance,
+    )
+
+
 def _author_paper_incidence(authorships, max_team_size=None):
     stable = authorships[authorships["identity_resolved"]][
         ["author_id", "paper_id", "year"]
@@ -1648,6 +1931,7 @@ def validation_checks(
     papers,
     core: CoreTables,
     network: NetworkTables | None = None,
+    impact: HeadlineImpactTables | None = None,
 ) -> pd.DataFrame:
     authorships = core.authorships
     paper_credit = authorships.groupby("paper_id")["authorship_credit"].sum()
@@ -1775,6 +2059,55 @@ def validation_checks(
             ("network_adjacency_zero_diagonal", bool(np.allclose(network.adjacency.diagonal(), 0)), float(network.adjacency.diagonal().max(initial=0)), 0),
             ("network_edge_count_matches_adjacency", int(all_years.iloc[-1]["n_edges"]) == network.adjacency.nnz // 2, int(all_years.iloc[-1]["n_edges"]), network.adjacency.nnz // 2),
         ])
+    if impact is not None:
+        portfolio = impact.author_portfolio
+        labels = impact.author_labels
+        venue_plot = impact.venue_plot
+        resolved_ids = set(core.author_metrics["researcher_id"])
+        checks.extend([
+            (
+                "headline_impact_authors_resolved",
+                set(portfolio["researcher_id"]).issubset(resolved_ids),
+                portfolio["researcher_id"].nunique(),
+                "subset of resolved authors",
+            ),
+            (
+                "headline_impact_authors_unique",
+                not portfolio["researcher_id"].duplicated().any(),
+                portfolio["researcher_id"].nunique(),
+                len(portfolio),
+            ),
+            (
+                "headline_impact_h_index_bounded",
+                bool(
+                    portfolio["showcase_h_index"]
+                    .le(portfolio["showcase_paper_count"])
+                    .all()
+                ),
+                int(portfolio["showcase_h_index"].max()),
+                "<= citation-eligible papers",
+            ),
+            (
+                "headline_impact_labels_are_plotted",
+                set(labels["researcher_id"]).issubset(
+                    set(portfolio["researcher_id"])
+                ),
+                len(labels),
+                f"<= {PORTFOLIO_LABEL_COUNT}",
+            ),
+            (
+                "headline_venues_meet_paper_floor",
+                bool(venue_plot["papers"].ge(VENUE_MIN_PAPERS).all()),
+                int(venue_plot["papers"].min()),
+                f">= {VENUE_MIN_PAPERS}",
+            ),
+            (
+                "headline_venue_citations_nonnegative",
+                bool(impact.venue_metrics["total_citations"].ge(0).all()),
+                float(impact.venue_metrics["total_citations"].min()),
+                ">= 0",
+            ),
+        ])
     return pd.DataFrame(checks, columns=["check", "passed", "observed", "expected"])
 
 
@@ -1846,7 +2179,11 @@ def author_productivity_bands(author_metrics: pd.DataFrame) -> pd.DataFrame:
     return result
 
 
-def headline_statistics(core: CoreTables, network: NetworkTables) -> pd.DataFrame:
+def headline_statistics(
+    core: CoreTables,
+    network: NetworkTables,
+    impact: HeadlineImpactTables | None = None,
+) -> pd.DataFrame:
     gender = core.gender_by_year.set_index("year")
     institutions = core.institution_by_year.set_index("year")
     full_network = network.metrics_by_year[network.metrics_by_year["scenario"].eq("All papers")].set_index("year")
@@ -1881,6 +2218,26 @@ def headline_statistics(core: CoreTables, network: NetworkTables) -> pd.DataFram
         ("Giant component, 2025", 100 * full_network.loc[2025, "giant_fraction"], "% resolved authors"),
         ("Leiden modularity", network.modularity, "fractional-edge weighted"),
     ]
+    if impact is not None:
+        portfolio = impact.author_portfolio
+        leading_venue = impact.venue_plot.iloc[-1]
+        values.extend([
+            (
+                f"Resolved authors with >={PORTFOLIO_MIN_PAPERS} citation-eligible papers",
+                len(portfolio),
+                f"authors, {IMPACT_FIRST_YEAR}-{IMPACT_LAST_YEAR}",
+            ),
+            (
+                "Authors above field-and-year citation average",
+                100 * portfolio["mean_impact_metric"].gt(1).mean(),
+                "% recurrent resolved authors",
+            ),
+            (
+                "Leading venue by citation stock",
+                leading_venue["venue"],
+                f"{leading_venue['total_citations']:,.0f} citations",
+            ),
+        ])
     return pd.DataFrame(values, columns=["statistic", "value", "unit_or_definition"])
 
 
@@ -1901,7 +2258,9 @@ def legacy_artifact_crosswalk() -> pd.DataFrame:
         ("05_network_over_time", "full community L2/L4/institution count and summary tables", "network_community_*_counts.csv + network_community_*_summary.csv", "retained and expanded with country and name-category intersections"),
         ("05_network_over_time", "collapsed community L2/L4/institution tables", "Supplementary Figure 6A + network_collapsed_*_counts.csv + network_collapsed_*_summary.csv", "retained for the 12-community composition display"),
         ("05_authors_1_metrics", "author productivity distribution", "Supplementary Figure 1A + author_productivity_bands.csv", "complete survival curve and mutually exclusive band table retained in the author supplement"),
-        ("05_authors_2 / 3_CHECK", "paper_combined", "Figure 1", "replaced by a six-panel synthesis across five analytical domains"),
+        ("03_academic_impact_02_citation", "author impact portfolio map", "Figure 1G + headline_author_impact_portfolio.csv", "promoted into the author-characteristics headline and removed as a standalone 03 figure"),
+        ("03_academic_impact_02_citation_extra", "leading publication venues by citation impact", "Figure 1H + headline_venue_impact.csv", "promoted into the author-characteristics headline and removed as a standalone 03 figure"),
+        ("05_authors_2 / 3_CHECK", "paper_combined", "Figure 1", "replaced by an eight-panel synthesis across author, network, gender, geography, institution and citation domains"),
     ]
     return pd.DataFrame(rows, columns=["legacy_source", "legacy_artifact", "successor", "status"])
 
@@ -1912,6 +2271,9 @@ def metric_definitions() -> pd.DataFrame:
         ("Unresolved authorship", "An author-paper slot without a researcher_id. It receives a paper-local key and is never merged across papers by name."),
         ("UKB h-index", "Largest h for which an author or institution has h UK Biobank papers cited at least h times in the source snapshot."),
         ("UKB g-index", "Largest g for which the g most-cited UK Biobank papers received at least g squared citations in total."),
+        ("Mean normalized citation score (MNCS)", "For each paper, citations divided by the mean for its publication year and FOR L4 fields, then averaged across an author's citation-eligible papers; 1 denotes field-and-year parity."),
+        ("Leadership share", "Share of an author's citation-window papers on which that resolved author occupied the first, last or sole-author position; each paper contributes at most once."),
+        ("Venue citation stock", "Current Showcase+ citations summed over papers assigned to a source title; this is a snapshot total rather than a historical citation trajectory."),
         ("Fractional publication credit", "Each paper contributes one unit split equally among parsed authors, then equally among each author's distinct affiliations or countries."),
         ("Author-credit concentration", "Cumulative share of resolved-author fractional publication credit held by authors ranked at or above a stated top-percent threshold."),
         ("Author productivity band", "Mutually exclusive grouping of resolved authors by their number of UK Biobank publications: 1, 2-4, 5-9 or 10+."),
@@ -1934,7 +2296,11 @@ def metric_definitions() -> pd.DataFrame:
     return pd.DataFrame(rows, columns=["metric", "definition"])
 
 
-def analysis_parameters(source, papers) -> pd.DataFrame:
+def analysis_parameters(
+    source,
+    papers,
+    impact: HeadlineImpactTables | None = None,
+) -> pd.DataFrame:
     libraries = NG.offline_library_versions()
     library_versions = ", ".join(
         libraries.apply(lambda row: f"{row['library']}={row['version']}", axis=1)
@@ -1964,7 +2330,21 @@ def analysis_parameters(source, papers) -> pd.DataFrame:
         ("network_layout_iterations", NETWORK_LAYOUT_ITERATIONS),
         ("network_backbone_repeated_tie_limit", NETWORK_BACKBONE_REPEAT_LIMIT),
         ("map_geometry", "Natural Earth 1:110m Admin 0 Countries"),
+        ("author_impact_first_year", IMPACT_FIRST_YEAR),
+        ("author_impact_last_year", IMPACT_LAST_YEAR),
+        ("author_impact_min_papers", PORTFOLIO_MIN_PAPERS),
+        ("author_impact_field_level", "FOR 2020 L4"),
+        ("venue_first_year", VENUE_FIRST_YEAR),
+        ("venue_min_papers", VENUE_MIN_PAPERS),
+        ("venue_top_n", VENUE_TOP_N),
+        ("citation_snapshot_year", CITATION_SNAPSHOT_YEAR),
     ]
+    if impact is not None:
+        author_source = impact.provenance.set_index("panel").loc["G"]
+        rows.extend([
+            ("author_impact_source", author_source["source"]),
+            ("author_impact_source_path", author_source["path"]),
+        ])
     return pd.DataFrame(rows, columns=["parameter", "value"])
 
 
@@ -1986,7 +2366,16 @@ def figure_captions() -> OrderedDict:
             "and are not self-identified gender. (E) Geographic distribution of fractional publication "
             "credit by author-affiliation country on a linear white-to-navy scale. (F) Annual "
             "concentration of observed institutional credit in the "
-            "leading institution and leading ten institutions. "
+            "leading institution and leading ten institutions. (G) Citation-eligible resolved "
+            f"authors with at least {PORTFOLIO_MIN_PAPERS} UK Biobank papers in "
+            f"{IMPACT_FIRST_YEAR}-{IMPACT_LAST_YEAR}, plotted by paper count and mean normalized "
+            "citation score (MNCS) on logarithmic axes. The horizontal rule denotes field-and-year "
+            "citation parity; marker area represents the UKB h-index and colour represents the "
+            "share of first-, last- or sole-author papers. MNCS and h-index values use the frozen "
+            "analysis 03 citation pathway. Values beyond the first and 98th MNCS percentiles are "
+            "clipped for display only. (H) The 15 publication venues with the largest Showcase+ "
+            f"citation stock among venues contributing at least {VENUE_MIN_PAPERS} papers from "
+            f"{VENUE_FIRST_YEAR}-{LAST_COMPLETE_YEAR}; bar colour represents paper count. "
             "Records from provisional year 2026 were excluded."
         ),
         "supplementary_figure_01_caption.txt": (
@@ -2064,7 +2453,13 @@ def figure_captions() -> OrderedDict:
     })
 
 
-def methods_text(source, papers, core: CoreTables, network: NetworkTables) -> str:
+def methods_text(
+    source,
+    papers,
+    core: CoreTables,
+    network: NetworkTables,
+    impact: HeadlineImpactTables | None = None,
+) -> str:
     missing_papers = len(papers) - core.authorships["paper_id"].nunique()
     unresolved = int((~core.authorships["identity_resolved"]).sum())
     unknown = int(core.authorships["name_gender"].eq("Unknown").sum())
@@ -2092,6 +2487,25 @@ def methods_text(source, papers, core: CoreTables, network: NetworkTables) -> st
             lambda row: f"{row['library']} {row['version']}", axis=1
         )
     )
+    if impact is None:
+        impact_method = ""
+    else:
+        author_source = impact.provenance.set_index("panel").loc["G", "source"]
+        impact_method = (
+            f" The author-impact portfolio used {author_source}. Paper-level normalized "
+            f"citation scores covered {IMPACT_FIRST_YEAR}-{IMPACT_LAST_YEAR} and divided each "
+            "paper's citation count by the mean in the same publication year and each assigned "
+            "FOR 2020 L4 field, averaging across multiple fields. Author MNCS was the mean over "
+            "citation-eligible papers. The portfolio was restricted to Dimensions-resolved "
+            f"authors with at least {PORTFOLIO_MIN_PAPERS} such papers; first-, last- and "
+            "sole-author roles each counted once toward leadership share. Marker area encoded "
+            "the h-index calculated only from those citation-eligible UK Biobank papers. The "
+            "plot clipped MNCS at its first and 98th percentiles without altering exported "
+            "values. Venue citation stock was calculated independently from Showcase+ snapshot "
+            f"citations for {VENUE_FIRST_YEAR}-{LAST_COMPLETE_YEAR}. Source-title JSON was "
+            f"normalized, venues with fewer than {VENUE_MIN_PAPERS} papers were excluded, and "
+            f"the {VENUE_TOP_N} largest remaining citation totals were plotted."
+        )
     return (
         "Author-characteristics analysis. The analysis used the Showcase+ all-endpoints-wide "
         f"publication parquet ({len(source):,} records at the source snapshot). Primary analyses "
@@ -2106,7 +2520,8 @@ def methods_text(source, papers, core: CoreTables, network: NetworkTables) -> st
         "composition and affiliation denominators under paper-local keys, but were never linked "
         "across papers by name and were excluded from person-level impact and network metrics. "
         "UKB h-, g- and i10-indices used citations only to papers in this UK Biobank corpus; citation "
-        "and Altmetric values were snapshot measures. Each paper contributed one fractional unit, "
+        "and Altmetric values were snapshot measures."
+        f"{impact_method} Each paper contributed one fractional unit, "
         "split equally among parsed authors and then among each author's distinct affiliations or "
         "affiliation countries. When no paper-specific affiliation was listed, a resolvable current "
         "organization ID was used as a flagged backfill; unresolved affiliation credit was not "
@@ -2155,7 +2570,7 @@ def methods_text(source, papers, core: CoreTables, network: NetworkTables) -> st
         f"tree and up to {NETWORK_BACKBONE_REPEAT_LIMIT:,} repeated coauthorship ties, then positioned "
         f"with igraph's Large Graph Layout ({NETWORK_LAYOUT_ITERATIONS} iterations; seed {LEIDEN_SEED}). "
         "All reported network metrics used the complete graph. The main figure "
-        "uses a compact synthesis across five domains; each supplementary figure is restricted to "
+        "uses a compact synthesis across six domains; each supplementary figure is restricted to "
         "one domain. Complete community-by-FOR, institution, country and name-category distributions "
         "are supplied as count, share and rank tables rather than inferred from the plotted labels."
     )
@@ -2167,12 +2582,13 @@ def export_analysis_artifacts(
     papers: pd.DataFrame,
     core: CoreTables,
     network: NetworkTables,
+    impact: HeadlineImpactTables,
 ) -> dict:
     """Export all analytical tables, workbook sheets, captions, methods, and crosswalk."""
     author_table = merge_author_network_metrics(core.author_metrics, network)
     audit = quality_audit(source, papers, core)
-    checks = validation_checks(source, papers, core, network)
-    headline = headline_statistics(core, network)
+    checks = validation_checks(source, papers, core, network, impact)
+    headline = headline_statistics(core, network, impact)
     concentration = author_credit_concentration(core.author_metrics)
     productivity = author_productivity_bands(core.author_metrics)
     gender_coverage = NG.inference_coverage(core.authorships)
@@ -2182,7 +2598,7 @@ def export_analysis_artifacts(
     gender_library_versions = NG.offline_library_versions()
     unresolved_name_queries = NG.unresolved_query_queue(core.authorships)
     definitions = metric_definitions()
-    parameters = analysis_parameters(source, papers)
+    parameters = analysis_parameters(source, papers, impact)
     crosswalk = legacy_artifact_crosswalk()
     paper_for = papers[["id", "year", "title", "for_l2", "for_l4"]].rename(
         columns={"id": "paper_id"}
@@ -2232,6 +2648,10 @@ def export_analysis_artifacts(
         "network_community_summary.csv": network.community_summary,
         "network_collapsed_nodes.csv": network.collapsed_nodes,
         "network_collapsed_edges.csv": network.collapsed_edges,
+        "headline_author_impact_portfolio.csv": impact.author_portfolio,
+        "headline_author_impact_labels.csv": impact.author_labels,
+        "headline_venue_impact.csv": impact.venue_metrics,
+        "headline_impact_provenance.csv": impact.provenance,
         "headline_summary_statistics.csv": headline,
         "data_quality_audit.csv": audit,
         "analysis_validation_checks.csv": checks,
@@ -2294,6 +2714,10 @@ def export_analysis_artifacts(
         "Network sensitivity": network_summaries[
             "network_hyperauthorship_sensitivity.csv"
         ],
+        "Headline author impact": impact.author_portfolio,
+        "Headline author labels": impact.author_labels,
+        "Headline venue impact": impact.venue_metrics,
+        "Headline impact provenance": impact.provenance,
         "Headline statistics": headline,
         "Quality audit": audit,
         "Validation checks": checks,
@@ -2307,7 +2731,7 @@ def export_analysis_artifacts(
     for filename, caption in figure_captions().items():
         registry.save_text(caption + "\n", filename)
     methods = registry.save_text(
-        methods_text(source, papers, core, network) + "\n",
+        methods_text(source, papers, core, network, impact) + "\n",
         "methods_author_characteristics.txt",
     )
     return {
@@ -2320,6 +2744,7 @@ def export_analysis_artifacts(
         "audit": audit,
         "checks": checks,
         "headline": headline,
+        "impact": impact,
         "saved_tables": saved_tables,
         "workbook": workbook,
         "methods": methods,

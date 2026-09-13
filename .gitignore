@@ -178,6 +178,8 @@ file/*
 data/**
 !data/**/
 !data/**/*.md
+# Generated analysis figures, tables, and paper text.
+/output/
 output_temp/*
 .idea/*
 fig/*
