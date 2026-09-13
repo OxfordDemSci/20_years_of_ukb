@@ -532,7 +532,7 @@ def plot_headline_figure(
     ax_f.plot(
         institutions["year"],
         institutions["top_10_share"],
-        color=colors["institutions"],
+        color=palette("cream"),
         marker="o",
         markeredgecolor="black",
         markeredgewidth=0.5,
