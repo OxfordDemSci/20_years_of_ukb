@@ -1,0 +1,4 @@
+vocabulary,available,target_other,min_band,max_bands,min_bands,weight,categories,bands_drawn,categories_in_remainder,coverage_mean_pct,coverage_min_pct,coverage_max_pct,remainder_mean_pct
+BERTopic topics,False,45.0,0.8,16,8,,,,,,,,
+FOR 2020 Level 4,True,10.0,0.7,16,8,n_papers,119.0,15.0,104.0,90.6,84.3,93.9,9.4
+RCDC tags,True,10.0,1.2,18,10,n_frac,271.0,18.0,253.0,62.3,57.4,68.2,37.7

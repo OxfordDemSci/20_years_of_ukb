@@ -56,6 +56,23 @@ WORLD_DOWNLOADED_SHP = (
 _NETWORK_LAYOUT_CACHE = {}
 
 
+def _year_periods(n_periods=4):
+    """Split the analysis window into equal publication-year periods.
+
+    Derived from the window in `A` rather than written out, so the period columns and
+    the papers behind them cannot drift apart when the window moves.
+
+    Returns `(bins, labels)` ready for `pd.cut`: bins are right-closed edges starting one
+    year below the first year, labels read "2014-16".
+    """
+    chunks = np.array_split(
+        np.arange(A.FIRST_YEAR, A.LAST_COMPLETE_YEAR + 1), n_periods
+    )
+    bins = [int(chunks[0][0]) - 1] + [int(chunk[-1]) for chunk in chunks]
+    labels = [f"{int(chunk[0])}-{int(chunk[-1]) % 100:02d}" for chunk in chunks]
+    return bins, labels
+
+
 def _map_colormap(style):
     """The choropleth ramp: white through to the geography domain colour.
 
@@ -1233,13 +1250,9 @@ def _draw_country_basis_agreement(ax, core: A.CoreTables, style):
 
 def _draw_country_period_composition(ax, core: A.CoreTables, style, n=8):
     """Show how the leading countries' fractional-credit shares changed by period."""
-    periods = ["2013-15", "2016-18", "2019-21", "2022-25"]
+    bins, periods = _year_periods()
     credits = core.country_credits[["year", "iso3", "country", "credit"]].copy()
-    credits["period"] = pd.cut(
-        credits["year"],
-        bins=[2012, 2015, 2018, 2021, 2025],
-        labels=periods,
-    )
+    credits["period"] = pd.cut(credits["year"], bins=bins, labels=periods)
     overall = (
         credits.groupby(["iso3", "country"], observed=True)["credit"]
         .sum()
@@ -1326,12 +1339,8 @@ def _draw_country_diversity(ax, core: A.CoreTables, style):
     color = semantic_colors("domain_colors", style)["geography"]
     annual = core.country_by_year.sort_values("year")
 
-    period_labels = ["2013-15", "2016-18", "2019-21", "2022-25"]
-    period = pd.cut(
-        annual["year"],
-        bins=[2012, 2015, 2018, 2021, 2025],
-        labels=period_labels,
-    )
+    bins, period_labels = _year_periods()
+    period = pd.cut(annual["year"], bins=bins, labels=period_labels)
     diversity = (
         annual.assign(period=period)
         .groupby("period", observed=True)["effective_entities"]

@@ -40,7 +40,10 @@ from . import shared_paths as P
 from .shared_for import add_for_columns
 from .shared_showcase import load_showcase, parse_dictcol, parse_listcol
 
-FIRST_YEAR = 2013
+# Analysis window. 2014 is the first year, not the corpus's own first year: it is the
+# window every figure, table, caption and validation check in this notebook is built
+# from, so move it here and nowhere else.
+FIRST_YEAR = 2014
 LAST_COMPLETE_YEAR = 2025
 HYPERAUTHOR_THRESHOLD = 100
 LEIDEN_RESOLUTION = 1.0
@@ -1954,7 +1957,8 @@ def quality_audit(source, papers, core: CoreTables) -> pd.DataFrame:
     )
     rows = [
         ("Source parquet records", len(source), "includes provisional years"),
-        ("Records after 2025", int(source["year"].gt(LAST_COMPLETE_YEAR).sum()), "excluded from primary analysis"),
+        (f"Records before {FIRST_YEAR}", int(source["year"].lt(FIRST_YEAR).sum()), "excluded from primary analysis"),
+        (f"Records after {LAST_COMPLETE_YEAR}", int(source["year"].gt(LAST_COMPLETE_YEAR).sum()), "excluded from primary analysis"),
         ("Complete-year papers", len(papers), f"{FIRST_YEAR}-{LAST_COMPLETE_YEAR}"),
         ("Papers with parsed authors", authorships["paper_id"].nunique(), "author-based denominator"),
         ("Papers without parsed authors", int(len(papers) - authorships["paper_id"].nunique()), "retained in source audit only"),
@@ -2322,12 +2326,12 @@ def headline_statistics(
                 ["top_author_percent", "credit_share_percent"]
             ].itertuples(index=False, name=None)
         ],
-        ("Female-name share, 2013", gender.loc[2013, "female_name_share"], "% classified authorships"),
-        ("Female-name share, 2025", gender.loc[2025, "female_name_share"], "% classified authorships"),
+        (f"Female-name share, {FIRST_YEAR}", gender.loc[FIRST_YEAR, "female_name_share"], "% classified authorships"),
+        (f"Female-name share, {LAST_COMPLETE_YEAR}", gender.loc[LAST_COMPLETE_YEAR, "female_name_share"], "% classified authorships"),
         ("Countries represented", int(core.country_metrics["fractional_paper_credit"].fillna(0).gt(0).sum()), "geolocated author-affiliation countries"),
         ("Institutions represented", len(core.institution_metrics), "identified affiliations"),
-        ("Top-10 institution share, 2025", institutions.loc[2025, "top_10_share"], "% annual fractional credit"),
-        ("Giant component, 2025", 100 * full_network.loc[2025, "giant_fraction"], "% resolved authors"),
+        (f"Top-10 institution share, {LAST_COMPLETE_YEAR}", institutions.loc[LAST_COMPLETE_YEAR, "top_10_share"], "% annual fractional credit"),
+        (f"Giant component, {LAST_COMPLETE_YEAR}", 100 * full_network.loc[LAST_COMPLETE_YEAR, "giant_fraction"], "% resolved authors"),
         ("Leiden modularity", network.modularity, "fractional-edge weighted"),
     ]
     if impact is not None:
@@ -2623,7 +2627,8 @@ def methods_text(
         "Author-characteristics analysis. The analysis used the Showcase+ all-endpoints-wide "
         f"publication parquet ({len(source):,} records at the source snapshot). Primary analyses "
         f"were restricted to complete publication years {FIRST_YEAR}-{LAST_COMPLETE_YEAR} "
-        f"({len(papers):,} papers); provisional 2026 records were retained only for auditing. "
+        f"({len(papers):,} papers); records outside that window, including provisional 2026 "
+        "records, were retained only for auditing. "
         "Nested author, affiliation, research-organization and Fields of Research (FOR 2020) "
         "records were parsed from their JSON representations. A tidy author-paper table was built "
         "from the authors field and deduplicated by publication ID and author identifier. "

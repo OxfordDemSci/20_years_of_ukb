@@ -114,6 +114,26 @@ NON_ACADEMIC_SECTORS = [
 
 COMPANY_SECTORS = ["Company (non-UK)", "UK company"]
 
+#: The policy and attention figures are drawn in ONE colour family from end to end rather
+#: than rotating the palette panel by panel. `stream_colors` still gives every stream its
+#: own hue, because the main figure's panel A draws five of them on one axes and telling
+#: them apart is the whole point of that panel. Inside a figure that is *about* one
+#: stream, a second hue says only "different panel", which the panel letter already says,
+#: and it leaves the reader hunting for a distinction that is not being drawn.
+#:
+#: Both families are blue. Policy takes the palette's `blue`; attention takes its
+#: `light_blue` and the darker `navy` where a panel genuinely carries two series (news
+#: against policy mentions, which is a real contrast, not a decorative one).
+POLICY_PRIMARY = "blue"           # #74ADD1
+POLICY_SECONDARY = "navy"         # #274668 - the UK / rest-of-world split
+ATTENTION_PRIMARY = "light_blue"  # #75BBD4
+ATTENTION_SECONDARY = "navy"      # #274668 - the policy series, where both are drawn
+
+#: The policy choropleth's ramp: white through the palette's three blues. Built from the
+#: named palette rather than from a Matplotlib map so the map and the bars beside it are
+#: the same four colours.
+POLICY_MAP_RAMP = ["#FFFFFF", "blue", "steel_blue", "navy"]
+
 # =============================================================================
 # Organisation sector, for the clinical-trials "who runs them" panel
 # =============================================================================
@@ -949,6 +969,14 @@ def build_policy_aggregates(policy: pd.DataFrame, corpus: pd.DataFrame) -> dict:
                              .reindex(columns=["United Kingdom", "Rest of world"], fill_value=0))
 
     out["countries"] = _top_counter(Counter(policy["publisher_country"]), 12)
+    # The same counts keyed on the ISO 3166-1 alpha-2 code the export ships, which is
+    # what the choropleth joins the world geometry on. Kept beside the named-country
+    # Series rather than replacing it: the names are what prose quotes, the codes are
+    # what a map merges, and deriving one from the other at draw time is where a
+    # choropleth silently loses a country.
+    iso = policy.loc[policy["publisher_country_code"].astype(str).str.len() == 2,
+                     "publisher_country_code"]
+    out["countries_iso"] = iso.value_counts().astype("int64")
     publishers = _top_counter(Counter(policy["publisher_name"]), 8)
     # "Food and Agriculture Organization of the United Nations" is four wrapped lines in
     # a tick; the acronym-bearing tail is what identifies it, so trim rather than wrap.
@@ -1063,6 +1091,22 @@ def build_collaboration_aggregates(collab: pd.DataFrame) -> dict:
         "papers": [int(collab[_sector_flag(s)].sum()) for s in SECTOR_ORDER],
     }, index=SECTOR_ORDER)
     out["sector_summary"] = summary
+
+    # (a2) how the sectors overlap, ROW-NORMALISED: cell (i, j) is the share of the
+    # publications carrying sector i that also carry sector j. The matrix is deliberately
+    # asymmetric, and the asymmetry is the finding — 90% of UK-company papers also carry
+    # a university partner while 1.4% of university papers carry a UK company. On raw
+    # counts every cell would be dominated by University/HEI, which is the one sector
+    # nearly every paper has, and the six small sectors would be unreadable.
+    flags = {s: collab[_sector_flag(s)] == 1 for s in SECTOR_ORDER}
+    overlap = pd.DataFrame(index=SECTOR_ORDER, columns=SECTOR_ORDER, dtype=float)
+    for row in SECTOR_ORDER:
+        total = int(flags[row].sum())
+        for col in SECTOR_ORDER:
+            both = int((flags[row] & flags[col]).sum())
+            overlap.loc[row, col] = 100 * both / total if total else np.nan
+    out["flag_overlap"] = overlap
+    out["flag_totals"] = pd.Series({s: int(flags[s].sum()) for s in SECTOR_ORDER})
 
     # (b) share of that year's papers carrying each non-academic sector. A share, because
     # the corpus grows from 26 papers in 2014 to 5,747 in 2025 and a count panel would
@@ -1423,8 +1467,14 @@ def _stacked_bars(ax, frame, colors, xlabel, ylabel, *, legend_title=None,
 
 
 def _lines(ax, frame, colors, xlabel, ylabel, *, marker="o", labels=None,
-           legend_loc="upper left", legend_ncol=1, grid=True):
-    """One line per column of `frame`, indexed on the x values."""
+           legend_loc="upper left", legend_ncol=1, grid=True, legend_fs=None):
+    """One line per column of `frame`, indexed on the x values.
+
+    `legend_fs` overrides the style's legend size for this panel alone. A five-series
+    legend inside a half-width panel is a box, not a caption: at the family's size it is
+    wide enough to sit on the data whatever corner it is put in, and shrinking the type
+    is what shrinks the box.
+    """
     st = _style()
     for column in frame.columns:
         ax.plot(frame.index, frame[column].to_numpy(dtype=float),
@@ -1434,7 +1484,8 @@ def _lines(ax, frame, colors, xlabel, ylabel, *, marker="o", labels=None,
                 label=(labels or {}).get(str(column), str(column)))
     ax.set_xlabel(xlabel)
     ax.set_ylabel(ylabel)
-    ax.legend(loc=legend_loc, ncol=legend_ncol, fontsize=st["legend_fs"])
+    ax.legend(loc=legend_loc, ncol=legend_ncol,
+              fontsize=legend_fs if legend_fs is not None else st["legend_fs"])
     if grid:
         grid_on(ax)
     return ax
@@ -1488,9 +1539,12 @@ def draw_reach_by_year(ax, D):
     # No grid at all, and the legend bottom-right. Every series rises to the top-right, so
     # the lower right is the one empty quadrant; and on a log axis spanning four decades
     # even a major-only grid competes with five lines for the same space.
+    # The five stream names are long ("Non-academic collaboration"), so the legend is set
+    # two points under the family size: at the family size the box is wide enough that the
+    # patent and trial lines run behind it on their way to the top right.
     _lines(ax, frame, _stream_colors(), "Publication year",
            "Cumulative publications (log)", labels=STREAM_LABELS,
-           legend_loc="lower right", grid=False)
+           legend_loc="lower right", grid=False, legend_fs=_style()["legend_fs"] - 2)
     ax.set_yscale("log")
     _year_axis(ax)
     return ax
@@ -1633,8 +1687,8 @@ def draw_patent_legal_status(ax, D):
     # ~1.9x so the legend starts well clear of both.
     ax.set_ylim(0, frame.sum(axis=1).max() * 1.92)
     ax.legend(loc="upper left", ncol=2, columnspacing=1.0, handlelength=1.2,
-              handletextpad=0.5, fontsize=st["legend_fs"] - 1,
-              title="Legal status", title_fontsize=st["legend_fs"] - 1)
+              handletextpad=0.5, fontsize=st["legend_fs"] - 3,
+              title="Legal status", title_fontsize=st["legend_fs"] - 2.5)
     ax.tick_params(axis="x", labelrotation=0)
     ax.set_xticklabels([str(i) for i in frame.index], rotation=0, ha="center")
     return ax
@@ -1874,7 +1928,7 @@ def draw_trial_enrollment(ax, D):
     _ref_lines(ax, values)
     ax.set_xlabel("Planned enrollment (log)")
     ax.set_ylabel("Trials")
-    grid_on(ax, which="major")          # log x: the minor decade ticks are too dense
+    grid_on(ax, which="major")          # y only: `grid_on` leaves the log x axis bare
     return ax
 
 
@@ -1906,30 +1960,107 @@ def draw_trial_lag(ax, D):
 def draw_policy_by_year(ax, D):
     """Policy documents citing UK Biobank research, UK-published against everywhere else."""
     frame = D["policy"]["by_year_origin"]
-    colors = {"United Kingdom": _stream_colors()["policy"],
-              "Rest of world": _sector_colors()["Nonprofit/Charity"]}
+    colors = {"United Kingdom": palette(POLICY_PRIMARY),
+              "Rest of world": palette(POLICY_SECONDARY)}
     _stacked_bars(ax, frame, colors, "Policy document year", "Policy documents",
                   legend_title="Publisher")
     return ax
 
 
 def draw_policy_countries(ax, D):
-    """The countries whose institutions publish those documents."""
-    _hbar(ax, D["policy"]["countries"], _stream_colors()["policy"],
+    """The countries whose institutions publish those documents, as a ranked bar.
+
+    Superseded on the SI page by `draw_policy_country_map`, which answers the same
+    question geographically. Kept because `D["policy"]["countries"]` is the Series prose
+    quotes the ranking off, and a bar of it is the cheapest way to check the map.
+    """
+    _hbar(ax, D["policy"]["countries"], palette(POLICY_PRIMARY),
           "Policy documents", ylabel="Publisher country", wrap=22)
+    return ax
+
+
+def draw_policy_country_map(ax, D):
+    """Publisher country as a choropleth, on a log colour scale.
+
+    **Why a map and not the ranked bar it replaces.** The ranking's finding is not which
+    country is first — it is that a UK resource is cited by policy bodies on five
+    continents, and that the second and third publishers (the United States and
+    Switzerland, the latter almost entirely the WHO) are not British. A bar chart makes
+    the reader assemble that geography from twelve country names; a map states it.
+
+    **Log colour scale.** The counts run 1 to 111 with most countries in single figures,
+    so a linear ramp paints everything outside the top three the same near-white and the
+    map's whole message becomes "three countries exist".
+
+    Countries with no citing document are grey, not the ramp's lightest blue: absent and
+    minimal are different claims and a sequential ramp cannot make that distinction on
+    its own. The named counts are printed for the leading publishers, because a
+    choropleth alone cannot be read to a number.
+    """
+    import geopandas as gpd
+    from matplotlib.colors import BoundaryNorm
+
+    st = _style()
+    counts = D["policy"]["countries_iso"]
+    world = gpd.read_file(P.WORLD_SHP)
+    # ISO_A2 is "-99" for a handful of countries in Natural Earth (France and Norway
+    # among them, both of which publish here); ISO_A2_EH carries the code for those, so
+    # the join takes _EH first and falls back. Without this France is drawn as missing.
+    iso = world["ISO_A2_EH"].where(world["ISO_A2_EH"].astype(str).ne("-99"),
+                                  world["ISO_A2"])
+    world = world.assign(iso2=iso.astype(str))
+    world["documents"] = world["iso2"].map(counts)
+    world = world[world["NAME"] != "Antarctica"]
+    matched = int(world["documents"].notna().sum())
+
+    cmap = LinearSegmentedColormap.from_list(
+        "policy_seq",
+        [c if c.startswith("#") else palette(c) for c in POLICY_MAP_RAMP], N=256,
+    )
+    world.plot(column="documents", ax=ax, cmap=cmap,
+               norm=LogNorm(vmin=1, vmax=float(counts.max())),
+               edgecolor=st.get("edgecolor", "black"), linewidth=0.25,
+               missing_kwds={"color": "#EDEDED",
+                             "edgecolor": st.get("edgecolor", "black"),
+                             "linewidth": 0.25})
+    ax.set_xlim(-179, 179)
+    ax.set_ylim(-58, 84)
+    ax.set_axis_off()
+    ax.set_anchor("N")          # equal aspect leaves slack; spend it below, not above
+
+    mappable = plt.cm.ScalarMappable(cmap=cmap,
+                                     norm=LogNorm(vmin=1, vmax=float(counts.max())))
+    cbar = ax.figure.colorbar(mappable, ax=ax, fraction=0.030, pad=0.02,
+                              shrink=0.72)
+    cbar.set_label("Policy documents (log)", fontsize=st["label_fs"] - 1)
+    ticks = [t for t in (1, 3, 10, 30, 100) if t <= counts.max()]
+    cbar.set_ticks(ticks)
+    cbar.set_ticklabels([str(t) for t in ticks])
+    cbar.ax.tick_params(labelsize=st["tick_fs"] - 1)
+
+    # Below the map, not on it: the Pacific is the only clear water wide enough to hold
+    # this box, and a caption sitting in the Pacific reads as if it belonged to the
+    # countries around it.
+    top = D["policy"]["countries"].head(5)
+    ax.text(0.0, -0.04,
+            f"{len(counts)} publisher countries, {matched} drawn.  "
+            + " · ".join(f"{_shorten(name, 22)} {int(value)}"
+                         for name, value in top.items()),
+            transform=ax.transAxes, ha="left", va="top", fontsize=st["annot_fs"] - 1,
+            bbox=dict(boxstyle="round,pad=0.3", fc="white", ec="black", lw=0.8))
     return ax
 
 
 def draw_policy_publishers(ax, D):
     """The institutions themselves."""
-    _hbar(ax, D["policy"]["publishers"], _stream_colors()["policy"],
+    _hbar(ax, D["policy"]["publishers"], palette(POLICY_PRIMARY),
           "Policy documents", ylabel="Publishing institution", wrap=30)
     return ax
 
 
 def draw_policy_divisions(ax, D):
     """What the policy documents are about, as FOR 2020 research divisions."""
-    _hbar(ax, D["policy"]["divisions"], _stream_colors()["policy"],
+    _hbar(ax, D["policy"]["divisions"], palette(POLICY_PRIMARY),
           "Policy documents", ylabel="Research division (FOR 2020)", wrap=26)
     return ax
 
@@ -1939,7 +2070,7 @@ def draw_policy_concentration(ax, D):
     st = _style()
     values = D["policy"]["policy_docs_per_paper"]
     bins = np.arange(0.5, values.max() + 1.5, 1)
-    ax.hist(values, bins=bins, color=_stream_colors()["policy"],
+    ax.hist(values, bins=bins, color=palette(POLICY_PRIMARY),
             edgecolor=st.get("edgecolor", "black"), linewidth=0.6)
     ax.set_yscale("log")
     ax.set_xlabel("Policy documents citing the publication")
@@ -1955,7 +2086,7 @@ def draw_policy_concentration(ax, D):
 
 def draw_policy_top_papers(ax, D):
     """The UK Biobank publications policy documents reach for most often."""
-    _hbar(ax, D["policy"]["top_cited_papers"], _stream_colors()["policy"],
+    _hbar(ax, D["policy"]["top_cited_papers"], palette(POLICY_PRIMARY),
           "Policy documents citing the publication", ylabel="UK Biobank publication",
           wrap=44)
     ax.tick_params(axis="y", labelsize=_style()["tick_fs"] - 3)
@@ -2008,14 +2139,18 @@ def draw_altmetric_scatter(ax, D):
         # straight through the cloud; curving the other way sends it right along under
         # the data and up to the point from beneath, touching nothing. Same reasoning
         # mirrored for the upper box.
-        placements = [(0.44, 0.99, 0.12), (0.52, 0.40, 0.26)]
+        #
+        # The x positions are half what they were: this panel shares its row with F and
+        # is half the width it was, so a box anchored at 0.44 ran off the right edge and
+        # one at 0.52 sat on the cloud rather than beside it.
+        placements = [(0.02, 0.74, 0.10), (0.40, 0.23, 0.34)]
         for (_, row), (fx, fy, rad) in zip(top.iterrows(), placements):
             year = int(row["year"]) if pd.notna(row.get("year")) else None
             cited = row.get("times_cited")
             label = (
                 f"{row.get('first_author', 'Author')} et al."
                 f"{f' ({year})' if year else ''}\n"
-                f"{_shorten(row.get('journal') or '', 28)}\n"
+                f"{_shorten(row.get('journal') or '', 24)}\n"
                 f"AAS {row['Altmetric Attention Score']:,.0f} · "
                 f"{int(row['substantive']):,} mentions"
                 + (f" · {int(cited):,} citations" if pd.notna(cited) else "")
@@ -2024,7 +2159,7 @@ def draw_altmetric_scatter(ax, D):
                 label,
                 xy=(row["substantive"], row["Altmetric Attention Score"]),
                 xytext=(fx, fy), textcoords="axes fraction",
-                ha="left", va="top", fontsize=st["annot_fs"] - 1,
+                ha="left", va="top", fontsize=st["annot_fs"] - 2,
                 bbox=dict(boxstyle="round,pad=0.3", fc="white", ec="black", lw=0.8),
                 arrowprops=dict(arrowstyle="-|>", color="black", lw=1.0,
                                 shrinkB=6,
@@ -2048,7 +2183,7 @@ def draw_altmetric_distribution(ax, D):
     st = _style()
     values = D["altmetric"]["score_distribution"]
     bins = np.logspace(0, np.log10(values.max()), 40)
-    ax.hist(values, bins=bins, color=_stream_colors()["altmetric"],
+    ax.hist(values, bins=bins, color=palette(ATTENTION_PRIMARY),
             edgecolor=st.get("edgecolor", "black"), linewidth=0.5)
     ax.set_xscale("log")
     ax.set_yscale("log")
@@ -2069,9 +2204,8 @@ def draw_altmetric_mentions_by_year(ax, D):
     """
     st = _style()
     frame = D["altmetric"]["mentions_by_year"]
-    colors = _stream_colors()
     line_news, = ax.plot(frame.index, frame["News mentions"], marker="o", markersize=5,
-                         linewidth=1.8, color=colors["altmetric"],
+                         linewidth=1.8, color=palette(ATTENTION_PRIMARY),
                          markeredgecolor="white", label="News (left)")
     ax.set_xlabel("Publication year")
     ax.set_ylabel("News mentions")
@@ -2079,7 +2213,8 @@ def draw_altmetric_mentions_by_year(ax, D):
     twin = ax.twinx()
     twin.spines["right"].set_visible(True)
     line_policy, = twin.plot(frame.index, frame["Policy mentions"], marker="s",
-                             markersize=5, linewidth=1.8, color=colors["policy"],
+                             markersize=5, linewidth=1.8,
+                             color=palette(ATTENTION_SECONDARY),
                              markeredgecolor="white", label="Policy (right)")
     twin.set_ylabel("Policy mentions")
     twin.grid(False)
@@ -2097,7 +2232,8 @@ def draw_altmetric_coverage(ax, D):
     so a count panel would only redraw that growth curve twice.
     """
     frame = D["altmetric"]["coverage_by_year"][["pct_news", "pct_policy"]]
-    colors = {"pct_news": _stream_colors()["altmetric"], "pct_policy": _stream_colors()["policy"]}
+    colors = {"pct_news": palette(ATTENTION_PRIMARY),
+              "pct_policy": palette(ATTENTION_SECONDARY)}
     _lines(ax, frame, colors, "Publication year", "% of that year's publications",
            labels={"pct_news": "≥1 news mention", "pct_policy": "≥1 policy mention"},
            legend_loc="upper right")
@@ -2111,7 +2247,7 @@ def draw_altmetric_vs_citations(ax, D):
     scatter = D["altmetric"]["scatter"].dropna(subset=["times_cited"])
     scatter = scatter[(scatter["times_cited"] > 0)]
     ax.scatter(scatter["times_cited"], scatter["Altmetric Attention Score"],
-               s=14, color=_stream_colors()["collaboration"], alpha=0.35,
+               s=14, color=palette(ATTENTION_PRIMARY), alpha=0.35,
                edgecolor="none")
     ax.set_xscale("log")
     ax.set_yscale("log")
@@ -2227,6 +2363,64 @@ def draw_collab_divisions(ax, D):
     return ax                     # annotated bars carry no grid — see _hbar
 
 
+def draw_collab_flag_overlap(ax, D):
+    """Sector overlap, row-normalised: of the papers carrying sector i, what share also
+    carries sector j.
+
+    **Read it across the rows, not down the columns**, and the asymmetry is the point.
+    The first column is near-saturated all the way down — whoever else a UK Biobank paper
+    is written with, it is nearly always written with a university as well — while the UK
+    company column is pale everywhere except its own diagonal. A company partnership sits
+    on top of an academic one; it does not replace it.
+
+    Row-normalised rather than counted because University/HEI carries 68,978 of the
+    mentions and UK company 389: on raw counts the whole matrix would be one bright
+    column and seven dark ones, and the six small sectors — which are what the figure is
+    about — would be unreadable.
+
+    The diagonal is 100% by construction and is drawn rather than blanked: it is the row
+    the reader compares the rest of the row against.
+    """
+    st = _style()
+    frame = D["collaboration"]["flag_overlap"]
+    values = frame.to_numpy(dtype=float)
+    image = ax.imshow(values, aspect="auto", cmap=_heat_cmap(), vmin=0, vmax=100)
+    ax.set_xticks(range(values.shape[1]))
+    ax.set_xticklabels([_wrap(c, 11) for c in frame.columns],
+                       rotation=35, ha="right", fontsize=st["tick_fs"] - 2)
+    # The row tick carries the row's own n: every cell in the row is a percentage OF
+    # that number, and a row reading 90% off 365 papers and one reading 90% off 24,988
+    # are not the same claim.
+    # The n goes on its own line rather than beside the name: the row labels share a
+    # half-width column with eight cells, and "Research institute/Centre (n=5,073)" on one
+    # line takes a third of the panel's width before a single cell is drawn.
+    totals = D["collaboration"]["flag_totals"]
+    ax.set_yticks(range(values.shape[0]))
+    ax.set_yticklabels([f"{label}\n(n={int(totals[label]):,})" for label in frame.index],
+                       fontsize=st["tick_fs"] - 2)
+    for i in range(values.shape[0]):
+        for j in range(values.shape[1]):
+            value = values[i, j]
+            # No "%" in the cell: the axis label, the colourbar and the caption all
+            # say the unit, and eight per-cell percent signs across a half-width panel
+            # cost more room than they buy.
+            ax.text(j, i, f"{value:.1f}", ha="center", va="center",
+                    fontsize=st["annot_fs"] - 2,
+                    color=_heat_text_color(value, 100))
+    # The x label carries the whole sentence and there is no y label. The row ticks are
+    # wide (a sector name over its n), and a y label outside them lands in whatever panel
+    # shares the row — at half width there is no margin left to put it in.
+    ax.set_xlabel("Of the publications with a collaborator in the ROW's sector,\n"
+                  "the % that also have one in the COLUMN's")
+    cbar = ax.figure.colorbar(image, ax=ax, fraction=0.030, pad=0.02)
+    cbar.set_label("% of the row's publications", fontsize=st["label_fs"] - 1)
+    cbar.set_ticks([0, 20, 40, 60, 80, 100])
+    cbar.set_ticklabels([f"{t}%" for t in (0, 20, 40, 60, 80, 100)])
+    cbar.ax.tick_params(labelsize=st["tick_fs"] - 1)
+    ax.grid(False)
+    return ax
+
+
 def draw_collab_citations(ax, D):
     """Citation distribution by collaboration type. Association, not causation."""
     st = _style()
@@ -2281,6 +2475,10 @@ MAIN_CAPTION = {
     "E": "Altmetric Attention Score against substantive (news + policy) mentions, for "
          "the 5,601 publications with at least one of each. The two most-mentioned "
          "publications are named.",
+    "F": "Overlap between the collaborator sectors, row-normalised: of the publications "
+         "carrying a collaborator in the row's sector, the percentage also carrying one "
+         "in the column's. The matrix is asymmetric by construction and is read across "
+         "the rows; the row totals are on the axis.",
 }
 
 SI_CAPTIONS = {
@@ -2309,11 +2507,11 @@ SI_CAPTIONS = {
     },
     "policy": {
         "A": "Policy documents citing UK Biobank research, by year and publisher origin.",
-        "B": "Publisher countries.",
+        "B": "Publisher countries, on a logarithmic colour scale. Grey is a country with "
+             "no citing document, which is a different statement from the ramp's "
+             "lightest blue; the leading publishers are named with their counts.",
         "C": "Publishing institutions.",
         "D": "Research divisions (FOR 2020) the documents are classified into.",
-        "E": "How many policy documents cite one publication (log count axis).",
-        "F": "The publications policy documents cite most often.",
     },
     "altmetric": {
         "A": "Distribution of the Altmetric Attention Score over every scored publication.",
@@ -2399,7 +2597,7 @@ def _assemble(spec, nrows, ncols, figsize, D, name, save=True, slots=None,
 
 
 def figure_main(D, save=True):
-    """The main-paper panel: five charts, the attention scatter closing at full width.
+    """The main-paper panel: six charts on three rows, two to a row.
 
     The reach bars came out. They answered "how many publications carry each linkage",
     which is the same question `01_growth`'s reach panel answers on the same numbers —
@@ -2412,6 +2610,19 @@ def figure_main(D, save=True):
     making the panel taller is what shortens the leaders — at equal row height the boxes
     had to sit far left of their points to clear the data.
 
+    F, the sector-overlap matrix, shares that row. It is an eight-by-eight matrix with a
+    number in every cell, so it pays for the half width in type: the cells drop their
+    percent signs (the axis, the colourbar and the caption all carry the unit), the row
+    labels put their n on a second line, and the column labels wrap at eleven characters.
+    What it buys is that the figure closes on one row rather than two, and that the two
+    panels a reader is meant to hold together — the attention cloud and the structure of
+    the collaboration D counts — are side by side instead of a page apart.
+
+    The row is 1.55x the height of the rows above it, which is what both panels need. E's
+    two named outliers sit in the empty band above a diagonal cloud, so height is what
+    shortens their leaders; F is square by nature and would otherwise draw eight rows into
+    the height of four.
+
     Drawn at the `main` type scale, larger than the SI panels because this one is read at
     figure width in a paper rather than full page on a screen.
     """
@@ -2423,11 +2634,12 @@ def figure_main(D, save=True):
              draw_patent_legal_status,      # B
              draw_trials_by_year,           # C
              draw_collab_sector_share,      # D
-             draw_altmetric_scatter],       # E - full width
-            3, 2, (figsize[0], figsize[1] * 1.18),
+             draw_altmetric_scatter,        # E - bottom row, left
+             draw_collab_flag_overlap],     # F - bottom row, right
+            3, 2, (figsize[0], figsize[1] * 1.30),
             D, "04_01_figure_01_non_academic_reach", save=save,
-            slots=[(0, 0), (0, 1), (1, 0), (1, 1), (2, slice(0, 2))],
-            hspace=0.40, wspace=0.28, height_ratios=[1.0, 1.0, 1.55],
+            slots=[(0, 0), (0, 1), (1, 0), (1, 1), (2, 0), (2, 1)],
+            hspace=0.40, wspace=0.34, height_ratios=[1.0, 1.0, 1.55],
         )
 
 
@@ -2497,16 +2709,45 @@ def figure_si_trials(D, save=True):
 
 
 def figure_si_policy(D, save=True):
+    """Four policy panels on a 2x2 grid, drawn in the palette's blue.
+
+    **Two panels came out.** The concentration histogram (how many documents cite one
+    paper) and the ranked list of most-cited papers were the page's two weakest claims:
+    the first is a one-line fact — median 1, max 22 over 369 publications — that prose
+    carries better than a log-axis histogram of a distribution with nothing in its tail,
+    and the second is eight truncated paper titles, which is a table pretending to be a
+    chart. Both aggregates are still built (`D["policy"]["policy_docs_per_paper"]`,
+    `D["policy"]["top_cited_papers"]`) and both draw functions are still here, so either
+    can be quoted or re-added without re-deriving anything.
+
+    **B is now a choropleth** rather than the ranked country bar, which is where a
+    geographic finding belongs; `draw_policy_countries` still draws the bar.
+
+    **Blue, not red.** The stream palette assigns policy the palette's red, which is what
+    the five-line panel A of the main figure needs to keep five streams apart. This page
+    is about one stream, so a second hue would carry no information, and it is drawn end
+    to end in `POLICY_PRIMARY`.
+    """
     st = _style()
+    width, height = st["figsize_si"]
     return _assemble(
-        [draw_policy_by_year, draw_policy_countries, draw_policy_publishers,
-         draw_policy_divisions, draw_policy_concentration, draw_policy_top_papers],
-        3, 2, st["figsize_si"], D, "04_05_supplementary_figure_04_policy", save=save,
-        hspace=0.45, wspace=0.62,
+        [draw_policy_by_year, draw_policy_country_map, draw_policy_publishers,
+         draw_policy_divisions],
+        2, 2, (width, height * 0.78), D, "04_05_supplementary_figure_04_policy",
+        save=save, hspace=0.42, wspace=0.55, height_ratios=[0.85, 1.15],
     )
 
 
 def figure_si_altmetric(D, save=True):
+    """Four attention panels, drawn in one blue family rather than one hue per panel.
+
+    The page used to rotate the palette across its panels — light blue for the score, red
+    for the policy series, green for the attention-against-citation scatter — which reads
+    as four unrelated charts. `ATTENTION_PRIMARY` carries every panel, and
+    `ATTENTION_SECONDARY` (the palette's navy) appears only in B and C, where a panel
+    genuinely draws two series and the contrast is doing work. The dashed red median rule
+    in A is the family's reference colour (`REF_MEDIAN`), not a topic colour, and stays.
+    """
     st = _style()
     width, height = st["figsize_si"]
     return _assemble(

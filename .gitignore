@@ -195,3 +195,8 @@ config/dsl.ini
 config/*.ini
 !config/*.ini.example
 src/utils/data_analysis_03_academic_impact_field_counts.sh
+
+# Figures: SVGs are generated locally by the analysis notebooks (universal_settings.yml
+# -> style.notebooks.*.formats) but never committed — they are huge (one map ran to
+# 120k lines) and the PDF/PNG exports are what the repo ships.
+*.svg

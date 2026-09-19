@@ -198,7 +198,15 @@ def semantic_colors(name="metric_colors", style=None):
     return dict(mapping)
 
 
-def grid_on(ax, axis="both", which="both", style=None, **kwargs):
+LOG_SCALES = ("log", "symlog", "logit")
+
+
+def is_log_axis(ax, axis):
+    """True if the named axis ("x" or "y") is on a logarithmic-family scale."""
+    return getattr(ax, f"get_{axis}scale")() in LOG_SCALES
+
+
+def grid_on(ax, axis="both", which="both", style=None, *, log=False, **kwargs):
     """Turn on dashed gridlines behind the data, on both tick levels by default.
 
     Every panel in this project is meant to carry the same grid, and "the same" has to
@@ -206,6 +214,13 @@ def grid_on(ax, axis="both", which="both", style=None, **kwargs):
     reads as two different figures pasted together. This wraps `ax.grid` so a caller
     cannot forget the `which="minor"` call or give it a different dash, and it puts the
     grid below the artists (`set_axisbelow`) which `ax.grid` alone does not do.
+
+    Logarithmic axes are the one exception and get NO gridlines: a decade carries eight
+    minor ticks, so the same treatment that reads as a scale on a linear axis reads as
+    hatching behind the data on a log one. The gridlines are turned off rather than left
+    alone, so a log scale set after an earlier `grid_on` still ends up bare. Only the log
+    axis loses its grid — a log-x/linear-y panel keeps its horizontal lines — and
+    `log=True` forces the grid on anyway. Set the scale BEFORE calling this.
     """
     style = _resolve(style) if style is not None or _ACTIVE is not None else {}
     ls = kwargs.pop("linestyle", style.get("grid_linestyle", "--"))
@@ -214,10 +229,14 @@ def grid_on(ax, axis="both", which="both", style=None, **kwargs):
     alpha = kwargs.pop("alpha", style.get("grid_alpha", 0.6))
     ax.set_axisbelow(True)
     levels = ("major", "minor") if which == "both" else (which,)
-    for lvl in levels:
-        ax.grid(True, axis=axis, which=lvl, linestyle=ls, color=color,
-                linewidth=lw if lvl == "major" else lw * 0.7,
-                alpha=alpha if lvl == "major" else alpha * 0.6, **kwargs)
+    for target in (("x", "y") if axis == "both" else (axis,)):
+        if not log and is_log_axis(ax, target):
+            ax.grid(False, axis=target, which="both")
+            continue
+        for lvl in levels:
+            ax.grid(True, axis=target, which=lvl, linestyle=ls, color=color,
+                    linewidth=lw if lvl == "major" else lw * 0.7,
+                    alpha=alpha if lvl == "major" else alpha * 0.6, **kwargs)
     return ax
 
 

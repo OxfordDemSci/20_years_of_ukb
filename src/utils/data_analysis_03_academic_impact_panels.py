@@ -19,8 +19,7 @@ has already sized, under the one `03_academic_impact_99_all` style section.
 **The palette.** Everything is drawn from `shared_style.PALETTE_COLORS` — the same seven
 named colours analysis 04 is drawn in (D29), so the two figure families belong to one
 paper. Where a chart needs more than seven categories or an ordered ramp, it is derived
-from those anchors by `_shade()` or the shared palette colormaps rather than reaching for
-a new hue. Nothing
+from those anchors by `_shade()` rather than reaching for a new hue. Nothing
 here reads `STYLE["colors"]` by integer index.
 
 **What it reads.** Nothing here re-derives what a source notebook derives:
@@ -99,8 +98,12 @@ COHORT_ORDER = [label for _, _, label in COHORT_BINS]
 ACT_TOP_M_MAIN, ACT_TOP_M_SI = 10, 20
 MAP_M_MAIN, MAP_M_SI = 16, 25
 
-FINGERPRINT_TOP = 25
-
+#: How many fields the top-decile share panel draws on the MAIN page. It is read there
+#: off a legend rather than off direct labels, so the limit is what a legend can carry in
+#: one column of three without covering the lines it names: five leaves the bottom of the
+#: panel clear for it. The SI draws the same chart for the impact map's own 25 fields,
+#: direct-labelled at full width.
+DEC_M_MAIN = 5
 
 # =============================================================================
 # 2. Colour — everything from the project palette
@@ -154,6 +157,16 @@ C_ABOVE, C_BELOW = PALETTE_COLORS["red"], PALETTE_COLORS["steel_blue"]
 C_INK = "#3D3D3D"
 C_MUTED = "#BDBDBD"
 
+#: Fields whose direct label on the impact map is drawn to the LEFT of its point.
+#:
+#: Every other label goes to the right, which is where a reader looks for it. Clinical
+#: Sciences cannot: it sits just left of the parity rule with Public Health a few percent
+#: to its right at almost the same impact, so its label — raised by `_nudge` to within a
+#: hair of Public Health's row — runs straight over Public Health's dot and its leader.
+#: There is nothing to its left, so that is where it goes. Keyed on the full label, so it
+#: applies at both the main figure's 16 fields and the SI's 25.
+MAP_LABEL_LEFT = {"Clinical Sciences"}
+
 
 def field_palette(n: int) -> list:
     """`AI.build`'s `palette` argument: n categorical colours from FIELD_CYCLE."""
@@ -163,12 +176,6 @@ def field_palette(n: int) -> list:
     return FIELD_CYCLE + [ramp(i / (n - 1)) for i in range(len(FIELD_CYCLE), n)]
 
 
-#: Author-entry cohorts are an ORDERED sequence — successive waves, not unrelated kinds —
-#: so they take a ramp rather than four categorical colours. The source notebook built
-#: one from `STYLE["colors"][3]`; this is the same idea through the project palette, pale
-#: cream at the early end to navy at the recent one.
-COHORT_RAMP = academic_impact_colormap()
-COHORT_COLORS = [COHORT_RAMP(v) for v in (0.06, 0.40, 0.72, 1.0)]
 
 
 # =============================================================================
@@ -428,6 +435,13 @@ def _pct_fmt(v, _=None):
     return f"{v:g}%" if v >= 1 else f"{v:.2g}%"
 
 
+def _pct(v):
+    """A share as a direct label: one decimal at 1% and above, two figures below it.
+
+    "0.2%" and "0.15%" are different fields, and one decimal prints both as 0.2%."""
+    return f"{v:.1f}%" if v >= 1 else f"{v:.2g}%"
+
+
 def _nudge(items, gap):
     """Space direct labels apart in log space, smallest first, preserving order.
 
@@ -489,13 +503,24 @@ def draw_activity_index(ax, D, top_m: int = ACT_TOP_M_MAIN):
     ax.set_yticks(ypos)
     ax.set_yticklabels([AI.short(lab, 34) for lab in tbl.label], fontsize=st["annot_fs"])
     ax.set_ylim(-0.9, len(tbl) - 0.1)
-    ax.set_xlabel(f"activity index, log scale — 1x = as concentrated as the reference\n"
-                  f"({D['ACTIVITY_LABEL']})")
+    ax.set_xlabel(f"activity index, log scale\n({D['ACTIVITY_LABEL']})")
     grid_on(ax, axis="x")
     return ax
 
 
 # ------------------------------------------------------------------ panel B
+def map_fields(D, top_m: int):
+    """The fields the impact map draws at `top_m`: the largest with both axes measured.
+
+    A helper rather than three lines inside the map, because SI 1's second panel follows
+    the same fields through time and the two panels of one figure must not disagree about
+    which fields they are.
+    """
+    rci = f"rci_{D['CITE_HEADLINE'][2:]}"
+    return (D["IMPACT"].dropna(subset=[rci, "activity_x"])
+            .nlargest(top_m, "ukbb_papers"))
+
+
 def draw_impact_map(ax, D, top_m: int = MAP_M_MAIN, label_all: bool = False):
     """Chart 5 — how much UK Biobank publishes against how well that work lands.
 
@@ -509,10 +534,10 @@ def draw_impact_map(ax, D, top_m: int = MAP_M_MAIN, label_all: bool = False):
     is not told apart by that line — so what is drawn solid is the field's own standard
     to beat, and world parity is the dotted one below it.
     """
-    IMPACT, st = D["IMPACT"], _style()
+    st = _style()
     head = D["CITE_HEADLINE"][2:]
     rci = f"rci_{head}"
-    big = IMPACT.dropna(subset=[rci, "activity_x"]).nlargest(top_m, "ukbb_papers")
+    big = map_fields(D, top_m)
     labels = dict(zip(D["TOP_CODES"], D["TOP_LABELS"]))
     ref = D["OVERALL"][head]
 
@@ -541,8 +566,10 @@ def draw_impact_map(ax, D, top_m: int = MAP_M_MAIN, label_all: bool = False):
         col = _field_color(D, labels[code]) if code in labels else C_INK
         if abs(np.log10(ly) - np.log10(value)) > 0.008:
             ax.plot([xpos, xpos], [value, ly], color=col, lw=0.7, alpha=0.5, zorder=1)
+        to_the_left = lab in MAP_LABEL_LEFT
         ax.annotate(AI.short(lab, 26), (xpos, ly), color=col, fontsize=st["annot_fs"],
-                    va="center", xytext=(8, 0), textcoords="offset points",
+                    va="center", ha="right" if to_the_left else "left",
+                    xytext=(-8 if to_the_left else 8, 0), textcoords="offset points",
                     bbox=dict(fc="white", ec="none", alpha=0.65, pad=0.6))
 
     show_world = big[rci].min() < 1.3
@@ -583,7 +610,9 @@ def draw_impact_map(ax, D, top_m: int = MAP_M_MAIN, label_all: bool = False):
 
 # ------------------------------------------------------------------ panel C
 def draw_top_decile_share(ax, D, label_chars: int = 22, pad_years: int = 6,
-                          label_gap: float = 0.078):
+                          label_gap: float = 0.078, codes=None, top_m: int | None = None,
+                          legend: bool = False, legend_loc: str = "lower right",
+                          floor_ratio: float = 300):
     """Chart 7 — UK Biobank's share of each field's most-cited tenth, year by year.
 
     Panel A asks what share of a field's PAPERS are UK Biobank's. This asks what share of
@@ -595,37 +624,97 @@ def draw_top_decile_share(ax, D, label_chars: int = 22, pad_years: int = 6,
     denominator are the same papers in the same field-years, so the publication-year
     composition that rules out a pooled ratio (D10) cancels here.
 
-    `label_chars` / `pad_years` / `label_gap` exist because this panel is drawn at two
-    very different widths: full width in the SI-style single panel, and one column of
-    three on the main page, where eight direct labels have to fit into a third of the
-    space the chart was designed at.
+    `codes` chooses the fields, defaulting to the family's top eight; `top_m` then keeps
+    the strongest of them by their FINAL year's share, which is the axis the panel is
+    ranked on. Any field outside the family's top eight is drawn in neutral grey, exactly
+    as the impact map draws it, so the two panels of SI 1 read as one figure.
+
+    **Direct labels or a legend, not both.** Direct labels are the better encoding and are
+    what the SI panel uses, but they are paid for in axis: eight of them need `pad_years`
+    of empty x to sit in, which at one column of three squeezes the decade the panel is
+    about into two thirds of its width. `legend=True` gives that width back.
+
+    `label_chars` / `pad_years` / `label_gap` / `floor_ratio` exist because this panel is
+    drawn at two very different widths: full width in the SI, and one column of three on
+    the main page. `floor_ratio` is how far below the largest share the axis reaches —
+    the early years of a small field are a rounding error against today's largest, and
+    letting them set the floor squashes the decade that matters into the top inch, but
+    cut too close they leave lines dropping out of the bottom of the panel.
     """
     st = _style()
     m = CITE_SHARE_METRIC if CITE_SHARE_METRIC in D["MEASURES"] else "n_papers"
-    share = D["share_timeseries"](m)
+    codes = list(D["TOP_CODES"]) if codes is None else list(codes)
+    share = D["share_timeseries"](m, codes=codes)
     if m in D["CITE_YEARS"]:
         share = share.loc[share.index.isin(D["CITE_YEARS"][m])]
-    share = share.rename(columns=dict(zip(D["TOP_CODES"], D["TOP_LABELS"])))
     # A share of exactly zero has no place on a log axis — matplotlib draws it as a line
     # dropping off the bottom, which reads as a crash rather than as "no papers here".
     share = share.where(share > 0)
 
-    ends = []
-    for lab in D["TOP_LABELS"]:
-        s = share[lab].dropna()
-        if not len(s):
+    # One row per field that has anything to draw, ranked on the final year's share: that
+    # is what the panel is about, and it is the order the legend or the label stack reads
+    # top-down. A field outside the family's eight has no colour of its own — grey, as on
+    # the impact map — so the eight stay findable in the SI's 25.
+    series = []
+    for code in codes:
+        s_ = share[code].dropna()
+        if not len(s_):
             continue
-        ax.plot(s.index, s.values, color=_field_color(D, lab), lw=2.2, marker="o",
+        lab = D["label_of"](code)
+        series.append((float(s_.iloc[-1]), lab, D["FIELD_COLORS"].get(lab, C_MUTED), s_))
+    series.sort(key=lambda r: -r[0])
+    if top_m is not None:
+        series = series[:top_m]
+
+    ends = []
+    for last, lab, col, s_ in series:
+        ax.plot(s_.index, s_.values, color=col, lw=2.2, marker="o",
                 ms=st["marker_size"] * 0.62)
-        ends.append((float(s.iloc[-1]), float(s.index[-1]), lab))
+        ends.append((last, float(s_.index[-1]), lab))
 
     lo = min(v for v, _, _ in ends)
     hi = max(v for v, _, _ in ends)
-    for value, ly, xend, lab in _nudge(
-            ends, label_gap * (np.log10(hi / max(lo, 1e-6)) + 0.4)):
-        ax.annotate(f"{AI.short(lab, label_chars)}  {value:.1f}%", (xend, ly),
-                    color=_field_color(D, lab), fontsize=st["annot_fs"], va="center",
-                    xytext=(7, 0), textcoords="offset points")
+    span = np.log10(hi / max(lo, 1e-6))
+    if legend:
+        # NAMES ONLY. The values are on the axis the lines are read against, and printing
+        # them again turned a colour key into a column of numbers a reader has to match
+        # back to the lines. The overall rule takes an entry of its own rather than a
+        # second in-axes label, which is what makes the block three rows by two.
+        entries = [(AI.short(lab, label_chars), col, len(lab))
+                   for _, lab, col, _ in series]
+        # THE LONGEST NAMES GO IN THE RIGHT-HAND COLUMN. matplotlib fills a legend column
+        # by column, so which name lands where is ours to choose, and the left column's
+        # width is set by its own longest entry and pushes the right one over: a long name
+        # on the left costs the panel twice. Rank order is kept inside each column, and the
+        # overall rule stays last, at the foot of the right column.
+        rows = -(-(len(entries) + 1) // 2)
+        # Ranked on the FULL name, not the drawn one: two names cut to `label_chars` are
+        # the same length as each other and the tie would be decided by nothing.
+        long = sorted(sorted(range(len(entries)),
+                             key=lambda i: -entries[i][2])[:rows - 1])
+        order = [i for i in range(len(entries)) if i not in long] + long
+        handles = [Line2D([], [], color=entries[i][1], lw=2.2, marker="o",
+                          ms=st["marker_size"] * 0.62, label=entries[i][0])
+                   for i in order]
+        handles.append(Line2D([], [], color=C_INK, lw=1, ls="--",
+                              label="UK Biobank overall"))
+        ax.legend(handles=handles, loc=legend_loc, ncol=2,
+                  fontsize=st["legend_fs"] * 0.95, handlelength=1.6,
+                  handletextpad=0.5, labelspacing=0.3, columnspacing=1.2,
+                  borderaxespad=0.4, frameon=True, facecolor="white",
+                  edgecolor=C_INK, framealpha=0.95, fancybox=False,
+                  borderpad=0.5).get_frame().set_linewidth(0.8)
+    else:
+        # _nudge stacks the labels upward, so n labels need n x gap of axis; a gap tuned
+        # for eight of them throws the SI's 25 off the top. Cap it at the data's own span.
+        gap = min(label_gap * (span + 0.4), 0.95 * span / max(len(ends), 1))
+        for value, ly, xend, lab in _nudge(ends, gap):
+            col = D["FIELD_COLORS"].get(lab, C_MUTED)
+            if abs(np.log10(ly) - np.log10(value)) > 0.008:
+                ax.plot([xend, xend], [value, ly], color=col, lw=0.7, alpha=0.5, zorder=1)
+            ax.annotate(f"{AI.short(lab, label_chars)}  {_pct(value)}", (xend, ly),
+                        color=col, fontsize=st["annot_fs"], va="center",
+                        xytext=(7, 0), textcoords="offset points")
 
     # UK Biobank's overall share of this measure — the line a field has to beat to be one
     # of its stronger showings rather than simply a big field.
@@ -633,11 +722,16 @@ def draw_top_decile_share(ax, D, label_chars: int = 22, pad_years: int = 6,
     overall = 100 * (D["ukbb"][D["ukbb"].year.between(*win)][m].sum()
                      / D["whole"][D["whole"].year.between(*win)][m].sum())
     ax.axhline(overall, color=C_INK, lw=1, ls="--")
-    yrs = share.dropna(how="all").index
-    drawn_lo, drawn_hi = int(yrs.min()), int(yrs.max())
-    ax.annotate(f"UK Biobank overall {overall:.2f}%", (drawn_lo, overall), color=C_INK,
-                fontsize=st["annot_fs"], va="bottom", ha="left", xytext=(2, 4),
-                textcoords="offset points",
+    # The axis is set from what was DRAWN, not from `share`: with `top_m` in force the
+    # frame still holds the fields that were cut, and a cut field's floor or its extra
+    # year would set limits nothing on the panel reaches.
+    drawn_years = sorted({int(y) for _, _, _, s_ in series for y in s_.index})
+    drawn_lo, drawn_hi = drawn_years[0], drawn_years[-1]
+    # With a legend the rule is named there, so the axis carries the value alone rather
+    # than the same phrase twice.
+    ax.annotate(f"{overall:.2f}%" if legend else f"UK Biobank overall {overall:.2f}%",
+                (drawn_lo, overall), color=C_INK, fontsize=st["annot_fs"], va="bottom",
+                ha="left", xytext=(2, 4), textcoords="offset points",
                 bbox=dict(fc="white", ec="none", alpha=0.7, pad=0.6))
 
     ax.set_yscale("log")
@@ -645,10 +739,14 @@ def draw_top_decile_share(ax, D, label_chars: int = 22, pad_years: int = 6,
     ax.yaxis.set_minor_formatter(mticker.NullFormatter())
     # The early years are a rounding error against today's shares, and letting them set
     # the floor squashes the decade that matters into the top inch.
-    floor = max(hi / 300, float(np.nanmin(share.values)))
+    floor = max(hi / floor_ratio, min(float(s_.min()) for _, _, _, s_ in series))
     ax.set_yticks([t for t in (0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1, 2.5, 5, 10, 25)
                    if floor / 1.2 <= t <= hi * 1.6])
-    ax.set_ylim(floor / 1.3, hi * 2.4)
+    # An in-axes legend needs the room it covers to be room the data does not use. Three
+    # rows of two take about a decade of a panel this size, so that is what the floor
+    # drops by when one is drawn. The TICKS still stop at the data's own floor, so the
+    # extra space stays visibly empty rather than labelled.
+    ax.set_ylim(floor / (16.0 if legend else 1.3), hi * 2.4)
     ax.set_xlim(drawn_lo - 0.4, drawn_hi + pad_years)
     ax.set_xticks(year_ticks(drawn_lo, drawn_hi, 2))
     ax.set_xlabel("year")
@@ -706,7 +804,8 @@ def _cut_note(D, code, year):
     return f"{int(year)}:   {ten}median ≥ {_cites(r['median'])}{tail}"
 
 
-def block_footprint_quality(fig, spec, D, nrow: int = 2, ncol: int = 4):
+def block_footprint_quality(fig, spec, D, nrow: int = 2, ncol: int = 4,
+                            letters: str = ""):
     """Chart 9 as a BLOCK of small multiples inside one gridspec cell.
 
     Not a `draw_(ax, D)` like the others, because it is eight axes rather than one: it
@@ -728,6 +827,10 @@ def block_footprint_quality(fig, spec, D, nrow: int = 2, ncol: int = 4):
     ROUND NUMBER: the decile cut achieves 7.3-10.0% and 10% is close enough, but the
     median cut achieves 34-50%, so in the years where it falls short, dividing by 50
     understates the multiplier.
+
+    EACH SUB-PANEL IS ITS OWN LETTERED PANEL. `letters` gives the run of letters to
+    stamp on them, one each, in the order the fields are drawn — the block letters D
+    through K on the main page.
 
     THE PANELS NO LONGER STATE THEIR OWN CUT-OFFS. Each carried a grey line giving what
     the two bars were worth in citations that year; it was removed on 2026-09-09 to leave
@@ -760,6 +863,10 @@ def block_footprint_quality(fig, spec, D, nrow: int = 2, ncol: int = 4):
     for i, (code, lab) in enumerate(zip(D["TOP_CODES"], D["TOP_LABELS"])):
         ax = fig.add_subplot(gs[i // ncol, i % ncol])
         axes.append(ax)
+        if i < len(letters):
+            # FREE TEXT rather than the default title placement — panel_label's documented
+            # escape hatch — because the title slot already holds the field's name.
+            panel_label(ax, letters[i], x=-0.24, y=1.10)
         col = _field_color(D, lab)
         a, b, h = all_[code].dropna(), best[code].dropna(), half[code].dropna()
         idx = _contiguous_tail(a.index.intersection(b.index).intersection(h.index))
@@ -807,27 +914,30 @@ def block_footprint_quality(fig, spec, D, nrow: int = 2, ncol: int = 4):
 
 
 def footprint_legend(fig, D, y=0.018):
-    """Panel D's key, as a FIGURE legend under the block.
+    """The footprint block's key, as a FIGURE legend under it.
 
     Neutral grey patches: the encoding is what the legend describes, and every sub-panel
     already carries its field's own colour. It belongs to the figure rather than to
     `axes[0]` because anchored above that axes it lands in the row overhead, where panel
-    E's cohort legend already is.
+    the main page's third gridspec row already is.
     """
     st = _style()
-    return fig.legend(handles=[
-        Patch(color=C_INK, alpha=0.85, label="D:  in the field's most-cited 10%"),
+    leg = fig.legend(handles=[
+        Patch(color=C_INK, alpha=0.85, label="in the field's most-cited 10%"),
         Patch(color=C_INK, alpha=0.22, label="above the field's median (not top 10%)"),
         Line2D([], [], color=C_INK, lw=1.8, label="all UK Biobank papers in the field")],
-        loc="lower center", bbox_to_anchor=(0.5, y), ncol=3, frameon=False,
-        fontsize=st["legend_fs"])
+        loc="lower center", bbox_to_anchor=(0.5, y), ncol=3, fontsize=st["legend_fs"],
+        frameon=True, facecolor="white", edgecolor=C_INK, framealpha=1.0,
+        fancybox=False, borderpad=0.6)
+    leg.get_frame().set_linewidth(0.8)
+    return leg
 
 
-# ------------------------------------------------------------------ panel E
+# --------------------------------------------------- the block's cut-offs, as a table
 def cut_off_table(D) -> pd.DataFrame:
-    """What the two bars in panel D were worth in citations, per (year, field).
+    """What the two bars in panels D-K were worth in citations, per (year, field).
 
-    Panel D used to print this one year at a time in the corner of each sub-panel. With
+    They used to print this one year at a time in the corner of each sub-panel. With
     that note removed the figure states no cut-offs at all, so this is what the methods
     section has to carry: for every measured cell, the top-decile threshold, the median
     threshold, and the share of the field the median cut actually kept.
@@ -857,50 +967,6 @@ def cut_off_table(D) -> pd.DataFrame:
            .sort_values(["field", "year"])
            .reset_index(drop=True))
     return out.round(2)
-
-
-def draw_author_cohorts(ax, D):
-    """fig3a — what each author-entry cohort contributed.
-
-    Was UK Biobank's impact produced mainly by early foundational contributors, or by
-    successive waves of researchers entering the literature? Authors are grouped by the
-    year of their first paper inside the window; paper and citation contributions use
-    fractional co-author credit.
-
-    READ THE TOP-DECILE ROW AGAINST ITS OWN HISTORY. Under the pooled cut-off the author
-    notebook used before the D21 reconcile, that row was substantially a measure of paper
-    age and the earliest cohort dominated it by construction. It is now the measured
-    per-(year, field) decile, so a 2024 paper is judged against 2024's bar.
-    """
-    st = _style()
-    share = D["author"]["contrib_share"]
-    cohort_n = D["author"]["cohort_n"]
-
-    y = np.arange(len(share.index))
-    left = np.zeros(len(share))
-    for i, cohort in enumerate(COHORT_ORDER):
-        vals = share[cohort].values
-        ax.barh(y, vals, left=left, height=0.62, color=COHORT_COLORS[i],
-                edgecolor="white", linewidth=0.8,
-                label=f"{cohort.replace(chr(10), ' ')} (n={cohort_n[cohort]:,})")
-        for yi, x0, v in zip(y, left, vals):
-            if v >= 0.065:
-                ax.text(x0 + v / 2, yi, f"{100 * v:.0f}%", ha="center", va="center",
-                        fontsize=st["annot_fs"] - 1, fontweight="bold",
-                        color="white" if i >= 2 else C_INK)
-        left += vals
-
-    ax.set_yticks(y)
-    ax.set_yticklabels(share.index, fontsize=st["annot_fs"])
-    ax.invert_yaxis()
-    ax.set_xlim(0, 1)
-    ax.set_xlabel("share of total")
-    ax.xaxis.set_major_formatter(mticker.FuncFormatter(lambda v, _: f"{100 * v:.0f}%"))
-    ax.legend(loc="upper center", bbox_to_anchor=(0.5, -0.17), ncol=2, frameon=False,
-              title="Author first-entry cohort", fontsize=st["legend_fs"],
-              title_fontsize=st["legend_fs"])
-    grid_on(ax, axis="x")
-    return ax
 
 
 # ------------------------------------------------------------------ SI: growth
@@ -956,7 +1022,16 @@ def draw_growth_rates(ax, D):
     ax.set_yticks(ypos)
     ax.set_yticklabels([AI.short(l, 32) for l in top.label], fontsize=st["annot_fs"])
     ax.set_ylim(-0.9, len(top) - 0.1)
-    ax.set_xlim(min(-3, top.world_now.min() - 3), top.ukbb_now.max() * 1.42)
+    # Zero is where a growth axis starts: the rule at 0 is the panel's reference, and
+    # opening the axis below it spends width on nothing and reads as room for negative
+    # rates that are not there. Two qualifications. A field whose WORLD rate is negative
+    # would be cut off, so the floor follows the data down if one ever is; and a hollow
+    # marker sitting AT zero is half outside an axis that ends there, so the limit takes
+    # a marker's width of padding — a little over one percentage point, invisible on an
+    # axis that runs to a hundred.
+    right = top.ukbb_now.max() * 1.42
+    left = min(0.0, top.world_now.min() - 1)
+    ax.set_xlim(left - 0.015 * (right - left), right)
     ax.xaxis.set_major_formatter(mticker.StrMethodFormatter("{x:.0f}%"))
     ax.set_xlabel(f"compound annual growth, {GROW_NOW[0]}–{GROW_NOW[1]} (%/yr)"
                   f"   ·   dot area = UK Biobank papers in {GROW_NOW[1]}")
@@ -1009,55 +1084,6 @@ def draw_growth_trajectories(ax, D):
     return ax
 
 
-# ------------------------------------------------------------------ SI: author arm
-def draw_author_fingerprint(ax, D):
-    """What each leading contributor is ahead ON, rather than a single leaderboard rank.
-
-    Rows are the top authors by the composite influence score; cell colour is the
-    percentile rank among recurrent authors and the printed number is the observed value.
-    A leaderboard says who is ahead; this says on which axis — Naomi Allen on volume,
-    Peter Donnelly on citation intensity per paper.
-    """
-    st = _style()
-    s = D["author"]["summary"]
-    recurrent = s[s.showcase_paper_count >= 3]
-    cols = [("showcase_paper_count", "Papers", "{:,.0f}"),
-            ("fractional_paper_credit", "Frac.\npapers", "{:,.1f}"),
-            ("fractional_citation_credit", "Frac.\ncitations", "{:,.0f}"),
-            ("showcase_h_index", "UKB\nh-index", "{:,.0f}"),
-            ("mean_impact_metric", "Mean\nMNCS", "{:,.1f}"),
-            ("fractional_top_decile_credit", "Top-decile\ncredit", "{:,.2f}"),
-            ("leadership_share", "First/last\nshare", "{:.0%}"),
-            ("active_span_years", "Active\nspan", "{:,.0f}y")]
-
-    top = s.nlargest(FINGERPRINT_TOP, "ukb_influence_score")
-    ranks = np.column_stack([
-        [100 * (recurrent[c] < v).mean() if v == v else np.nan for v in top[c]]
-        for c, _, _ in cols])
-
-    im = ax.imshow(ranks, cmap=academic_impact_colormap(),
-                   aspect="auto", vmin=0, vmax=100)
-    cb = ax.figure.colorbar(im, ax=ax, pad=0.015, fraction=0.030)
-    cb.set_label("percentile rank among recurrent authors", fontsize=st["label_fs"])
-    cb.ax.tick_params(labelsize=st["tick_fs"])
-
-    for i, (_, r) in enumerate(top.iterrows()):
-        for j, (c, _, fmt) in enumerate(cols):
-            v = r[c]
-            ax.text(j, i, "–" if v != v else fmt.format(v), ha="center", va="center",
-                    fontsize=st["annot_fs"] - 1, fontweight="bold",
-                    color="white" if ranks[i, j] > 55 else C_INK)
-    ax.set_xticks(range(len(cols)))
-    ax.set_xticklabels([lab for _, lab, _ in cols], fontsize=st["annot_fs"])
-    ax.set_yticks(range(len(top)))
-    ax.set_yticklabels(top.author_name, fontsize=st["annot_fs"])
-    ax.set_xticks(np.arange(-0.5, len(cols), 1), minor=True)
-    ax.set_yticks(np.arange(-0.5, len(top), 1), minor=True)
-    ax.grid(which="minor", color="white", linewidth=1.2, linestyle="-")
-    ax.tick_params(which="minor", length=0)
-    return ax
-
-
 # =============================================================================
 # 5. Captions — written here so a figure and its caption cannot drift apart
 # =============================================================================
@@ -1073,19 +1099,27 @@ MAIN_CAPTION = {
           "the same distance from it."),
     "C": ("A's vertical question over time, at the sharp end: UK Biobank's share of the "
           "papers clearing each field's measured top-decile citation cut-off, year by "
-          "year. The dashed rule is its share across all fields."),
-    "D": ("The footprint cut twice. UK Biobank's share of each field (line), split into "
-          "the part in the field's most-cited tenth (solid) and the rest above the "
-          "field's median (pale). Both cut-offs are measured per (year, field) against "
-          "the whole database and fall steeply with publication year because citations "
-          "accrue; the values are tabulated in the methods, not on the panels."),
+          "year, for the five of its top fields that reach furthest. The dashed rule is "
+          "its share across all fields; SI 1B is the same chart at 25 fields."),
+    "D-K": ("The footprint cut twice, one lettered panel per field. UK Biobank's share of "
+            "the field (line), split into the part in the field's most-cited tenth "
+            "(solid) and the rest above the field's median (pale). Both cut-offs are "
+            "measured per (year, field) against the whole database and fall steeply with "
+            "publication year because citations accrue; the values are tabulated in the "
+            "methods, not on the panels."),
 }
 
 SI_CAPTIONS = {
     "impact_map": {
         "A": ("The impact map at UK Biobank's 25 largest fields, every point labelled — "
-              "main-figure panel B carries 16 and labels only the top eight plus the "
+              "main-figure panel A carries 16 and labels only the top eight plus the "
               "extremes."),
+    },
+    "top_decile": {
+        "A": ("Main-figure panel C undrawn-down: UK Biobank's share of each field's "
+              "measured top-decile papers, year by year, for the same 25 fields as SI 1 "
+              "and every year the citation measures support. The eight fields the family "
+              "follows keep their colours; the other 17 are grey, as on the map."),
     },
     "growth": {
         "A": ("Compound annual growth 2021–2025 by field, UK Biobank (filled) against "
@@ -1093,14 +1127,6 @@ SI_CAPTIONS = {
               "with floors of 5 papers in 2021 and 20 in 2025."),
         "B": ("The absolute trajectories those rates summarise, log scale, so the slope "
               "is the growth rate. Dashed grey is all UK Biobank papers."),
-    },
-    "author_arm": {
-        "A": ("Who produced the work. Share of authors, fractional paper and citation "
-              "credit, top-decile credit and first/last authorship by the year an author "
-              "first published in the corpus. Top-decile credit peaks at the 2021–23 "
-              "cohort, not at the earliest one."),
-        "B": ("What each leading contributor is ahead on. Colour is percentile rank "
-              "among recurrent authors (≥3 papers); the number is the observed value."),
     },
 }
 
@@ -1116,19 +1142,20 @@ def figure_main(D, save=True):
     """The main-paper page: four lettered panels on a three-column grid.
 
         +---------------------------+-----------+
-        |                           |     B     |   A  impact map      (2 rows x 2 cols)
-        |             A             +-----------+   B  activity index  (top right)
-        |                           |     C     |   C  top-decile share (below it)
-        +---------------------------------------+
-        |                     D                 |   D  the footprint block, full width
+        |                           |     B     |   A     impact map      (2 rows x 2 cols)
+        |             A             +-----------+   B     activity index  (top right)
+        |                           |     C     |   C     top-decile share (below it)
+        +---------------------------------------+   D-K   the footprint block,
+        |                    D - K              |         full width, one letter each
         +---------------------------------------+
 
     The impact map leads and takes the largest slot: it is the one panel carrying both
     questions at once — how much UK Biobank publishes in a field, and how well that work
     is cited there — so the two panels beside it read as its margins. B is the volume axis
-    on its own, ranked; C is the quality axis on its own, over time. D then puts the
-    quality claim back into each field's own citation distribution across eight fields,
-    which needs the full width.
+    on its own, ranked; C is the quality axis on its own, over time. The block then puts
+    the quality claim back into each field's own citation distribution across eight
+    fields, which needs the full width — and each of those eight is lettered D through K,
+    because a reader citing "the genetics panel" needs an address for it.
 
     Drawn at `fs_scale.main` — larger type than the SI pages, because this one is read at
     figure width in a paper rather than full page on a screen.
@@ -1146,19 +1173,16 @@ def figure_main(D, save=True):
 
         draw_impact_map(ax_a, D, top_m=MAP_M_MAIN)
         draw_activity_index(ax_b, D, top_m=ACT_TOP_M_MAIN)
-        # A third of the page width, so the labels are cut harder and given more of
-        # the axis to sit in than the same chart would need at full width.
-        draw_top_decile_share(ax_c, D, label_chars=14, pad_years=11, label_gap=0.105)
-        block = block_footprint_quality(fig, gs[2:4, 0:3], D)
+        # A third of the page width: eight direct labels and the empty years they need to
+        # sit in would leave the decade this panel is about squeezed into two thirds of
+        # its own axis, so here the fields go into a legend and the panel is cut to the
+        # six that reach furthest. SI 1B carries all 25, direct-labelled, at full width.
+        draw_top_decile_share(ax_c, D, label_chars=20, pad_years=1, top_m=DEC_M_MAIN,
+                              legend=True, legend_loc="lower right")
+        block_footprint_quality(fig, gs[2:4, 0:3], D, letters="DEFGHIJK")
 
         for ax, letter in ((ax_a, "A"), (ax_b, "B"), (ax_c, "C")):
             panel_label(ax, letter)
-        # Panel D letters the BLOCK, not each field: the eight sub-panels are identified
-        # by their own titles, and eight more letters would imply eight arguments where
-        # there is one made eight times. FREE TEXT rather than the default title
-        # placement — panel_label's documented escape hatch — because the title slot on
-        # that axes already holds "Epidemiology".
-        panel_label(block[0], "D", x=-0.20, y=1.16)
         footprint_legend(fig, D)
 
         if save:
@@ -1167,7 +1191,13 @@ def figure_main(D, save=True):
 
 
 def figure_si_impact_map(D, save=True):
-    """SI 1 — the impact map undrawn-down: 25 fields, every one labelled."""
+    """SI 1 — the impact map undrawn-down: 25 fields, every one labelled.
+
+    Main-figure panel A carries 16 points and labels the top eight plus whatever is
+    extreme on either axis. This is the same map at full page with nothing left implicit.
+    SI 2 follows these same 25 fields through time; `map_fields` serves both, so the two
+    pages cannot disagree about which 25.
+    """
     st = _style()
     with _font_scale(_fs_scale("si1_impact_map")):
         fig, ax = plt.subplots(figsize=st["figsize_si_wide"])
@@ -1177,11 +1207,34 @@ def figure_si_impact_map(D, save=True):
     return fig
 
 
-def figure_si_growth(D, save=True):
-    """SI 2 — growth, not size. A growth result inside an impact analysis, hence SI."""
+def figure_si_top_decile(D, save=True):
+    """SI 2 — the top-decile share undrawn-down: SI 1's 25 fields, direct-labelled.
+
+    Main-figure panel C is cut to five fields and read off a legend, because it has one
+    column of three to live in. At full page every field the map draws gets its line and
+    its name, and the eight the family follows keep their colours against the other 17 in
+    the map's grey — so a field's line here can be read straight off its point there.
+
+    `floor_ratio` is wide enough that nothing is clipped: across 25 fields the smallest
+    early share is about a thousandth of the largest, and the main page's tighter floor
+    would leave four lines dropping out of the bottom of the panel.
+    """
     st = _style()
-    with _font_scale(_fs_scale("si2_growth")):
-        fig = plt.figure(figsize=st["figsize_si_author"])
+    with _font_scale(_fs_scale("si2_top_decile")):
+        fig, ax = plt.subplots(figsize=st["figsize_si_wide"])
+        draw_top_decile_share(ax, D, codes=map_fields(D, MAP_M_SI).index,
+                              label_chars=30, pad_years=5, label_gap=0.055,
+                              floor_ratio=1200)
+        if save:
+            savefig(fig, "03_03_supplementary_figure_02_top_decile_share")
+    return fig
+
+
+def figure_si_growth(D, save=True):
+    """SI 3 — growth, not size. A growth result inside an impact analysis, hence SI."""
+    st = _style()
+    with _font_scale(_fs_scale("si3_growth")):
+        fig = plt.figure(figsize=st["figsize_si"])
         gs = fig.add_gridspec(1, 2, wspace=0.30, width_ratios=[1.15, 1.0])
         axes = _assemble_axes(fig, gs, [(0, 0), (0, 1)])
         draw_growth_rates(axes[0], D)
@@ -1189,26 +1242,5 @@ def figure_si_growth(D, save=True):
         for ax, letter in zip(axes, "AB"):
             panel_label(ax, letter)
         if save:
-            savefig(fig, "03_03_supplementary_figure_02_growth")
-    return fig
-
-
-def figure_si_author_arm(D, save=True):
-    """SI 3 — the non-duplicated author cohort and influence panels.
-
-    The cohort profile (A) was the main page's panel E until 2026-09-09, when the page was
-    rebuilt on three columns and no longer had room for it. It comes here rather than
-    being dropped. The former portfolio panel is now Figure 5G and is not repeated here.
-    """
-    st = _style()
-    with _font_scale(_fs_scale("si3_author_arm")):
-        fig = plt.figure(figsize=st["figsize_si"])
-        gs = fig.add_gridspec(2, 1, hspace=0.38, height_ratios=[0.62, 1.35])
-        axes = _assemble_axes(fig, gs, [(0, 0), (1, 0)])
-        draw_author_cohorts(axes[0], D)
-        draw_author_fingerprint(axes[1], D)
-        for ax, letter in zip(axes, "AB"):
-            panel_label(ax, letter)
-        if save:
-            savefig(fig, "03_04_supplementary_figure_03_author_arm")
+            savefig(fig, "03_04_supplementary_figure_03_growth")
     return fig

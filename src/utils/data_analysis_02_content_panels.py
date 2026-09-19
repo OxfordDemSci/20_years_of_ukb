@@ -582,15 +582,31 @@ def _weight_note(weight: str) -> str:
 
 
 def _missing_panel(ax, title: str, note: str):
-    """What a panel draws when its source is not on disk: the reason, not an empty box."""
+    """What a panel draws when its source is not on disk: the reason, not an empty box.
+
+    The axes keeps its frame — dashed, and with the ticks off — so the row still reads as
+    a panel this page has reserved rather than as a hole somebody left in the layout. The
+    geometry is identical to the filled version, so dropping the source file in changes
+    what is in this row and nothing about the shape of the page.
+    """
     st = _style()
-    ax.set_axis_off()
-    ax.set_title(title, fontweight="bold", loc="left", pad=10)
+    ax.set_xticks([])
+    ax.set_yticks([])
+    for spine in ax.spines.values():
+        spine.set_visible(True)
+        spine.set_linestyle((0, (4, 4)))
+        spine.set_edgecolor("#C4C4C4")
+        spine.set_linewidth(0.9)
+    ax.set_facecolor("#FAFAFA")
+    ax.set_title(title, fontweight="bold", loc="left", pad=26)
+    ax.text(0.0, 1.015, "source not on disk — this row is reserved, not dropped",
+            transform=ax.transAxes, ha="left", va="bottom",
+            fontsize=st["annot_fs"] - 1.5, color="#666666")
     ax.text(0.5, 0.5, note, transform=ax.transAxes, ha="center", va="center",
             fontsize=st["annot_fs"], color="#555555", family="monospace",
-            linespacing=1.6,
-            bbox=dict(boxstyle="round,pad=0.9", facecolor="#F6F6F6",
-                      edgecolor="#CCCCCC", linewidth=0.8))
+            linespacing=1.7,
+            bbox=dict(boxstyle="round,pad=1.0", facecolor="white",
+                      edgecolor="#D6D6D6", linewidth=0.8))
     return ax
 
 

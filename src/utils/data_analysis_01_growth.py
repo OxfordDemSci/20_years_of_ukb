@@ -17,6 +17,7 @@ from matplotlib.patches import Rectangle
 
 from .shared_showcase import load_showcase
 from .shared_style import compact_count as shared_compact_count
+from .shared_style import grid_on as shared_grid_on
 from .shared_style import marker_area as shared_marker_area
 from .shared_style import panel_label as shared_panel_label
 from .shared_style import sequential_colormap
@@ -1216,8 +1217,7 @@ class GrowthPlotter:
         ax.set_xlim(self.first_year, self.last_complete_year + 0.35)
         ax.set_xticks(ticks)
         ax.tick_params(axis="x", rotation=0)
-        ax.grid(axis="both", **self.grid_kws)
-        ax.set_axisbelow(True)
+        shared_grid_on(ax, axis="both", which="major", **self.grid_kws)
         ax.set_xlabel("Publication year")
 
     @staticmethod
@@ -1505,8 +1505,8 @@ def plot_growth_and_reach(
         tick_label.set_multialignment("right")
         tick_label.set_verticalalignment("center")
     ax_rates.set_xlabel("Rate per 1,000 papers (log scale)")
-    ax_rates.grid(axis="both", **plotter.grid_kws)
-    ax_rates.set_axisbelow(True)
+    # After set_xscale: `grid_on` reads the scale and leaves a log axis bare.
+    shared_grid_on(ax_rates, axis="both", which="major", **plotter.grid_kws)
     plotter.panel_label(ax_rates, "C", y=1.13, in_layout=False)
 
     matrix_labels = [spec["matrix_label"] for spec in indicators.values()]
@@ -1783,7 +1783,6 @@ def plot_indicator_overlap_supplement(
     ax_bar.set_xlabel("Share of publications (%)")
     ax_bar.set_ylabel("Reach indicator")
     ax_bar.xaxis.set_major_formatter(mticker.PercentFormatter(xmax=100))
-    ax_bar.grid(axis="both", **plotter.grid_kws)
-    ax_bar.set_axisbelow(True)
+    shared_grid_on(ax_bar, axis="both", which="major", **plotter.grid_kws)
     plotter.panel_label(ax_bar, "B")
     return fig

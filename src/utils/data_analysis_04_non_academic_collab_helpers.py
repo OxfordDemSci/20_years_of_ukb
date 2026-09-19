@@ -2109,7 +2109,10 @@ def plot_for_company_share_scatter(
     ax.set_xlabel("Paper count (log scale)")
     ax.set_ylabel("Company collaborator share (%)")
     ax.set_title("FoR level-2 volume vs company collaborator share")
-    ax.grid(True, which="both", axis="both", alpha=0.2)
+    # x is logarithmic: its decade minor ticks put eight lines behind every decade,
+    # so only the linear y axis carries gridlines here.
+    ax.grid(False, which="both", axis="x")
+    ax.grid(True, which="major", axis="y", alpha=0.2)
     cbar = fig.colorbar(sc, ax=ax, fraction=0.046, pad=0.04)
     cbar.set_label("Company collaborator share (%)")
     plt.tight_layout()
