@@ -12,6 +12,7 @@ from utils import shared_paths as P
 from utils.shared_analysis_window import filter_analysis_window
 
 MODEL_NAMES = ["qwen", "llama3_8b", "mistral_7b"]
+COMBINED_LABELS_FILENAME = "matched_ukb_full_final_2013_2025_three_model_labels.csv"
 
 def normalise_label(series):
     result = pd.Series(pd.NA, index=series.index, dtype="Int64")
@@ -46,9 +47,13 @@ def resolve_combined_labels(input_path=None):
         if not path.is_file():
             raise FileNotFoundError(f"Combined-label CSV not found: {path}")
         return path
-    names = {"matched_ukb_full_final_since_2014_three_model_combined_labels.csv",
+    preferred = P.DATA / "analysis" / "dataset" / COMBINED_LABELS_FILENAME
+    if preferred.is_file():
+        return preferred
+    names = {COMBINED_LABELS_FILENAME,
+             "matched_ukb_full_final_since_2014_three_model_combined_labels.csv",
              "three_model_combined_labels.csv"}
-    found = sorted(path for path in P.DATA.rglob("*combined_labels.csv") if path.name in names)
+    found = sorted(path for path in P.DATA.rglob("*labels.csv") if path.name in names)
     if len(found) > 1:
         raise ValueError("Multiple combined-label CSVs found; set UKB_COMBINED_LABELS_CSV explicitly.")
     return found[0] if found else None
@@ -446,4 +451,3 @@ def run_agreement(input_path=None, *, output_dir=None, figure_dir=None,
     print(f"[PASS] Three-model agreement: {len(combined):,} candidates; {len(table_files)} CSVs, {figure_count} combined figures.")
     return {"section": "Three-model agreement", "status": "PASS", "detail": f"{len(combined):,} candidates; {len(three_true):,} unanimous TRUE",
             "semantic_status": "PASS" if semantic_available else "SKIP", "tables": [str(p) for p in table_files], "figures": [str(p) for p in figure_files]}
-

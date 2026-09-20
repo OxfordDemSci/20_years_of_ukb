@@ -147,10 +147,12 @@ labelled validation in separate sections. The two previous `00_` notebooks are
 preserved in `_archived/` and excluded from the batch. Run the combined notebook with
 `bash run_analysis_notebooks.sh --only 00_dataset`.
 
-Set `UKB_COMBINED_LABELS_CSV` to the local full candidate-level three-model combined
-labels CSV. A uniquely named
-`three_model_combined_labels.csv` (or its original long filename) under `data/`
-is detected automatically. Showcase+ is not a substitute for this input. Matching
+The candidate-label input is detected automatically at
+`data/analysis/dataset/matched_ukb_full_final_2013_2025_three_model_labels.csv`.
+Set `UKB_COMBINED_LABELS_CSV` to override it with another full candidate-level
+three-model labels CSV. If the default is absent, the loader searches `data/`
+for this filename or a uniquely named `three_model_combined_labels.csv` (including
+its original long filename). Showcase+ is not a substitute for this input. Matching
 semantic coordinates/metrics are reused; new semantic encoding requires
 `RUN_SEMANTIC_ANALYSIS = True` (or `UKB_RUN_SEMANTIC_ANALYSIS=1`).
 
