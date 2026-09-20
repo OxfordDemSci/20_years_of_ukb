@@ -142,21 +142,49 @@ Use `--from 03_academic_impact_01_for_analysis.ipynb` to start later in the list
 notebooks in their usual order, or `--timeout 3600` to limit each cell to one hour
 (the default is unlimited).
 
-For `00_dataset_1_general_sanity_cleanliness`, set `UKB_COMBINED_LABELS_CSV` to the
-local full candidate-level three-model combined labels CSV. A uniquely named
+The consolidated `00_dataset.ipynb` runs saved three-model agreement analyses and
+labelled validation in separate sections. The two previous `00_` notebooks are
+preserved in `_archived/` and excluded from the batch. Run the combined notebook with
+`bash run_analysis_notebooks.sh --only 00_dataset`.
+
+Set `UKB_COMBINED_LABELS_CSV` to the local full candidate-level three-model combined
+labels CSV. A uniquely named
 `three_model_combined_labels.csv` (or its original long filename) under `data/`
-is detected automatically. Showcase+ is not a substitute for this input.
+is detected automatically. Showcase+ is not a substitute for this input. Matching
+semantic coordinates/metrics are reused; new semantic encoding requires
+`RUN_SEMANTIC_ANALYSIS = True` (or `UKB_RUN_SEMANTIC_ANALYSIS=1`).
+
+Validation reuses all six `predictions_*.csv` tables under `output/validation/`
+(overridable with `UKB_VALIDATION_OUTPUT_DIR`) after checking dates, IDs and labels.
+Generating predictions requires `RUN_VALIDATION_INFERENCE = True` (or
+`UKB_RUN_VALIDATION_INFERENCE=1`), `UKB_VALIDATION_POSITIVE_CSV`,
+`UKB_VALIDATION_NEGATIVE_CSV`, and explicit `UKB_VALIDATION_N_POS` /
+`UKB_VALIDATION_N_NEG` evaluation sample sizes. The named labelled files under
+`data/validation/` are the default sources. Inputs are checked before model imports
+or downloads; there is no interactive login or automatic package installation.
+The historical pre-2014 negative filename does not bypass the shared 2013–2025
+window. Encoder baselines retain their original in-sample threshold calibration.
+
+Missing data/results are reported as skipped sections; malformed inputs fail after
+both sections have been attempted. The status table is saved to
+`output/tables/data_analysis/00_dataset/00_dataset_status.csv`. Agreement tables
+use the `three_model_agreement/` subdirectory; validation tables remain under
+`output/validation/`. Figures are collected under
+`output/figures/data_analysis/00_dataset/` as 500-DPI PNGs and PDFs.
+The publication figure set combines candidate agreement and annual trends (`00_01`),
+mention/keyword profiles and TF-IDF contrasts (`00_02`), validation performance
+(`00_03`), and agreement across six prompts (`00_04`). Optional cached semantic
+maps are combined in `00_05`. Each has a manuscript caption in a matching
+`_caption.txt`; detailed source tables are preserved. Unavailable inputs skip the
+corresponding figure rather than generate placeholder results. The notebook lists
+which CSVs underlie each figure. No standalone per-prompt figures, SVGs or JSON
+figure sidecars are produced.
+
 `02_content` uses the local Showcase+ parquet, writes topic results to
 `output/bertopic/`, and caches embeddings under `data/analysis/content/cache/`.
 Figures go to `output/figures/data_analysis/02_content/` and publication tables to
 `output/tables/02_content/`. It does not install dependencies automatically.
 Run it alone with `bash run_analysis_notebooks.sh --only 02_content`.
-`00_dataset_2_validation_analysis` requires `UKB_VALIDATION_POSITIVE_CSV` and
-`UKB_VALIDATION_NEGATIVE_CSV`, or the named labelled files under `data/validation/`.
-Set `UKB_VALIDATION_N_POS` and `UKB_VALIDATION_N_NEG` to the intended evaluation
-sample sizes. Inputs are checked before model imports/downloads. Outputs go to
-`output/validation/`; no interactive login or automatic package installation is used.
-
 Academic field/citation analyses require the original
 `data/analysis/academic_impact/for_counts_api/` cache. Set `UKB_FOR_COUNTS_DIR` if
 it is stored elsewhere. This contains both UK Biobank and whole-database counts,

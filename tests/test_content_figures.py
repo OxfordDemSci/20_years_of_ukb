@@ -15,7 +15,7 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / 'src'))
 from utils import data_analysis_02_content_panels as panels
 from utils.data_analysis_02_content_window import write_topic_window_provenance
-from utils.shared_style import load_style
+from utils.shared_style import finalize_figure, load_style
 
 
 class ContentFigureTests(unittest.TestCase):
@@ -118,6 +118,10 @@ class ContentFigureTests(unittest.TestCase):
         self.assertEqual(block['share'].loc[2024, 'T1: X'], 50)
         self.assertIn('75.0%', C.texts[0].get_text())
         self.assertTrue(A.get_title(loc='left').startswith('A  '))
+        finalize_figure(fig)
+        fig.canvas.draw()
+        self.assertFalse(C._left_title.get_window_extent().overlaps(
+            C.texts[0].get_window_extent()))
 
     def test_supplement_tables_preserve_complete_distributions(self):
         D = self.fixture()

@@ -7,6 +7,7 @@ ipython>=8
 ipykernel>=6.29
 nbclient>=0.10
 nbformat>=5.10
+packaging>=23
 
 # Data, statistics, parquet/Excel/Word exports and shared YAML settings.
 numpy>=1.26,<3

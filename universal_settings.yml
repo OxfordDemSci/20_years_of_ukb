@@ -68,6 +68,12 @@ style:
   # --------------------------------------------------- per-notebook differences
   notebooks:
 
+    00_dataset:
+      colors: ["#E66859", "#FEE7BA", "#75BBD4", "#74ADD1", "#416FA0", "#274668", "#74D1AF"]
+      save: true
+      formats: [pdf, png]
+      savedir: output/figures/data_analysis/00_dataset
+
     01_growth:
       colors: ["#B80C09", "#D4AF37", "#6E8B3D", "#345995",
                "#8C5A9E", "#008C95", "#B56A3B", "#4F6D7A"]

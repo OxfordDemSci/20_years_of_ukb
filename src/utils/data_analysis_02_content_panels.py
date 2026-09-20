@@ -57,6 +57,24 @@ BAND_RULES = {
     "rcdc":   {"target_other": 10.0, "min_band": 1.2, "max_bands": 8, "min_bands": 8},
 }
 
+# Presentation only: descriptors checked against this model's keywords and paper
+# titles. Exact full-label keys prevent a new model's topic IDs inheriting names.
+# Aggregation always retains the original model label.
+TOPIC_DISPLAY_LABELS = {
+    "T0: cognitive / ad / dementia / alzheimers": "Cognition, dementia and brain imaging",
+    "T1: mdd / anxiety / depressive / psychiatric": "Depression and mental health",
+    "T2: sleep / sleep duration / insomnia / daytime": "Sleep and circadian rhythms",
+    "T9: complex traits / heritability / finemapping / simulations": "Complex-trait genetics and methods",
+    "T3: retinal / glaucoma / amd / myopia": "Vision and eye disease",
+    "T6: dietary / meat / food / fish": "Diet and nutrition",
+    "T4: air / pollution / air pollution / pm": "Air pollution and environmental exposure",
+    "T5: asthma / copd / lung function / ipf": "Lung function and respiratory disease",
+    "T10: prostate / prostate cancer / pca / breast": "Cancer risk and genetic susceptibility",
+    "T8: covid19 / infection / sarscov2 / covid19 infection": "COVID-19 and infection",
+    "T7: masld / nafld / liver disease / fatty liver": "Metabolic liver disease",
+    "T11: mvpa / pa / sedentary / intensity": "Physical activity and sedentary behaviour",
+}
+
 
 def category_weights(long, cat_col, weight, year_col="year", id_col="id"):
     """year x category weight matrix. Whole for `n_papers`, spread for `n_frac`.
@@ -455,8 +473,10 @@ def _legend_label(text, width=29):
 
 
 def _topic_legend_labels(labels, width=36):
-    """Abbreviate keywords without making distinct model topics indistinguishable."""
-    shown = {label: _legend_label(label, width) for label in labels}
+    """Use reviewed descriptors or keywords while preserving distinct model topics."""
+    shown = {label: fill(TOPIC_DISPLAY_LABELS[label], width=width)
+             if label in TOPIC_DISPLAY_LABELS else _legend_label(label, width)
+             for label in labels}
     duplicates = Counter(shown.values())
     for label, display in shown.items():
         if duplicates[display] > 1:
@@ -577,9 +597,11 @@ def figure_main(D, save=True):
     draw_rcdc_stream(ax_rcdc, D)
     draw_topic_stream(ax_topic, D)
     for ax, letter, title in ((ax_for, "A", "Fields of Research, Level 4"),
-                              (ax_rcdc, "B", "RCDC categories"),
-                              (ax_topic, "C", "Thematic waves")):
+                              (ax_rcdc, "B", "RCDC categories")):
         _heading(ax, letter, title)
+    # An explicit title position survives shared export finalisation and reserves
+    # a separate line for the coverage annotation above the streamgraph.
+    set_title(ax_topic, "C  Thematic waves", fontsize=_style()["title_fs"], y=1.075)
     fig.text(.075, .018, thin_years_note(D), ha="left", va="bottom",
              fontsize=_style()["annot_fs"], color="#555555")
     if save:
@@ -646,12 +668,13 @@ def category_change_table(D):
 def topic_label_table(D):
     """Model labels, displayed abbreviations, counts and main-panel selection."""
     block = D["topics"]
-    columns = ["topic_label", "display_label", "papers", "selected_main_figure"]
+    columns = ["topic_label", "display_label", "label_source", "papers", "selected_main_figure"]
     if not block["available"]:
         return pd.DataFrame(columns=columns)
     legend_labels = _topic_legend_labels(block["order"].index)
     return pd.DataFrame([
         {"topic_label": label, "display_label": legend_labels[label].replace("\n", " "),
+         "label_source": "Reviewed descriptor" if label in TOPIC_DISPLAY_LABELS else "Model keywords",
          "papers": count, "selected_main_figure": label in block["keep"]}
         for label, count in block["order"].items()
     ], columns=columns)
@@ -892,7 +915,7 @@ MAIN_CAPTION = {
          "all topic-assigned publications attributable to the selected leading topics; the "
          "stream is centred for display, so vertical position carries no meaning. Topics "
          "are selected using total publication counts across the analysis window, with "
-         "up to twelve shown.",
+         "up to twelve shown. Descriptive labels summarise model keywords and example publications.",
 }
 
 SI_CAPTIONS = {
