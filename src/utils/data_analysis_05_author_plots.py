@@ -242,13 +242,6 @@ def _draw_author_impact_portfolio(ax, impact: A.HeadlineImpactTables, style):
     ax.yaxis.set_minor_formatter(mticker.NullFormatter())
     ax.set_xlabel("Citation-eligible UK Biobank papers (log scale)")
     ax.set_ylabel("Mean normalized citation score (log scale)")
-    ax.set_title(
-        f"Author impact portfolios, {A.IMPACT_FIRST_YEAR}-{A.IMPACT_LAST_YEAR}",
-        loc="left",
-        fontsize=style["label_fs"],
-        fontweight="bold",
-        pad=10,
-    )
     style_axis(ax, style)
 
     label_x = x_max_data * 1.28
@@ -458,6 +451,7 @@ def plot_headline_figure(
     )
     ax_g = fig.add_subplot(impact_row[0])
     ax_h = fig.add_subplot(impact_row[1])
+    ax_e.set_position(ax_e.get_position().translated(0, -0.008))
 
     # A: component-aware author network with an actual-edge topology backbone.
     _draw_component_network(
@@ -492,7 +486,7 @@ def plot_headline_figure(
         fontsize=style["annot_fs"] + 1,
         fontweight="bold",
     )
-    ax_b.set_xlabel("Share of fractional\npublication credit")
+    ax_b.set_xlabel("Fractional credit share", labelpad=2)
     ax_b.xaxis.set_major_formatter(mticker.PercentFormatter(100))
     ax_b.xaxis.set_major_locator(mticker.MultipleLocator(50))
     ax_b.set_xlim(0, 110)
