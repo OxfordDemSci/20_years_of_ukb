@@ -9,6 +9,7 @@ from pathlib import Path
 import re
 import sys
 import tempfile
+import textwrap
 from types import SimpleNamespace
 import unittest
 from unittest.mock import patch
@@ -40,6 +41,13 @@ def boundary_corpus():
         "title": ["A scientific paper with enough usable text"] * 10,
         "abstract": ["An abstract describing a cohort study."] * 10,
     })
+
+
+def notebook_cell_source(cell):
+    """Expose model-work cells beneath the notebook's cache-reuse guard."""
+    source = "".join(cell["source"])
+    prefix = "if not REUSE_TOPIC_RESULTS:\n"
+    return textwrap.dedent(source[len(prefix):]) if source.startswith(prefix) else source
 
 
 class ContentCutoffTests(unittest.TestCase):
@@ -80,7 +88,7 @@ class ContentCutoffTests(unittest.TestCase):
     def test_notebook_filters_before_embeddings_and_includes_2013(self):
         path = ROOT / "src/data_analysis/02_content_1_bert_topic.ipynb"
         notebook = json.loads(path.read_text())
-        helper_cell = next("".join(c["source"]) for c in notebook["cells"]
+        helper_cell = next(notebook_cell_source(c) for c in notebook["cells"]
                            if "def extract_year(" in "".join(c["source"]))
         names = {"clean_value", "clean_topic_text", "infer_column", "extract_year"}
         definitions = ast.Module(
@@ -93,11 +101,11 @@ class ContentCutoffTests(unittest.TestCase):
                          ANALYSIS_END_DATE=ANALYSIS_END_DATE, ANALYSIS_END_YEAR=ANALYSIS_END_YEAR,
                          filter_analysis_window=filter_analysis_window,
                          load_showcase=lambda **kwargs: boundary_corpus(), display=lambda *args: None)
-        configuration = next("".join(c["source"]) for c in notebook["cells"]
-                             if "".join(c["source"]).startswith("MIN_YEAR ="))
+        configuration = next(notebook_cell_source(c) for c in notebook["cells"]
+                             if notebook_cell_source(c).startswith("MIN_YEAR ="))
         exec(compile(configuration, str(path), "exec"), namespace)
         exec(compile(definitions, str(path), "exec"), namespace)
-        preparation = next("".join(c["source"]) for c in notebook["cells"]
+        preparation = next(notebook_cell_source(c) for c in notebook["cells"]
                            if "raw = load_showcase(" in "".join(c["source"]))
         with contextlib.redirect_stdout(io.StringIO()):
             exec(compile(preparation, str(path), "exec"), namespace)
@@ -125,7 +133,7 @@ class ContentCutoffTests(unittest.TestCase):
     def test_notebook_does_not_reuse_unscoped_grid_scores(self):
         path = ROOT / "src/data_analysis/02_content_1_bert_topic.ipynb"
         notebook = json.loads(path.read_text())
-        source = next("".join(c["source"]) for c in notebook["cells"]
+        source = next(notebook_cell_source(c) for c in notebook["cells"]
                       if "RUNS_PATH =" in "".join(c["source"]))
         nodes = []
         for node in ast.parse(source).body:

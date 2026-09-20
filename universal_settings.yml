@@ -50,7 +50,7 @@ style:
     dot_marker_area: 76
 
     # misc
-    dpi: 800  # PNG exports are also enforced by shared_style.PNG_DPI
+    dpi: 500  # PNG exports are also enforced by shared_style.PNG_DPI
     cmap: ocean
     edgecolor: grey
 
@@ -151,7 +151,7 @@ style:
       # Leading-author bars and colourbar use the full shared blue-cream-red scale.
       gender_colors:
         Female: 0                 # red
-        Male: 4                   # steel blue — also the ramp for the FOR-division bars
+        Male: 4                   # steel blue
         Unknown: "#B7B7B7"        # deliberately neutral: not a category, an absence
       # The four network component classes, ordered cream -> light blue -> navy so the
       # size ordering is legible as a ramp, with the red reserved for the isolates that
@@ -180,8 +180,8 @@ style:
       minor_tick_length: 3
       minor_tick_width: 0.8
       # Headline map: Matplotlib Blues. Other continuous scales use shared_style:
-      # blue_cream_red_colormap for impact panels and leading-author bars;
-      # sequential_colormap for supplementary maps and heatmaps.
+      # blue_cream_red_colormap for impact, leading-author, gender-by-field and
+      # country-period panels; sequential_colormap for supplementary maps.
       edgecolor: black
       save: true
       formats: [pdf, png]

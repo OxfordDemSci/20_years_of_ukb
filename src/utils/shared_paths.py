@@ -80,9 +80,8 @@ FOR_COUNTS = ACADEMIC_IMPACT / "for_counts_out"
 # background side, or a per-paper FCR there — a facet returns totals, not per-paper rows.
 FOR_COUNTS_API = ACADEMIC_IMPACT / "for_counts_api"
 
-# Analysis 02 (content / topic modelling). Registered here so 02's "five places" all
-# exist — the 02 notebooks do not read these yet (they still carry Colab-era literals and
-# are left untouched for now); wire them up when those notebooks are next opened.
+# Analysis 02: training caches live here; current results use output/bertopic/.
+# TOPIC_ASSIGNMENTS remains a recognised location for existing topic-result CSVs.
 CONTENT = ANALYSIS / "content"
 BERTOPIC_CACHE = CONTENT / "cache"
 TOPIC_ASSIGNMENTS = CONTENT / "showcase_plus_id_topics.csv"
@@ -282,6 +281,15 @@ class ArtifactRegistry:
         for path in paths:
             self._register(self.figure_paths, path)
         return paths
+
+    def save_word_table(self, frame, filename, **kwargs) -> Path:
+        """Export an editable manuscript table and include it in the manifest."""
+        from .shared_word import save_word_table
+
+        path = save_word_table(frame, self.table_dir / filename, **kwargs)
+        self._register(self.table_paths, path)
+        print("saved", raw_path(path))
+        return path
 
     @staticmethod
     def _file_sha256(path: Path) -> str:

@@ -60,7 +60,7 @@ PORTFOLIO_LABEL_COUNT = 8
 VENUE_FIRST_YEAR = ANALYSIS_START_YEAR
 VENUE_MIN_PAPERS = 20
 VENUE_TOP_N = 15
-TOP_AUTHOR_COUNT = 10
+TOP_AUTHOR_COUNT = 30
 CITATION_SNAPSHOT_YEAR = 2026
 LEGACY_AUTHOR_IMPACT = (
     P.TABLE_ACADEMIC_IMPACT / "author_summary_with_impact_metrics.csv"
@@ -1749,6 +1749,77 @@ def merge_author_network_metrics(
     return author_metrics.merge(network.author_metrics[columns], on="researcher_id", how="left")
 
 
+def _rank_author_metrics(author_metrics: pd.DataFrame, n: int) -> pd.DataFrame:
+    """Apply the same deterministic ranking to compact and complete author tables."""
+    if isinstance(n, bool) or not isinstance(n, (int, np.integer)) or n < 1:
+        raise ValueError("n must be a positive integer")
+    if author_metrics["researcher_id"].isna().any():
+        raise ValueError("The author ranking requires resolved researcher IDs")
+    if author_metrics["researcher_id"].duplicated().any():
+        raise ValueError("Author metrics must contain one row per researcher_id")
+    leaders = author_metrics.sort_values(
+        ["ukb_h_index", "n_ukb_papers", "total_ukb_citations", "full_name", "researcher_id"],
+        ascending=[False, False, False, True, True],
+        na_position="last",
+        kind="mergesort",
+    ).head(n).reset_index(drop=True)
+    leaders.insert(0, "rank", np.arange(1, len(leaders) + 1, dtype=int))
+    return leaders
+
+
+def build_top_author_publication_metrics(
+    papers: pd.DataFrame, n: int = TOP_AUTHOR_COUNT,
+) -> pd.DataFrame:
+    """Rank authors directly from in-window papers, without network or citation caches.
+
+    Use the same researcher-ID deduplication and equal author credit as the full
+    authorship pipeline. Unresolved author slots count in team-size denominators
+    but are not merged into people or ranked. Name inference is unnecessary here.
+    """
+    papers = filter_analysis_window(papers)
+    if papers["id"].isna().any() or papers["id"].duplicated().any():
+        raise ValueError("Author ranking requires one row per publication ID")
+    rows = []
+    for paper in papers.itertuples(index=False):
+        authors = [a for a in parse_listcol(paper.authors) if isinstance(a, dict)]
+        unique = {}
+        for position, author in enumerate(authors, start=1):
+            researcher_id = _normalise_text(author.get("researcher_id"))
+            key = researcher_id or f"unresolved::{paper.id}::{position:04d}"
+            unique.setdefault(key, (researcher_id, author))
+        for researcher_id, author in unique.values():
+            if researcher_id is None:
+                continue
+            name = " ".join(
+                _normalise_text(author.get(part)) or "" for part in ("first_name", "last_name")
+            ).strip()
+            rows.append({
+                "researcher_id": researcher_id,
+                "full_name": name or researcher_id,
+                "paper_id": paper.id,
+                "year": int(paper.year),
+                "times_cited": float(paper.times_cited),
+                "authorship_credit": 1.0 / len(unique),
+            })
+    if not rows:
+        raise ValueError("No resolved authors were found in the analysis window")
+    authorships = pd.DataFrame(rows)
+    grouped = authorships.groupby("researcher_id", sort=False)
+    metrics = grouped.agg(
+        n_ukb_papers=("paper_id", "nunique"),
+        total_ukb_citations=("times_cited", "sum"),
+        mean_ukb_citations=("times_cited", "mean"),
+        fractional_paper_credit=("authorship_credit", "sum"),
+        first_ukb_year=("year", "min"),
+        last_ukb_year=("year", "max"),
+    )
+    metrics["full_name"] = _fast_modal(authorships, "researcher_id", "full_name")
+    citations = grouped["times_cited"].agg(list)
+    metrics["ukb_h_index"] = citations.apply(h_index)
+    metrics["ukb_i10_index"] = citations.apply(lambda values: sum(v >= 10 for v in values))
+    return _rank_author_metrics(metrics.reset_index(), n)
+
+
 def top_authors_by_ukb_h_index(
     author_metrics: pd.DataFrame,
     n: int = TOP_AUTHOR_COUNT,
@@ -1760,9 +1831,6 @@ def top_authors_by_ukb_h_index(
     exact ``n`` rows are stable across runs. Citation counts are totals at the
     frozen Showcase+ snapshot, not reconstructed historical citation trajectories.
     """
-    if isinstance(n, bool) or not isinstance(n, (int, np.integer)) or n < 1:
-        raise ValueError("n must be a positive integer")
-
     source_columns = [
         column for column in TOP_AUTHOR_TABLE_COLUMNS if column != "rank"
     ]
@@ -1771,46 +1839,22 @@ def top_authors_by_ukb_h_index(
         raise ValueError(
             "Top-author ranking requires missing columns: " + ", ".join(missing)
         )
-    if author_metrics["researcher_id"].duplicated().any():
-        raise ValueError("Author metrics must contain one row per researcher_id")
-
-    leaders = (
-        author_metrics.sort_values(
-            [
-                "ukb_h_index",
-                "n_ukb_papers",
-                "total_ukb_citations",
-                "full_name",
-                "researcher_id",
-            ],
-            ascending=[False, False, False, True, True],
-            na_position="last",
-            kind="mergesort",
-        )
-        .head(n)
-        .loc[:, source_columns]
-        .reset_index(drop=True)
-    )
-    leaders.insert(0, "rank", np.arange(1, len(leaders) + 1, dtype=int))
+    leaders = _rank_author_metrics(author_metrics.loc[:, source_columns], n)
     return leaders.loc[:, TOP_AUTHOR_TABLE_COLUMNS]
 
 
 def top_authors_notebook_view(top_authors: pd.DataFrame) -> pd.DataFrame:
-    """Return the compact, plainly labelled view shown in the analysis notebook."""
+    """Return the author-indexed publication table shared by notebook, CSV and Word."""
     columns = OrderedDict(
         [
-            ("rank", "Rank"),
             ("full_name", "Author"),
+            ("rank", "Rank"),
             ("ukb_h_index", "UKB h-index"),
             ("n_ukb_papers", "UKB papers"),
             ("total_ukb_citations", "Total UKB citations"),
             ("mean_ukb_citations", "Mean citations per paper"),
             ("ukb_i10_index", "UKB i10-index"),
-            ("coauthor_count", "Distinct UKB coauthors"),
-            ("n_first_author", "First-author papers"),
-            ("n_last_author", "Last-author papers"),
-            ("home_institution", "Home institution"),
-            ("home_country", "Home country"),
+            ("fractional_paper_credit", "Fractional publication credit"),
         ]
     )
     missing = sorted(set(columns).difference(top_authors.columns))
@@ -1826,7 +1870,41 @@ def top_authors_notebook_view(top_authors: pd.DataFrame) -> pd.DataFrame:
         .astype("Int64")
     )
     view["Mean citations per paper"] = view["Mean citations per paper"].round(1)
-    return view
+    view["Fractional publication credit"] = view["Fractional publication credit"].round(2)
+    return view.set_index("Author")
+
+
+def export_top_author_table(registry, top_authors: pd.DataFrame) -> dict:
+    """Save matching author-indexed CSV and editable Word tables."""
+    view = top_authors_notebook_view(top_authors)
+    stem = f"top_{len(view)}_authors_by_ukb_h_index"
+    csv_path = registry.save_table(view, f"{stem}.csv", index=True)
+    word_view = view.copy()
+    for column in word_view:
+        decimals = 1 if column == "Mean citations per paper" else (
+            2 if column == "Fractional publication credit" else 0
+        )
+        word_view[column] = word_view[column].map(
+            lambda value, places=decimals: f"{value:,.{places}f}" if pd.notna(value) else ""
+        )
+    notes = [
+        f"Publications: 1 January {FIRST_YEAR} to 31 December {LAST_COMPLETE_YEAR}, inclusive. "
+        "Citation counts are the cumulative totals recorded in the Showcase+ dataset.",
+        "The UKB h-index is the largest h for which an author has h UK Biobank papers with "
+        "at least h citations each. The UKB i10-index counts UK Biobank papers with at least 10 citations.",
+        "Fractional publication credit sums 1/n over an author's papers, where n includes all "
+        "parsed authors on each paper. Individuals are linked by Dimensions researcher ID.",
+        "Rows are ordered by h-index, then paper count, total citations, author name and researcher ID. "
+        "Mean citations and fractional credit are rounded to one and two decimal places, respectively.",
+    ]
+    word_path = registry.save_word_table(
+        word_view,
+        f"{stem}.docx",
+        title=f"Top {len(view)} authors by individual UK Biobank h-index",
+        notes=notes,
+        column_weights=[2.2, 0.55, 0.85, 0.9, 1.25, 1.3, 0.95, 1.4],
+    )
+    return {"table": view, "csv": csv_path, "word": word_path}
 
 
 def network_figure_tables(network: NetworkTables) -> OrderedDict[str, pd.DataFrame]:
@@ -2374,10 +2452,10 @@ def headline_statistics(
 def legacy_artifact_crosswalk() -> pd.DataFrame:
     """Document how each substantive legacy output is retained after consolidation."""
     rows = [
-        ("05_authors_1_metrics", "author_analytics.xlsx", "top_10_authors_by_ukb_h_index.csv + supplementary_author_characteristics.xlsx + author_metrics.csv", "retained and expanded; explicit top-10 ranking and h-index are UKB-corpus-specific"),
+        ("05_authors_1_metrics", "author_analytics.xlsx", "top_30_authors_by_ukb_h_index.csv + top_30_authors_by_ukb_h_index.docx + supplementary_author_characteristics.xlsx + author_metrics.csv", "retained and expanded; author-indexed top-30 ranking in CSV and editable Word, with UKB-corpus-specific h-index"),
         ("05_authors_2 / 3_CHECK", "geographic maps (whole, fractional, intensity, org basis)", "Figure 1E + Supplementary Figure 3A-C + country_metrics.csv", "all four geographic views retained with harmonized ISO-3 entities"),
         ("05_geography_4 / 5", "static geography composite", "Figure 1E + Supplementary Figures 3-4", "separated into map-only and quantitative geography evidence"),
-        ("05_geography_4 / 5", "geography evolution GIF", "Figure 1C + Supplementary Figure 4D", "cumulative country reach promoted to the headline; period-averaged diversity retained as a nonduplicative static summary"),
+        ("05_geography_4 / 5", "geography evolution GIF", "Figure 1C + Supplementary Figure 4D", "cumulative country reach promoted to the headline; annual effective geographic diversity retained as a static time series"),
         ("05_authors_2 / 3_CHECK", "top-institution FOR bars", "Supplementary Figure 5", "retained with fractional multi-affiliation credit"),
         ("05_institutional_metrics", "institutional_analytics.xlsx", "supplementary_author_characteristics.xlsx + institution_metrics.csv", "retained and corrected for paper/field duplication"),
         ("05_authors_2 / 3_CHECK", "gender trends", "Figure 1D + Supplementary Figure 2", "trend promoted to headline; coverage/roles/fields in supplement"),
@@ -2555,10 +2633,9 @@ def figure_captions() -> OrderedDict:
             "(C) Period-specific shares of geolocated "
             "fractional publication credit for the eight "
             "leading countries across all years; colour uses a logarithmic scale and annotations report "
-            "the exact percentage. (D) Mean annual effective "
-            "number of countries in four publication-year periods, defined as exponentiated Shannon "
-            "entropy of fractional country credit. Period aggregation reduces sensitivity to annual "
-            "endpoint lag. Credit is split across authors and each author's distinct affiliation "
+            "the exact percentage. (D) Annual effective number of countries, defined as exponentiated "
+            "Shannon entropy of each year's fractional country-credit shares. "
+            "Credit is split across authors and each author's distinct affiliation "
             "countries; papers with unresolved geography retain their author credit but do not contribute "
             "to geolocated totals."
         ),
@@ -2721,6 +2798,7 @@ def export_analysis_artifacts(
     """Export all analytical tables, workbook sheets, captions, methods, and crosswalk."""
     author_table = merge_author_network_metrics(core.author_metrics, network)
     top_authors = top_authors_by_ukb_h_index(author_table)
+    top_author_exports = export_top_author_table(registry, top_authors)
     audit = quality_audit(source, papers, core)
     checks = validation_checks(source, papers, core, network, impact)
     headline = headline_statistics(core, network, impact)
@@ -2757,7 +2835,6 @@ def export_analysis_artifacts(
 
     tables = OrderedDict({
         "author_metrics.csv": author_table,
-        "top_10_authors_by_ukb_h_index.csv": top_authors,
         "author_credit_concentration.csv": concentration,
         "author_productivity_bands.csv": productivity,
         "paper_for_assignments.csv": paper_for,
@@ -2798,9 +2875,10 @@ def export_analysis_artifacts(
     tables.update(community_tables)
     tables.update(network_summaries)
     saved_tables = {name: registry.save_table(frame, name) for name, frame in tables.items()}
+    saved_tables[top_author_exports["csv"].name] = top_author_exports["csv"]
 
     workbook_sheets = OrderedDict({
-        "Top 10 authors by UKB h": top_authors,
+        f"Top {len(top_authors)} authors by UKB h": top_author_exports["table"].reset_index(),
         "Author metrics": author_table,
         "Author concentration": concentration,
         "Author productivity bands": productivity,
@@ -2874,6 +2952,7 @@ def export_analysis_artifacts(
     return {
         "author_table": author_table,
         "top_authors": top_authors,
+        "top_author_exports": top_author_exports,
         "concentration": concentration,
         "productivity": productivity,
         "gender_coverage": gender_coverage,

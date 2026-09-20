@@ -8,6 +8,7 @@ from pathlib import Path
 
 import pandas as pd
 
+from utils import shared_paths as P
 from utils.shared_analysis_window import (
     ANALYSIS_START_DATE, ANALYSIS_START_YEAR, ANALYSIS_END_DATE, ANALYSIS_END_YEAR,
 )
@@ -91,3 +92,44 @@ def require_topic_window_provenance(path):
         valid = False
     if not valid:
         raise ValueError(message)
+
+
+def find_existing_topic_results(output_dir=None):
+    """Find completed per-publication results before importing or running models.
+
+    Check current notebook exports and registered legacy CSV locations. Existing
+    malformed or out-of-window results raise an error, never trigger a costly
+    automatic refit or get overwritten. Embeddings and unkeyed pickle files are
+    intermediate inputs, not completed publication-topic results.
+    """
+    output_dir = Path(output_dir) if output_dir is not None else P.OUTPUT / "bertopic"
+    candidates = [
+        output_dir / "showcase_plus_id_topics.csv",
+        output_dir / "bertopic_document_topic_assignments.csv",
+        output_dir / "tables" / "showcase_plus_id_topics.csv",
+        output_dir / "tables" / "bertopic_document_topic_assignments.csv",
+        P.TOPIC_ASSIGNMENTS,
+        P.CONTENT / "bertopic_document_topic_assignments.csv",
+        P.ACADEMIC_IMPACT / "bertopic" / "tables" / "bertopic_document_topic_assignments.csv",
+    ]
+    for path in dict.fromkeys(candidates):
+        if not path.is_file():
+            continue
+        try:
+            frame = pd.read_csv(path)
+        except (pd.errors.EmptyDataError, pd.errors.ParserError) as error:
+            raise ValueError(f"Existing BERTopic results are unreadable: {path}. No refit was started.") from error
+        id_column = next((name for name in ("id", "showcase_plus_id") if name in frame), None)
+        topic_column = next((name for name in ("topics", "topic") if name in frame), None)
+        if frame.empty or id_column is None or topic_column is None:
+            raise ValueError(f"Existing BERTopic results lack publication IDs/topics: {path}. No refit was started.")
+        ids = frame[id_column].astype("string").str.strip()
+        topics = frame[topic_column].astype("string").str.strip()
+        if ids.isna().any() or ids.eq("").any() or ids.duplicated().any() or topics.isna().any() or topics.eq("").any():
+            raise ValueError(f"Existing BERTopic results contain missing or duplicate assignments: {path}. No refit was started.")
+        require_topic_window_provenance(path)
+        year_column = next((name for name in ("year", "analysis_year") if name in frame), None)
+        if year_column is not None:
+            validate_training_years(frame[year_column])
+        return path
+    return None

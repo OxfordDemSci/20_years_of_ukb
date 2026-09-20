@@ -8,13 +8,14 @@ ipykernel>=6.29
 nbclient>=0.10
 nbformat>=5.10
 
-# Data, statistics, parquet/Excel exports and shared YAML settings.
+# Data, statistics, parquet/Excel/Word exports and shared YAML settings.
 numpy>=1.26,<3
 pandas>=2.2,<3
 scipy>=1.13,<2
 scikit-learn>=1.6,<2
 pyarrow>=15
 openpyxl>=3.1.5
+python-docx>=1.1,<2
 PyYAML>=6
 requests>=2.31
 tqdm>=4.66

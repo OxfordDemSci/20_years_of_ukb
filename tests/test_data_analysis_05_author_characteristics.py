@@ -49,11 +49,32 @@ def test_top_authors_are_ranked_deterministically_and_have_compact_view():
     assert tuple(result.columns) == authors.TOP_AUTHOR_TABLE_COLUMNS
 
     view = authors.top_authors_notebook_view(result)
-    assert view.columns[:5].tolist() == [
+    assert view.index.name == "Author"
+    assert view.index.tolist() == ["Alpha Author", "Zulu Author", "Lower Citations"]
+    assert view.columns[:4].tolist() == [
         "Rank",
-        "Author",
         "UKB h-index",
         "UKB papers",
         "Total UKB citations",
     ]
-    assert view.loc[0, "Mean citations per paper"] == 12.3
+    assert view.loc["Alpha Author", "Mean citations per paper"] == 12.3
+
+
+def test_standalone_ranking_includes_2013_and_keeps_author_identities_separate():
+    first = {"researcher_id": "a", "first_name": "Sam", "last_name": "Smith"}
+    second = {"researcher_id": "b", "first_name": "Sam", "last_name": "Smith"}
+    unresolved = {"first_name": "Unresolved"}
+    papers = pd.DataFrame([
+        {"id": "p1", "year": 2013, "times_cited": 10, "authors": [first, first, second, unresolved]},
+        {"id": "p2", "year": 2014, "times_cited": 1, "authors": [first]},
+        {"id": "p3", "year": 2025, "times_cited": 10, "authors": [first, second]},
+        {"id": "p4", "year": 2026, "times_cited": 999, "authors": [first]},
+        {"id": "p5", "year": 2012, "times_cited": 999, "authors": [first]},
+    ])
+    result = authors.build_top_author_publication_metrics(papers)
+    assert result["researcher_id"].tolist() == ["a", "b"]
+    assert result["ukb_h_index"].tolist() == [2, 2]
+    assert result["ukb_i10_index"].tolist() == [2, 2]
+    assert result["n_ukb_papers"].tolist() == [3, 2]
+    assert result["total_ukb_citations"].tolist() == [21, 20]
+    assert abs(result.loc[0, "fractional_paper_credit"] - (1/3 + 1 + 1/2)) < 1e-12

@@ -36,10 +36,23 @@ so a fresh clone has code and settings only.
 
 Figures are saved under `output/figures/`, including patent figures in
 `output/figures/data_analysis/04_non_academic/patent/`. All notebook PNG exports use
-800 dpi, enforced by `PNG_DPI` in `src/utils/shared_style.py`; inline display resolution
+500 dpi, enforced by `PNG_DPI` in `src/utils/shared_style.py`; inline display resolution
 is configured separately. All figures use Helvetica; titles are uppercase, bold and
 left-aligned through the shared typography helpers. Rerun a notebook to regenerate
 existing figures with these settings.
+
+The author-characteristics notebook exports the top 30 authors by individual UK Biobank
+h-index to `output/tables/data_analysis/05_author_characteristics/` as
+`top_30_authors_by_ukb_h_index.csv` and an editable `.docx` table. The author-indexed
+ranking uses 2013–2025 publications and runs immediately after loading the cohort,
+before the network and field-normalised citation analyses. Word export uses `python-docx`,
+included in `requirements-analysis.txt`.
+
+The BERTopic notebook reuses completed topic-result CSVs in `output/bertopic/` or
+the registered legacy locations, skipping embeddings, grid search and model fitting.
+Existing results must include their matching `.analysis_window.json` provenance for
+2013–2025; invalid caches stop without starting a refit. To deliberately rerun, set
+`FORCE_BERTOPIC = True` in the notebook or pass `--force` to the BERTopic utility.
 
 Never hardcode a path. Every notebook opens with the same bootstrap header and takes its
 paths from the registry:

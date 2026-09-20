@@ -39,7 +39,7 @@ ROOT = Path(__file__).resolve().parents[2]
 SETTINGS_FILE = ROOT / "universal_settings.yml"
 DEFAULT_MARKER_SIZE = 8.5
 DEFAULT_DOT_MARKER_AREA = 76.0
-PNG_DPI = 800
+PNG_DPI = 500
 FONT_FAMILY = "Helvetica"
 
 # The style most recently registered by a notebook via use_style(); used whenever a

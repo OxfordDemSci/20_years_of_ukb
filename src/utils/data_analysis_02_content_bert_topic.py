@@ -20,24 +20,18 @@ import re
 import warnings
 from pathlib import Path
 from types import SimpleNamespace
-from typing import Any, Dict, List, Optional, Sequence, Tuple
+from typing import Any, Dict, List, Optional, Sequence, Tuple, TYPE_CHECKING
 
 import matplotlib as mpl
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import plotly.express as px
-import torch
-from bertopic import BERTopic
-from bertopic.representation import MaximalMarginalRelevance
-from bertopic.vectorizers import ClassTfidfTransformer
-from gensim.corpora import Dictionary
-from gensim.models.coherencemodel import CoherenceModel
-from hdbscan import HDBSCAN
 from scipy.ndimage import gaussian_filter1d
-from sentence_transformers import SentenceTransformer
 from sklearn.feature_extraction.text import CountVectorizer, ENGLISH_STOP_WORDS
-from umap import UMAP
+
+if TYPE_CHECKING:
+    from bertopic import BERTopic
 
 from utils import shared_paths as P
 from utils.shared_style import PNG_DPI, apply_typography, finalize_figure, set_title
@@ -46,7 +40,7 @@ from utils.shared_analysis_window import (
     filter_analysis_window,
 )
 from utils.data_analysis_02_content_window import (
-    require_topic_window_provenance, topic_corpus_hash,
+    find_existing_topic_results, require_topic_window_provenance, topic_corpus_hash,
     validate_training_years, write_topic_window_provenance,
 )
 
@@ -81,7 +75,7 @@ warnings.filterwarnings("ignore")
 mpl.rcParams.update(
     {
         "figure.dpi": 140,
-        "savefig.dpi": 600,
+        "savefig.dpi": PNG_DPI,
         "font.size": 12,
         "axes.titlesize": 17,
         "axes.labelsize": 13,
@@ -338,6 +332,9 @@ def compute_topic_diversity(topic_words: Dict[int, List[str]]) -> float:
 
 
 def compute_coherence_cv(docs: Sequence[str], topic_words: Dict[int, List[str]]) -> float:
+    from gensim.corpora import Dictionary
+    from gensim.models.coherencemodel import CoherenceModel
+
     if not topic_words:
         return np.nan
 
@@ -371,6 +368,12 @@ def build_vectorizer() -> CountVectorizer:
 
 
 def build_topic_model(params: Dict[str, int], random_state: int) -> BERTopic:
+    from bertopic import BERTopic
+    from bertopic.representation import MaximalMarginalRelevance
+    from bertopic.vectorizers import ClassTfidfTransformer
+    from hdbscan import HDBSCAN
+    from umap import UMAP
+
     umap_model = UMAP(
         n_neighbors=params["n_neighbors"],
         n_components=5,
@@ -536,6 +539,9 @@ def get_or_make_embeddings(docs: List[str], years: List[int], output_dir: Path) 
         print(f"Loading cached embeddings: {cache_path}")
         return np.load(cache_path)
 
+    import torch
+    from sentence_transformers import SentenceTransformer
+
     device = "cuda" if torch.cuda.is_available() else "cpu"
     batch_size = config.BATCH_SIZE_GPU if device == "cuda" else config.BATCH_SIZE_CPU
 
@@ -564,6 +570,8 @@ def run_topic_grid(
     embeddings: np.ndarray,
     output_dir: Path,
 ) -> Tuple[pd.DataFrame, Dict[str, int]]:
+    import torch
+
     print("[3/8] Testing BERTopic hyperparameters")
 
     if getattr(config, "MAX_DOCS_FOR_TOPIC_GRID", None):
@@ -1002,16 +1010,24 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--input_parquet", type=Path, default=P.SHOWCASE_PLUS, help="Full publication endpoint parquet.")
     parser.add_argument("--output_dir", type=str, default=None, help="Output directory.")
     parser.add_argument("--no_grid", action="store_true", help="Skip hyperparameter grid and use the final parameters.")
+    parser.add_argument("--force", action="store_true", help="Explicitly refit even when final topic results already exist.")
     return parser.parse_args()
 
 
 def run_bertopic(
     input_parquet: Path = P.SHOWCASE_PLUS,
-    output_dir: Path = P.ACADEMIC_IMPACT / "bertopic",
+    output_dir: Path = P.OUTPUT / "bertopic",
     run_grid: bool = True,
-) -> BERTopic:
+    force: bool = False,
+) -> Optional[BERTopic]:
+    """Run modelling only when final results are absent, unless explicitly forced."""
     input_parquet = Path(input_parquet)
     output_dir = Path(output_dir)
+
+    cached = None if force else find_existing_topic_results(output_dir)
+    if cached is not None:
+        print(f"[SKIP] BERTopic results already exist: {P.raw_path(cached)}")
+        return None
 
     if not input_parquet.exists():
         raise FileNotFoundError(f"Input parquet not found: {input_parquet}")
@@ -1068,8 +1084,9 @@ def main() -> None:
     args = parse_args()
     run_bertopic(
         input_parquet=args.input_parquet,
-        output_dir=Path(args.output_dir) if args.output_dir else P.ACADEMIC_IMPACT / "bertopic",
+        output_dir=Path(args.output_dir) if args.output_dir else P.OUTPUT / "bertopic",
         run_grid=not args.no_grid,
+        force=args.force,
     )
 
 

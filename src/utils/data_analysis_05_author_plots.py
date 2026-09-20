@@ -56,6 +56,7 @@ WORLD_DOWNLOADED_SHP = (
     / "ne_110m_admin_0_countries.shp"
 )
 _NETWORK_LAYOUT_CACHE = {}
+_BAR_COLORBAR_BOUNDS = (0.88, 0.055, 0.025, 0.52)
 
 
 def _year_periods(n_periods=4):
@@ -204,7 +205,7 @@ def _draw_author_impact_portfolio(ax, impact: A.HeadlineImpactTables, style):
         rasterized=True,
         zorder=3,
     )
-    ax.axhline(1, color=palette("red"), linewidth=1.5, zorder=2)
+    ax.axhline(1, color=palette("red"), linewidth=1.5, linestyle="--", zorder=2)
     ax.annotate(
         "Field-and-year average (1x)",
         (0.985, 1),
@@ -617,10 +618,11 @@ def plot_author_metrics_supplement(core: A.CoreTables, style):
         2,
         2,
         style,
+        figsize=(style["figsize_panel"][0], 1.15 * style["figsize_panel"][1]),
         adjust={
             "left": 0.08,
             "right": 0.98,
-            "bottom": 0.16,
+            "bottom": 0.10,
             "top": 0.95,
             "wspace": 0.32,
             "hspace": 0.38,
@@ -692,25 +694,7 @@ def plot_author_metrics_supplement(core: A.CoreTables, style):
     ax.set(xlabel="UK Biobank h-index", ylabel="Resolved authors")
     ax.yaxis.set_major_locator(mticker.MaxNLocator(nbins=5, integer=True))
     style_axis(ax, style, grid_axis="both", grid_kws=metrics_grid)
-    black_legend(ax, style, loc="upper right", bbox_to_anchor=(0.98, 0.63))
-    h_quartiles = metrics["ukb_h_index"].quantile([0.25, 0.5, 0.75])
-    shown_share = 100 * metrics["ukb_h_index"].le(max_h).mean()
-    summary_box(
-        ax,
-        [
-            (
-                f"Median {h_quartiles.loc[0.5]:.0f} "
-                f"(IQR {h_quartiles.loc[0.25]:.0f}-{h_quartiles.loc[0.75]:.0f})"
-            ),
-            f"95th percentile: {metrics['ukb_h_index'].quantile(0.95):.0f}",
-            f"{shown_share:.1f}% shown; maximum {metrics['ukb_h_index'].max():,.0f}",
-        ],
-        style,
-        x=0.96,
-        y=0.94,
-        ha="right",
-        va="top",
-    )
+    black_legend(ax, style, loc="upper right")
 
     ax = axes[1, 0]
     ax.scatter(
@@ -766,7 +750,8 @@ def plot_author_metrics_supplement(core: A.CoreTables, style):
         linewidth=0.6,
     )
     ax.set_xlabel("UK Biobank h-index")
-    x_max = max(120, 1.55 * leaders["ukb_h_index"].max())
+    # Reserve room for the count labels before the shared lower-right colourbar.
+    x_max = max(140, 1.8 * leaders["ukb_h_index"].max())
     ax.set_xlim(0, x_max)
     ax.xaxis.set_major_locator(mticker.MultipleLocator(20))
     style_axis(ax, style, grid=False)
@@ -784,14 +769,15 @@ def plot_author_metrics_supplement(core: A.CoreTables, style):
         fontsize=style["annot_fs"] - 1,
         zorder=3,
     )
-    colorbar_ax = ax.inset_axes([0.16, -0.32, 0.68, 0.045])
+    colorbar_ax = ax.inset_axes(_BAR_COLORBAR_BOUNDS)
     colorbar = fig.colorbar(
         plt.cm.ScalarMappable(norm=h_norm, cmap=h_cmap),
         cax=colorbar_ax,
-        orientation="horizontal",
+        orientation="vertical",
     )
     colorbar.set_ticks(np.unique([h_min, (h_min + h_max) / 2, h_max]))
-    style_colorbar(colorbar, "UK Biobank h-index")
+    colorbar.ax.tick_params(labelsize=style["annot_fs"] - 1, length=3, pad=2)
+    style_colorbar(colorbar)
     for ax in axes.flat:
         ax.grid(False, which="minor", axis="both")
     label_panels(axes, "ABCD", style)
@@ -808,12 +794,13 @@ def plot_gender_supplement(core: A.CoreTables, style):
         2,
         2,
         style,
+        figsize=(0.94 * style["figsize_panel"][0], 1.15 * style["figsize_panel"][1]),
         adjust={
             "left": 0.09,
             "right": 0.98,
             "bottom": 0.10,
             "top": 0.95,
-            "wspace": 0.34,
+            "wspace": 0.42,
             "hspace": 0.40,
         },
     )
@@ -838,9 +825,7 @@ def plot_gender_supplement(core: A.CoreTables, style):
     ax = axes[0, 1]
     coverage = NG.inference_coverage(core.authorships, "year")
     coverage_styles = {
-        # Grey is deliberate for the strict dictionary: it is the baseline the other
-        # three are read against, not a fourth identity. The rest are palette colours.
-        "Strict dictionary": {"color": "#6B6B6B", "marker": "^", "linestyle": "--"},
+        "Strict dictionary": {"color": palette("navy"), "marker": "^", "linestyle": "--"},
         "Expanded dictionary": {"color": colors["Male"], "marker": "s", "linestyle": "-"},
         "Offline ensemble": {"color": palette("green"), "marker": "D", "linestyle": "-"},
         "Primary + identity linkage": {"color": colors["Female"], "marker": "o", "linestyle": "-"},
@@ -901,11 +886,17 @@ def plot_gender_supplement(core: A.CoreTables, style):
     ax = axes[1, 1]
     field = core.gender_by_field.nlargest(12, "classified").sort_values("female_name_share")
     labels = [_field_label(value) for value in field["for_l2"]]
-    blue_scale = sequential_colormap(colors["Male"])
+    shares = field["female_name_share"].to_numpy(dtype=float)
+    share_min, share_max = float(shares.min()), float(shares.max())
+    share_norm = Normalize(
+        vmin=share_min if share_min < share_max else share_min - 0.5,
+        vmax=share_max if share_min < share_max else share_max + 0.5,
+    )
+    share_cmap = blue_cream_red_colormap()
     bars = ax.barh(
         labels,
         field["female_name_share"],
-        color=blue_scale(np.linspace(0.38, 1.0, len(field))),
+        color=share_cmap(share_norm(shares)),
         edgecolor="black",
         linewidth=0.6,
     )
@@ -914,6 +905,17 @@ def plot_gender_supplement(core: A.CoreTables, style):
     ax.xaxis.set_major_formatter(mticker.PercentFormatter(100))
     ax.margins(x=0.14)
     style_axis(ax, style, grid=False)
+    # The shorter bars leave space inside the lower-right corner for the scale.
+    colorbar_ax = ax.inset_axes(_BAR_COLORBAR_BOUNDS)
+    colorbar = fig.colorbar(
+        plt.cm.ScalarMappable(norm=share_norm, cmap=share_cmap),
+        cax=colorbar_ax,
+        orientation="vertical",
+    )
+    colorbar.set_ticks(np.unique([share_min, (share_min + share_max) / 2, share_max]))
+    colorbar.ax.yaxis.set_major_formatter(mticker.PercentFormatter(100, decimals=1))
+    colorbar.ax.tick_params(labelsize=style["annot_fs"] - 1, length=3, pad=2)
+    style_colorbar(colorbar)
 
     label_panels(axes, "ABCD", style)
     return save_figure(
@@ -1303,16 +1305,18 @@ def _draw_country_period_composition(ax, core: A.CoreTables, style, n=8):
 
     positive = matrix.to_numpy()[matrix.to_numpy() > 0]
     norm = LogNorm(vmin=float(positive.min()), vmax=float(positive.max()))
-    cmap = sequential_colormap(
-        semantic_colors("domain_colors", style)["geography"]
-    )
-    image = ax.imshow(
-        matrix,
+    cmap = blue_cream_red_colormap()
+    image = ax.pcolormesh(
+        np.arange(len(periods) + 1) - 0.5,
+        np.arange(len(top_iso3) + 1) - 0.5,
+        matrix.to_numpy(),
         cmap=cmap,
         norm=norm,
-        aspect="auto",
-        interpolation="nearest",
+        shading="flat",
+        edgecolors=palette("navy"),
+        linewidth=0.6,
     )
+    ax.invert_yaxis()
     for row, iso3 in enumerate(matrix.index):
         for column, period in enumerate(matrix.columns):
             value = float(matrix.loc[iso3, period])
@@ -1359,43 +1363,27 @@ def _draw_country_period_composition(ax, core: A.CoreTables, style, n=8):
 
 
 def _draw_country_diversity(ax, core: A.CoreTables, style):
-    """Plot period-averaged effective geographic diversity."""
+    """Plot the effective number of countries for each publication year."""
     color = semantic_colors("domain_colors", style)["geography"]
     annual = core.country_by_year.sort_values("year")
-
-    bins, period_labels = _year_periods()
-    period = pd.cut(annual["year"], bins=bins, labels=period_labels)
-    diversity = (
-        annual.assign(period=period)
-        .groupby("period", observed=True)["effective_entities"]
-        .mean()
-        .reindex(period_labels)
-    )
-    x = np.arange(len(diversity))
-    ax.vlines(
-        x,
-        0,
-        diversity,
-        color="#9A9A9A",
-        linewidth=1.0,
-        zorder=1,
-    )
-    ax.scatter(
-        x,
-        diversity,
-        s=marker_area(style),
+    ax.plot(
+        annual["year"],
+        annual["effective_entities"],
         color=color,
-        edgecolor="black",
-        linewidth=0.55,
+        linewidth=1.5,
+        marker="o",
+        markersize=marker_size(style, scale=0.9),
+        markeredgecolor="black",
+        markeredgewidth=0.55,
         zorder=2,
     )
     ax.set(
-        xlabel="Publication-year period",
-        ylabel="Mean effective number of countries",
-        xticks=x,
-        xticklabels=period_labels,
+        xlabel="Publication year",
+        ylabel="Effective number of countries",
+        xticks=year_ticks(annual["year"].min(), annual["year"].max(), 2),
+        ylim=(0, None),
     )
-    style_axis(ax, style, grid_axis="y")
+    style_axis(ax, style, grid_axis="both", grid_kws={"linestyle": "--", "which": "major"})
 
 
 def plot_geography_metrics_supplement(core: A.CoreTables, style):
@@ -1418,6 +1406,15 @@ def plot_geography_metrics_supplement(core: A.CoreTables, style):
     _draw_country_basis_agreement(axes[0, 1], core, style)
     _draw_country_period_composition(axes[1, 0], core, style)
     _draw_country_diversity(axes[1, 1], core, style)
+
+    # Match the horizontal and vertical major grids, including B's log axes.
+    # C uses cell borders instead of gridlines through its annotated heatmap.
+    for ax in (axes[0, 0], axes[0, 1], axes[1, 1]):
+        ax.grid(False, axis="both", which="both")
+        style_axis(
+            ax, style, grid_axis="both",
+            grid_kws={"linestyle": "--", "which": "major", "log": True},
+        )
 
     label_panels(axes, "ABCD", style)
     return save_figure(
@@ -1452,7 +1449,6 @@ def _institution_field_matrix(core: A.CoreTables, top_ids, field_colors):
 
 
 def plot_institution_supplement(core: A.CoreTables, style):
-    color = semantic_colors("domain_colors", style)["institutions"]
     fig, gs = gridspec_figure(
         2,
         2,
@@ -1502,7 +1498,7 @@ def plot_institution_supplement(core: A.CoreTables, style):
     )
 
     annual = core.institution_by_year.sort_values("year")
-    ax_b.plot(annual["year"], annual["cumulative_entities"], color=color, marker="o", markeredgecolor="black", linewidth=2.3)
+    ax_b.plot(annual["year"], annual["cumulative_entities"], color=palette("red"), marker="o", markeredgecolor="black", linewidth=2.3)
     ax_b.set(xlabel="Publication year", ylabel="Cumulative institutions", xticks=year_ticks(annual["year"].min(), annual["year"].max(), 3))
     style_axis(ax_b, style)
 
@@ -1515,7 +1511,7 @@ def plot_institution_supplement(core: A.CoreTables, style):
             marker_area(style, scale=0.24),
             marker_area(style, scale=1.35),
         ),
-        color=color,
+        color=palette("steel_blue"),
         edgecolor="black",
         linewidth=0.4,
         alpha=0.45,
@@ -1540,11 +1536,17 @@ def plot_institution_supplement(core: A.CoreTables, style):
     ax_c.set(xlabel="Fractional publication credit", ylabel="Institutional UKB h-index")
     style_axis(ax_c, style)
 
-    # Match the network supplement, including vertical grids on C's log axis.
+    # Keep horizontal and vertical dashed grids, with only major grids in C.
     for ax in (ax_a, ax_b, ax_c):
+        if ax is ax_c:
+            ax.grid(False, axis="both", which="both")
         style_axis(
             ax, style, grid_axis="both",
-            grid_kws={"linestyle": "--", "log": True},
+            grid_kws={
+                "linestyle": "--",
+                "log": True,
+                "which": "major" if ax is ax_c else "both",
+            },
         )
 
     label_panels([ax_a, ax_b, ax_c], "ABC", style)
