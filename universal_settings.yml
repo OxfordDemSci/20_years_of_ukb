@@ -81,7 +81,7 @@ style:
         open_access: 2
         preprints: 3
       c_primary_light: "#C8D5E8"
-      figsize_main:  [16, 9]
+      figsize_main:  [16, 9.9]
       figsize_panel: [18, 11.5]
       font_family: Helvetica
       title_fs: 22
