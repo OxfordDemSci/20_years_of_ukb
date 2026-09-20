@@ -1,7 +1,7 @@
 """Single source of truth for every path the analysis code touches.
 
 Why this exists: the notebooks used to `os.chdir()` up to the repo root by testing
-`Path.cwd().name == "src"`, then use relative strings ('data/...', 'fig/...'). That
+`Path.cwd().name == "src"`, then use relative strings for data and figures. That
 test silently stopped working once the notebooks moved into `src/data_analysis/`,
 and the relative strings had already drifted apart (`data/patent/` vs
 `data/non_academic/patents/`, `clinic_trials` vs `clinical_trials`). Anchoring on
@@ -104,12 +104,28 @@ FIELD_TOTALS = FOR_COUNTS / "field_totals.parquet"
 FIELD_COVERAGE = FOR_COUNTS / "field_coverage.parquet"
 CT_CSV = CLINICAL_TRIALS / "clinical_trials.csv"
 CT_UKBB_PAPERS = CLINICAL_TRIALS / "ct_ukbb_papers.csv"
-PATENTS_DETAILED = PATENT / "patents_detailed.csv"
+# The legacy export contains the original full patent records plus derived columns.
+# Prefer the canonical source when present; notebook analyses recompute derivations.
+_PATENT_SOURCE_CANDIDATES = (
+    PATENT / "patents_detailed.csv",
+    DATA / "patent" / "df_with_iso_aggressive.csv",
+)
+PATENTS_DETAILED = next(
+    (path for path in _PATENT_SOURCE_CANDIDATES if path.is_file()),
+    _PATENT_SOURCE_CANDIDATES[0],
+)
 # RCDC macro-cluster partition (Louvain) behind §4.1 of the patents notebook. Reached as a
 # bare "file/paten_rcdc_macro/..." until 2026-08-26 — a directory that has never existed
 # here, so the notebook died on that cell. (Directory name misspelled on disk; kept.)
 PATENT_RCDC_MACRO = PATENT / "paten_rcdc_macro"
-PATENT_RCDC_SUMMARY = PATENT_RCDC_MACRO / "cluster_label_summary_louvain.csv"
+_PATENT_RCDC_CANDIDATES = (
+    PATENT_RCDC_MACRO / "cluster_label_summary_louvain.csv",
+    DATA / "patent" / "cluster_label_summary_louvain.csv",
+)
+PATENT_RCDC_SUMMARY = next(
+    (path for path in _PATENT_RCDC_CANDIDATES if path.is_file()),
+    _PATENT_RCDC_CANDIDATES[0],
+)
 POLICY_CSV = POLICY / "policy_documents.csv"
 # The real Altmetric Explorer export, with its audit trail and raw response cache beside
 # it. Read as a bare "altmetric.csv" / "output/..." relative to the notebook's cwd until
@@ -174,11 +190,10 @@ FIG_ACADEMIC_IMPACT = FIG_DATA_ANALYSIS / "03_academic_impact"
 FIG_NON_ACADEMIC = FIG_DATA_ANALYSIS / "04_non_academic"
 FIG_CLINICAL_TRIALS = FIG_NON_ACADEMIC / "clinical_trials"
 
-# Pre-rearrangement figure tree. Still on disk (fig/network, fig/patent, fig/geography)
-# and still the home of the patent figures, so it is kept rather than repointed.
-FIG = ROOT / "fig"
-FIG_PATENT = FIG / "patent"
-FIG_GEOGRAPHY = FIG / "geography"
+# Compatibility names for older notebooks; all figures now live under output/.
+FIG = OUTPUT_FIGURES
+FIG_PATENT = FIG_NON_ACADEMIC / "patent"
+FIG_GEOGRAPHY = FIG_AUTHOR_CHARACTERISTICS / "geography"
 
 
 def bootstrap() -> Path:
