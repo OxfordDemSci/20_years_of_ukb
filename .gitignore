@@ -182,7 +182,6 @@ data/**
 /output/
 output_temp/*
 .idea/*
-fig/*
 logging/*
 models/*
 local/*
