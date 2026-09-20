@@ -16,12 +16,13 @@ from utils import shared_patent_utils as patents
 
 def cohort():
     return pd.DataFrame({
-        "id": ["old-a", "old-b", "future"],
-        "publication_year": [2025, 2025, 2025],
-        "publication_date": ["2025-12-31", "2025-01-01", "2026-01-01"],
+        "id": ["old-a", "old-b", "future", "before"],
+        "publication_year": [2013, 2025, 2025, 2013],
+        "publication_date": ["2013-01-01", "2025-12-31", "2026-01-01", "2012-12-31"],
         "category_rcdc": [[{"id": "A", "name": "Alpha"}],
                           [{"id": "B", "name": "Beta"}],
-                          [{"id": "FUTURE", "name": "Future"}]],
+                          [{"id": "FUTURE", "name": "Future"}],
+                          [{"id": "EARLIER", "name": "Earlier"}]],
     })
 
 
@@ -35,6 +36,7 @@ class PartitionCacheTests(unittest.TestCase):
             self.assertEqual(set(result.all_labels), {"A", "B"})
             metadata = json.loads(path.with_suffix(".provenance.json").read_text())
             self.assertEqual(metadata["patents"], 2)
+            self.assertEqual(metadata["analysis_start_date"], "2013-01-01")
             self.assertEqual(metadata["analysis_end_date"], "2025-12-31")
             with patch.object(macro, "run_louvain", side_effect=AssertionError("cache not reused")):
                 _, same_path = macro.load_or_build_analysis_partition(cohort(), cache_dir=tmp)

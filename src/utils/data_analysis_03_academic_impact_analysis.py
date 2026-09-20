@@ -47,7 +47,7 @@ from typing import Dict, Iterable, List, Optional, Sequence
 import numpy as np
 import pandas as pd
 
-from .shared_analysis_window import ANALYSIS_END_YEAR, filter_analysis_window
+from .shared_analysis_window import ANALYSIS_START_YEAR, ANALYSIS_END_YEAR, filter_analysis_window
 
 # The measure columns the count job writes. Everything is derived from these two plus
 # whichever citation weights the partials happen to carry.
@@ -59,7 +59,7 @@ CITATION_WEIGHTS = ("n_cit", "n_fcr", "n_top10", "n_top10f", "n_top50f", "n_mncs
 # now measures the real cut-off per (year, field) by counting, so the proxy is no longer
 # the best available answer, only the cheapest; and while it was in the list it did
 # damage, because it is the weight with the shortest usable window and the impact window
-# is the intersection over every weight (it alone held the window at 2022 while the
+# was the intersection over every weight (it alone held the window at 2022 while the
 # measured decile reached 2023). The API script no longer writes the column either, so
 # putting it back here is not enough on its own — the counts would have to be rebuilt
 # with a run that emits it.
@@ -92,7 +92,7 @@ WEIGHT_NAMES = {
 # year is compared against a young year's bar. The lag exists to stop a paper being
 # judged on citations it has not had time to collect; a per-year cut-off has already
 # done that. Leaving them out cost the whole impact window its last year for nothing —
-# the window is the intersection over every weight, so the two of them dragged 2024 off
+# the former window was the intersection over every weight, so the two dragged 2024 off
 # every chart while the cut-offs for 2024 sat measured in field_thresholds.csv.
 YEAR_NORMALISED = ("n_fcr", "n_mncs", "n_top10f", "n_top50f")
 
@@ -191,6 +191,24 @@ CATEGORY_SPECS = {
 def resolve_counts_dir(default) -> Path:
     """Use an explicitly supplied cache directory, otherwise the repository default."""
     return Path(os.environ.get("UKB_FOR_COUNTS_DIR", default)).expanduser()
+
+
+def require_author_impact_window(table_dir, year_min=ANALYSIS_START_YEAR,
+                                year_max=ANALYSIS_END_YEAR) -> None:
+    """Reject retained author aggregates calculated for a different study cohort."""
+    manifest_path = Path(table_dir) / "input_manifest_author_impact_notebook.csv"
+    if not manifest_path.is_file():
+        raise FileNotFoundError(
+            "The retained author-impact tables have no analysis-window manifest. "
+            "Rerun 03_academic_impact_02_citation.ipynb to rebuild them.")
+    manifest = pd.read_csv(manifest_path)
+    windows = manifest.loc[manifest["role"].eq("analysis window"), "value"].astype(str)
+    expected = f"{year_min}-{year_max}"
+    if windows.tolist() != [expected]:
+        actual = ", ".join(windows) or "unknown"
+        raise ValueError(
+            f"Retained author-impact tables cover {actual}; {expected} is required. "
+            "Rerun 03_academic_impact_02_citation.ipynb with the original citation cache.")
 
 
 def arm_files(counts_dir, col_type: str, arm: str, prefix: str = "counts") -> List:
@@ -314,6 +332,7 @@ def paper_impact(counts_dir, col_type: str = "for", *, level: str = "L4",
     to the parquet — a silent fallback is the whole defect this function replaces.
     """
     counts_dir = Path(counts_dir)
+    year_min = max(year_min, ANALYSIS_START_YEAR)
     year_max = min(year_max, ANALYSIS_END_YEAR)
     recs_path = counts_dir / "api_ukbb_records.json"
     required = (recs_path, counts_dir / f"api_whole.{col_type}.parquet",
@@ -394,14 +413,19 @@ def paper_impact(counts_dir, col_type: str = "for", *, level: str = "L4",
             "n_top50f": _band(cit, year, codes, cut[50.0]) if cit == cit else np.nan,
         })
 
-    papers = pd.DataFrame(rows)
+    papers = pd.DataFrame(rows, columns=[
+        "id", "year", "type", "times_cited", "field_citation_ratio", "recent_citations",
+        "codes", "n_codes", "n_mncs", "n_top10f", "n_top50f",
+    ])
     if verbose:
         unit = CATEGORY_SPECS[col_type]["unit"]
         print(f"  paper_impact  {len(papers):,} papers {year_min}-{year_max} carrying "
               f">=1 {level} {unit} ({papers.n_codes.mean():.2f} {unit}s/paper, "
               f"{papers.explode('codes').codes.nunique()} distinct)")
         for w in ("n_mncs", "n_top10f", "n_top50f"):
-            print(f"    {w:<10s} measured for {papers[w].notna().mean():6.1%} of them")
+            missing_years = sorted(papers.loc[papers[w].isna(), "year"].unique())
+            missing_note = f"; unmeasured records in years {missing_years}" if missing_years else ""
+            print(f"    {w:<10s} measured for {papers[w].notna().mean():6.1%} of them{missing_note}")
     return papers
 
 
@@ -433,6 +457,8 @@ def citation_windows(totals: Dict[str, pd.DataFrame], weights: Sequence[str],
                      ukbb_year: int, year_max: int, cov_min: float, lag: int,
                      verbose: bool = True):
     """-> (cite_years, cite_win, cite_ok, coverage_frames)."""
+    ukbb_year = max(ukbb_year, ANALYSIS_START_YEAR)
+    year_max = min(year_max, ANALYSIS_END_YEAR)
     def coverage(weight):
         out = {}
         for arm, t in totals.items():
@@ -453,7 +479,9 @@ def citation_windows(totals: Dict[str, pd.DataFrame], weights: Sequence[str],
     common = (set.intersection(*[set(v) for v in cite_years.values()])
               if cite_years else set())
     cite_ok = bool(common)
-    cite_win = (min(common), max(common)) if cite_ok else (ukbb_year, year_max)
+    # Missing early percentile references must not silently move the study start.
+    # Each metric still carries its own usable years and measured-paper denominator.
+    cite_win = (ukbb_year, year_max)
 
     if verbose and weights:
         print(f"citation weight coverage (share of papers carrying a value):\n")
@@ -466,9 +494,8 @@ def citation_windows(totals: Dict[str, pd.DataFrame], weights: Sequence[str],
                   f"background {cov.background.min():.0%}-{cov.background.max():.0%}   "
                   f"usable {span}"
                   + (f"   dropped {', '.join(lost)}" if lost else ""))
-        print(f"\nimpact window {cite_win[0]}-{cite_win[1]} — the years every weight "
-              f"supports.\nThe volume charts keep the full window; only the citation "
-              f"measures are cut back to it.")
+        print(f"\nimpact study window {cite_win[0]}-{cite_win[1]}. "
+              "Metrics use measured records only; unavailable reference years are listed above.")
         # The arms are measured to different depths — FCR especially — and that gap is
         # a property of the corpus, not of UK Biobank. It biases a SUM comparison (one
         # arm's total is more complete) but not a MEAN, which is why every impact
@@ -504,6 +531,8 @@ def build(counts_dir, col_type, *, level, rcdc_view="all", year_min, year_max,
       labels      SYSTEM, UNIT, LEVEL, VIEW_NOTE, FILE_TAG
       helpers     share_at, pct, short, impact_table, rci_timeseries
     """
+    year_min = max(year_min, ANALYSIS_START_YEAR)
+    ukbb_year = max(ukbb_year, ANALYSIS_START_YEAR)
     year_max = min(year_max, ANALYSIS_END_YEAR)
     spec = CATEGORY_SPECS[col_type]
     unit = spec["unit"]

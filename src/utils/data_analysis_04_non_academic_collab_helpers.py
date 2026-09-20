@@ -21,8 +21,11 @@ import numpy as np
 import pandas as pd
 from cycler import cycler
 
-from .shared_style import DEFAULT_DOT_MARKER_AREA, DEFAULT_MARKER_SIZE
-from .shared_analysis_window import filter_analysis_window
+from .shared_style import (
+    DEFAULT_DOT_MARKER_AREA, DEFAULT_MARKER_SIZE, PNG_DPI,
+    apply_typography, figure_export_formats, finalize_figure, set_title,
+)
+from .shared_analysis_window import ANALYSIS_START_YEAR, ANALYSIS_END_YEAR, filter_analysis_window
 
 # The canonical output first; the `output/` entries below it are pre-2026-08-26 homes,
 # kept only so a stale file on someone's disk is still found rather than silently missed.
@@ -915,6 +918,7 @@ def plot_non_academic_sector_breakdown(
     value_col: str = "institution_mentions",
 ) -> None:
     """Plot collaborator sector taxonomy breakdown."""
+    apply_typography()
     if sector_df.empty or value_col not in sector_df.columns:
         print("No collaborator sector summary available for plotting.")
         return
@@ -944,9 +948,11 @@ def plot_non_academic_sector_breakdown(
     xlabel = "Institution mentions" if value_col == "institution_mentions" else "Paper count"
     plt.xlabel(xlabel)
     plt.ylabel("Sector")
-    plt.title("Collaborator taxonomy")
+    set_title(plt.gca(), "Collaborator taxonomy")
     plt.grid(True, axis="x", alpha=0.25)
+    finalize_figure(plt.gcf())
     plt.tight_layout()
+    finalize_figure(plt.gcf())
     plt.show()
 
 
@@ -1176,6 +1182,7 @@ def apply_project_plot_style() -> None:
             ),
         }
     )
+    apply_typography()
 
 
 def plot_top_orgs(
@@ -1187,6 +1194,7 @@ def plot_top_orgs(
     n: int = 20,
     value_col: str = "papers",
 ) -> None:
+    apply_typography()
     if table.empty:
         print(f"No data for: {title}")
         return
@@ -1201,14 +1209,17 @@ def plot_top_orgs(
         edgecolor="black",
         linewidth=0.3,
     )
-    plt.title(title)
+    set_title(plt.gca(), title)
     plt.xlabel(xlabel)
     plt.ylabel(ylabel)
+    finalize_figure(plt.gcf())
     plt.tight_layout()
+    finalize_figure(plt.gcf())
     plt.show()
 
 
 def plot_collaborator_count_distributions(df: pd.DataFrame) -> None:
+    apply_typography()
     nrows = 2
     ncols = 4
     fig, axes = plt.subplots(nrows, ncols, figsize=(16, 8), dpi=150)
@@ -1240,13 +1251,13 @@ def plot_collaborator_count_distributions(df: pd.DataFrame) -> None:
         nonzero = counts[counts > 0]
         if nonzero.empty:
             ax.text(0.5, 0.5, "No data", ha="center", va="center")
-            ax.set_title(title)
+            set_title(ax, title)
             continue
 
         max_count = int(nonzero.max())
         bins = np.arange(1, max_count + 2) - 0.5
         ax.hist(nonzero, bins=bins, color=color, edgecolor="black", linewidth=0.3)
-        ax.set_title(title)
+        set_title(ax, title)
         ax.set_xlabel("Count")
         ax.set_ylabel("Papers")
         ax.set_xticks(range(1, max_count + 1))
@@ -1255,7 +1266,9 @@ def plot_collaborator_count_distributions(df: pd.DataFrame) -> None:
     for idx in range(len(series_spec), len(axes)):
         axes[idx].axis("off")
 
+    finalize_figure(plt.gcf())
     plt.tight_layout()
+    finalize_figure(plt.gcf())
     plt.show()
 
 
@@ -1290,7 +1303,8 @@ def _any_sector_collab_mask(df: pd.DataFrame) -> pd.Series:
     return pd.Series([False] * len(df), index=df.index)
 
 
-def plot_cumulative_by_type(df: pd.DataFrame, start_year: int = 2014, end_year: int = 2025) -> None:
+def plot_cumulative_by_type(df: pd.DataFrame, start_year: int = ANALYSIS_START_YEAR, end_year: int = ANALYSIS_END_YEAR) -> None:
+    apply_typography()
     year_range = _year_index(start_year, end_year)
     use_sector = all(sector_flag_col(label) in df.columns for label in NON_ACADEMIC_SECTOR_LABELS)
 
@@ -1334,17 +1348,20 @@ def plot_cumulative_by_type(df: pd.DataFrame, start_year: int = 2014, end_year: 
             color=color,
             label=label,
         )
-    plt.title(title)
+    set_title(plt.gca(), title)
     plt.xlabel("Year")
     plt.ylabel("Cumulative paper count")
     plt.xticks(year_range, rotation=45)
     plt.grid(True, alpha=0.2)
     plt.legend()
+    finalize_figure(plt.gcf())
     plt.tight_layout()
+    finalize_figure(plt.gcf())
     plt.show()
 
 
-def plot_yearly_share_by_type(df: pd.DataFrame, start_year: int = 2014, end_year: int = 2025) -> None:
+def plot_yearly_share_by_type(df: pd.DataFrame, start_year: int = ANALYSIS_START_YEAR, end_year: int = ANALYSIS_END_YEAR) -> None:
+    apply_typography()
     year_range = _year_index(start_year, end_year)
 
     yearly_total = df.groupby("year").size().reindex(year_range, fill_value=0)
@@ -1380,22 +1397,25 @@ def plot_yearly_share_by_type(df: pd.DataFrame, start_year: int = 2014, end_year
         yearly = df[df[col] == 1].groupby("year").size().reindex(year_range, fill_value=0)
         share = np.where(yearly_total > 0, yearly / yearly_total, 0)
         plt.plot(year_range, share * 100, marker="o", linewidth=2, color=color, label=label)
-    plt.title(title)
+    set_title(plt.gca(), title)
     plt.xlabel("Year")
     plt.ylabel("Percent of papers")
     plt.xticks(year_range, rotation=45)
     plt.ylim(0, 100)
     plt.grid(True, alpha=0.2)
     plt.legend()
+    finalize_figure(plt.gcf())
     plt.tight_layout()
+    finalize_figure(plt.gcf())
     plt.show()
 
 
 def plot_company_share_within_non_academic(
     df: pd.DataFrame,
-    start_year: int = 2014,
-    end_year: int = 2025,
+    start_year: int = ANALYSIS_START_YEAR,
+    end_year: int = ANALYSIS_END_YEAR,
 ) -> None:
+    apply_typography()
     year_range = _year_index(start_year, end_year)
     any_sector_mask = _any_sector_collab_mask(df)
     yearly_non = df[any_sector_mask].groupby("year").size().reindex(year_range, fill_value=0)
@@ -1420,14 +1440,16 @@ def plot_company_share_within_non_academic(
     plt.plot(year_range, share_company_in_non * 100, marker="o", linewidth=2, color="#2A9D8F", label="Company (any)")
     plt.plot(year_range, share_uk_in_non * 100, marker="o", linewidth=2, color="#D4AF37", label="UK company")
     plt.plot(year_range, share_non_uk_in_non * 100, marker="o", linewidth=2, color="#5E548E", label="Company (non-UK)")
-    plt.title(f"Share of taxonomy-collaboration papers with company sectors ({start_year}-{end_year})")
+    set_title(plt.gca(), f"Share of taxonomy-collaboration papers with company sectors ({start_year}-{end_year})")
     plt.xlabel("Year")
     plt.ylabel("Percent of taxonomy-collaboration papers")
     plt.xticks(year_range, rotation=45)
     plt.ylim(0, 100)
     plt.grid(True, alpha=0.2)
     plt.legend()
+    finalize_figure(plt.gcf())
     plt.tight_layout()
+    finalize_figure(plt.gcf())
     plt.show()
 
 
@@ -1463,10 +1485,11 @@ def _collaboration_mix_masks(df: pd.DataFrame) -> dict[str, pd.Series]:
 
 def plot_collaboration_mix_stacked_area(
     df: pd.DataFrame,
-    start_year: int = 2014,
-    end_year: int = 2025,
+    start_year: int = ANALYSIS_START_YEAR,
+    end_year: int = ANALYSIS_END_YEAR,
 ) -> None:
     """Plot annual paper counts by mutually exclusive collaboration mix."""
+    apply_typography()
     year_range = _year_index(start_year, end_year)
     masks = _collaboration_mix_masks(df)
 
@@ -1480,21 +1503,24 @@ def plot_collaboration_mix_stacked_area(
 
     plt.figure(figsize=(12, 6), dpi=300)
     plt.stackplot(year_range, stack_series, labels=labels, colors=colors, alpha=0.9)
-    plt.title(f"Annual paper volume by primary taxonomy sector ({start_year}-{end_year})")
+    set_title(plt.gca(), f"Annual paper volume by primary taxonomy sector ({start_year}-{end_year})")
     plt.xlabel("Year")
     plt.ylabel("Paper count")
     plt.xticks(year_range, rotation=45)
     plt.legend(loc="upper left", bbox_to_anchor=(1.01, 1.0), frameon=False)
+    finalize_figure(plt.gcf())
     plt.tight_layout()
+    finalize_figure(plt.gcf())
     plt.show()
 
 
 def plot_collaboration_mix_share_stacked_area(
     df: pd.DataFrame,
-    start_year: int = 2014,
-    end_year: int = 2025,
+    start_year: int = ANALYSIS_START_YEAR,
+    end_year: int = ANALYSIS_END_YEAR,
 ) -> None:
     """Plot annual paper shares by mutually exclusive collaboration mix (100% stacked)."""
+    apply_typography()
     year_range = _year_index(start_year, end_year)
     masks = _collaboration_mix_masks(df)
     labels = list(masks.keys())
@@ -1512,23 +1538,26 @@ def plot_collaboration_mix_share_stacked_area(
     colors = ["#9e9e9e", "#d4af37", "#5e548e", "#2a9d8f", "#457b9d", "#8d99ae", "#6a994e", "#a1c181", "#bdbdbd"]
     plt.figure(figsize=(12, 6), dpi=300)
     plt.stackplot(year_range, shares, labels=labels, colors=colors, alpha=0.92)
-    plt.title(f"Annual share by primary taxonomy sector ({start_year}-{end_year})")
+    set_title(plt.gca(), f"Annual share by primary taxonomy sector ({start_year}-{end_year})")
     plt.xlabel("Year")
     plt.ylabel("Share of papers (%)")
     plt.ylim(0, 100)
     plt.xticks(year_range, rotation=45)
     plt.legend(loc="upper left", bbox_to_anchor=(1.01, 1.0), frameon=False)
+    finalize_figure(plt.gcf())
     plt.tight_layout()
+    finalize_figure(plt.gcf())
     plt.show()
 
 
 def plot_flag_overlap_heatmap(
     df: pd.DataFrame,
     save_path: str | Path | None = None,
-    save_formats: tuple[str, ...] = ("png", "svg", "pdf"),
-    png_dpi: int = 400,
+    save_formats: tuple[str, ...] = ("png", "pdf"),
+    png_dpi: int = PNG_DPI,
 ) -> dict[str, Path]:
-    """Plot row-normalized overlap percentages between collaboration flags and save outputs."""
+    """Plot flag overlaps; PNGs use project resolution (``png_dpi`` is legacy)."""
+    apply_typography()
     flag_cols = []
     labels = []
     for label in NON_ACADEMIC_SECTOR_LABELS:
@@ -1550,7 +1579,7 @@ def plot_flag_overlap_heatmap(
 
     fig, ax = plt.subplots(figsize=(7.5, 6), dpi=300)
     im = ax.imshow(matrix, cmap="Spectral_r", vmin=0, vmax=100)
-    ax.set_title("Collaboration flag overlap (% of row flag papers)")
+    set_title(ax, "Collaboration flag overlap (% of row flag papers)")
     ax.set_xticks(np.arange(len(labels)))
     ax.set_yticks(np.arange(len(labels)))
     ax.set_xticklabels(labels, rotation=35, ha="right")
@@ -1569,6 +1598,7 @@ def plot_flag_overlap_heatmap(
     cbar.set_ticklabels([f"{int(t)}%" for t in cbar_ticks])
     cbar.set_label("Percent of Papers")
 
+    finalize_figure(plt.gcf())
     plt.tight_layout()
 
     if save_path is not None:
@@ -1578,21 +1608,23 @@ def plot_flag_overlap_heatmap(
     base_out.parent.mkdir(parents=True, exist_ok=True)
 
     saved_paths: dict[str, Path] = {}
-    for fmt in save_formats:
-        clean_fmt = fmt.lower().lstrip(".")
+    for clean_fmt in figure_export_formats(save_formats):
         out_path = base_out.with_suffix(f".{clean_fmt}")
         save_kwargs: dict[str, Any] = {"bbox_inches": "tight"}
         if clean_fmt == "png":
-            save_kwargs["dpi"] = png_dpi
+            save_kwargs["dpi"] = PNG_DPI
+        finalize_figure(fig)
         fig.savefig(out_path, **save_kwargs)
         saved_paths[clean_fmt] = out_path
 
+    finalize_figure(plt.gcf())
     plt.show()
     return saved_paths
 
 
 def plot_citation_distribution_by_group(df: pd.DataFrame, citation_col: str = "times_cited") -> None:
     """Plot citation distributions across collaboration groups (log-scaled)."""
+    apply_typography()
     if citation_col not in df.columns:
         print(f"Citation column not found: {citation_col}")
         return
@@ -1646,16 +1678,19 @@ def plot_citation_distribution_by_group(df: pd.DataFrame, citation_col: str = "t
         patch.set_edgecolor("black")
         patch.set_linewidth(0.6)
 
-    ax.set_title("Citation distributions by taxonomy group")
+    set_title(ax, "Citation distributions by taxonomy group")
     ax.set_ylabel("log10(citations + 1)")
     ax.grid(True, axis="y", alpha=0.25)
+    finalize_figure(plt.gcf())
     plt.tight_layout()
+    finalize_figure(plt.gcf())
     plt.show()
 
 
 def plot_collaborator_concentration_curves(df: pd.DataFrame) -> None:
     """Plot collaborator concentration curves (papers covered vs collaborator rank)."""
 
+    apply_typography()
     def paper_counter(series: pd.Series) -> Counter:
         counts: Counter = Counter()
         for items in series:
@@ -1698,24 +1733,27 @@ def plot_collaborator_concentration_curves(df: pd.DataFrame) -> None:
             continue
         plt.plot(x, y, linewidth=2.2, color=color, label=f"{label} collaborators")
 
-    plt.title("Collaborator concentration curve")
+    set_title(plt.gca(), "Collaborator concentration curve")
     plt.xlabel("Fraction of collaborators (ranked by papers)")
     plt.ylabel("Fraction of papers covered")
     plt.xlim(0, 1)
     plt.ylim(0, 1)
     plt.legend(frameon=False)
+    finalize_figure(plt.gcf())
     plt.tight_layout()
+    finalize_figure(plt.gcf())
     plt.show()
 
 
 def plot_yearly_median_log_citations_by_group(
     df: pd.DataFrame,
     citation_col: str = "times_cited",
-    start_year: int = 2014,
-    end_year: int = 2025,
+    start_year: int = ANALYSIS_START_YEAR,
+    end_year: int = ANALYSIS_END_YEAR,
     min_papers_per_point: int = 20,
 ) -> None:
     """Plot yearly median log10(citations+1) across collaboration groups."""
+    apply_typography()
     if citation_col not in df.columns:
         print(f"Citation column not found: {citation_col}")
         return
@@ -1751,13 +1789,15 @@ def plot_yearly_median_log_citations_by_group(
                 y_vals.append(float(vals.median()))
         plt.plot(year_range, y_vals, marker="o", linewidth=2, color=color, label=label)
 
-    plt.title(f"Yearly median citation impact by taxonomy group ({start_year}-{end_year})")
+    set_title(plt.gca(), f"Yearly median citation impact by taxonomy group ({start_year}-{end_year})")
     plt.xlabel("Year")
     plt.ylabel("Median log10(citations + 1)")
     plt.xticks(year_range, rotation=45)
     plt.grid(True, alpha=0.25)
     plt.legend(frameon=False)
+    finalize_figure(plt.gcf())
     plt.tight_layout()
+    finalize_figure(plt.gcf())
     plt.show()
 
 
@@ -1872,6 +1912,7 @@ def plot_top_journal_company_share(
     collaborator; the markers split that into the individual sectors. Both are
     shares of all the journal's publications.
     """
+    apply_typography()
     if journal_df.empty:
         print("No journal data available for plotting.")
         return
@@ -1921,7 +1962,7 @@ def plot_top_journal_company_share(
     ax.set_xlim(0, 115)
     ax.set_xlabel("Share of the journal's papers (%)")
     ax.set_ylabel("Journal")
-    ax.set_title("Non-academic collaboration share among top journals")
+    set_title(ax, "Non-academic collaboration share among top journals")
     # Below the axes: seven entries in the corner would sit on top of the bars.
     ax.legend(
         frameon=False,
@@ -1931,7 +1972,9 @@ def plot_top_journal_company_share(
         fontsize=9,
     )
     ax.grid(True, axis="x", alpha=0.25)
+    finalize_figure(plt.gcf())
     plt.tight_layout()
+    finalize_figure(plt.gcf())
     plt.show()
 
 
@@ -1940,10 +1983,11 @@ def plot_for_company_share_scatter(
     min_papers: int = 30,
     max_labels: int = 10,
     save_path: str | Path | None = None,
-    save_formats: tuple[str, ...] = ("png", "pdf", "svg"),
-    png_dpi: int = 300,
+    save_formats: tuple[str, ...] = ("png", "pdf"),
+    png_dpi: int = PNG_DPI,
 ) -> dict[str, Path]:
-    """Plot FoR paper volume vs all-company share with matching color encoding and save outputs."""
+    """Plot FoR volume vs company share; PNGs use project resolution (``png_dpi`` is legacy)."""
+    apply_typography()
     if for_df.empty:
         print("No FoR table available for plotting.")
         return {}
@@ -2109,13 +2153,14 @@ def plot_for_company_share_scatter(
     ax.set_ylim(y_low, y_high * 1.05)
     ax.set_xlabel("Paper count (log scale)")
     ax.set_ylabel("Company collaborator share (%)")
-    ax.set_title("FoR level-2 volume vs company collaborator share")
+    set_title(ax, "FoR level-2 volume vs company collaborator share")
     # x is logarithmic: its decade minor ticks put eight lines behind every decade,
     # so only the linear y axis carries gridlines here.
     ax.grid(False, which="both", axis="x")
     ax.grid(True, which="major", axis="y", alpha=0.2)
     cbar = fig.colorbar(sc, ax=ax, fraction=0.046, pad=0.04)
     cbar.set_label("Company collaborator share (%)")
+    finalize_figure(plt.gcf())
     plt.tight_layout()
 
     if save_path is not None:
@@ -2125,23 +2170,24 @@ def plot_for_company_share_scatter(
     base_out.parent.mkdir(parents=True, exist_ok=True)
 
     saved_paths: dict[str, Path] = {}
-    for fmt in save_formats:
-        clean_fmt = fmt.lower().lstrip(".")
+    for clean_fmt in figure_export_formats(save_formats):
         out_path = base_out.with_suffix(f".{clean_fmt}")
         save_kwargs: dict[str, Any] = {"bbox_inches": "tight"}
         if clean_fmt == "png":
-            save_kwargs["dpi"] = png_dpi
+            save_kwargs["dpi"] = PNG_DPI
+        finalize_figure(fig)
         fig.savefig(out_path, **save_kwargs)
         saved_paths[clean_fmt] = out_path
 
+    finalize_figure(plt.gcf())
     plt.show()
     return saved_paths
 
 
 def build_yearly_metrics_table(
     df: pd.DataFrame,
-    start_year: int = 2014,
-    end_year: int = 2025,
+    start_year: int = ANALYSIS_START_YEAR,
+    end_year: int = ANALYSIS_END_YEAR,
 ) -> pd.DataFrame:
     """Build annual counts and shares for taxonomy sectors."""
     year_range = _year_index(start_year, end_year)
@@ -2178,6 +2224,7 @@ def build_yearly_metrics_table(
 
 def plot_yearly_metrics_dashboard(yearly_df: pd.DataFrame) -> None:
     """Two-panel annual dashboard: taxonomy sector volumes and shares."""
+    apply_typography()
     if yearly_df.empty:
         print("No yearly metrics available for plotting.")
         return
@@ -2200,7 +2247,7 @@ def plot_yearly_metrics_dashboard(yearly_df: pd.DataFrame) -> None:
         col = f"papers_{slug}"
         if col in yearly_df.columns:
             axes[0].plot(years, yearly_df[col], marker="o", linewidth=2, color=color_map[label], label=label)
-    axes[0].set_title("Annual paper volumes by taxonomy sector")
+    set_title(axes[0], "Annual paper volumes by taxonomy sector")
     axes[0].set_xlabel("Year")
     axes[0].set_ylabel("Paper count")
     axes[0].tick_params(axis="x", rotation=45)
@@ -2211,23 +2258,26 @@ def plot_yearly_metrics_dashboard(yearly_df: pd.DataFrame) -> None:
         col = f"share_{slug}_pct"
         if col in yearly_df.columns:
             axes[1].plot(years, yearly_df[col], marker="o", linewidth=2, color=color_map[label], label=label)
-    axes[1].set_title("Annual taxonomy sector shares")
+    set_title(axes[1], "Annual taxonomy sector shares")
     axes[1].set_xlabel("Year")
     axes[1].set_ylabel("Share of papers (%)")
     axes[1].set_ylim(0, 100)
     axes[1].tick_params(axis="x", rotation=45)
     axes[1].legend(frameon=False, loc="upper left", bbox_to_anchor=(1.01, 1.0))
 
+    finalize_figure(plt.gcf())
     plt.tight_layout()
+    finalize_figure(plt.gcf())
     plt.show()
 
 
 def plot_company_geography_mix_over_time(
     df: pd.DataFrame,
-    start_year: int = 2014,
-    end_year: int = 2025,
+    start_year: int = ANALYSIS_START_YEAR,
+    end_year: int = ANALYSIS_END_YEAR,
 ) -> None:
     """Plot UK/non-UK composition among company-collaboration papers over time."""
+    apply_typography()
     year_range = _year_index(start_year, end_year)
 
     uk_only = []
@@ -2266,20 +2316,22 @@ def plot_company_geography_mix_over_time(
         colors=["#345995", "#5e548e", "#2a9d8f", "#8d99ae"],
         alpha=0.92,
     )
-    plt.title(f"Geographic composition of company-collaboration papers ({start_year}-{end_year})")
+    set_title(plt.gca(), f"Geographic composition of company-collaboration papers ({start_year}-{end_year})")
     plt.xlabel("Year")
     plt.ylabel("Share within company papers (%)")
     plt.ylim(0, 100)
     plt.xticks(year_range, rotation=45)
     plt.legend(loc="upper left", bbox_to_anchor=(1.01, 1.0), frameon=False)
+    finalize_figure(plt.gcf())
     plt.tight_layout()
+    finalize_figure(plt.gcf())
     plt.show()
 
 
 def build_company_collaborator_churn_table(
     df: pd.DataFrame,
-    start_year: int = 2014,
-    end_year: int = 2025,
+    start_year: int = ANALYSIS_START_YEAR,
+    end_year: int = ANALYSIS_END_YEAR,
 ) -> pd.DataFrame:
     """Count new vs returning company collaborators by year."""
     year_range = _year_index(start_year, end_year)
@@ -2320,6 +2372,7 @@ def build_company_collaborator_churn_table(
 
 def plot_new_vs_returning_company_collaborators(churn_df: pd.DataFrame) -> None:
     """Plot annual counts of new vs returning company collaborators."""
+    apply_typography()
     if churn_df.empty:
         print("No churn table available for plotting.")
         return
@@ -2331,20 +2384,22 @@ def plot_new_vs_returning_company_collaborators(churn_df: pd.DataFrame) -> None:
     plt.figure(figsize=(11, 6), dpi=300)
     plt.bar(years, returning_vals, color="#2a9d8f", alpha=0.82, label="Returning")
     plt.bar(years, new_vals, bottom=returning_vals, color="#f4a261", alpha=0.92, label="New")
-    plt.title("Annual new vs returning company collaborators")
+    set_title(plt.gca(), "Annual new vs returning company collaborators")
     plt.xlabel("Year")
     plt.ylabel("Unique company collaborators")
     plt.xticks(years, rotation=45)
     plt.legend(frameon=False)
+    finalize_figure(plt.gcf())
     plt.tight_layout()
+    finalize_figure(plt.gcf())
     plt.show()
 
 
 def build_top_company_year_matrix(
     df: pd.DataFrame,
     top_n: int = 15,
-    start_year: int = 2014,
-    end_year: int = 2025,
+    start_year: int = ANALYSIS_START_YEAR,
+    end_year: int = ANALYSIS_END_YEAR,
 ) -> pd.DataFrame:
     """Build matrix of paper counts by top company collaborator and year."""
     year_range = _year_index(start_year, end_year)
@@ -2378,8 +2433,8 @@ def build_top_company_year_matrix(
 def build_top_company_year_authorship_matrix(
     df: pd.DataFrame,
     top_n: int = 15,
-    start_year: int = 2014,
-    end_year: int = 2025,
+    start_year: int = ANALYSIS_START_YEAR,
+    end_year: int = ANALYSIS_END_YEAR,
 ) -> pd.DataFrame:
     """Build matrix of authorship contributions by top company collaborator and year."""
     year_range = _year_index(start_year, end_year)
@@ -2430,6 +2485,7 @@ def build_top_company_year_authorship_matrix(
 
 def plot_top_company_heatmap(company_year_df: pd.DataFrame) -> None:
     """Plot heatmap of yearly paper counts for top company collaborators."""
+    apply_typography()
     if company_year_df.empty:
         print("No top-company-by-year matrix available for plotting.")
         return
@@ -2441,7 +2497,7 @@ def plot_top_company_heatmap(company_year_df: pd.DataFrame) -> None:
 
     fig, ax = plt.subplots(figsize=(11.5, max(5.5, 0.45 * len(org_labels))), dpi=300)
     im = ax.imshow(values, aspect="auto", cmap="Spectral_r")
-    ax.set_title("Top company collaborators over time (paper counts)")
+    set_title(ax, "Top company collaborators over time (paper counts)")
     ax.set_xlabel("Year")
     ax.set_ylabel("Company")
     ax.set_xticks(np.arange(len(years)))
@@ -2459,7 +2515,9 @@ def plot_top_company_heatmap(company_year_df: pd.DataFrame) -> None:
 
     cbar = fig.colorbar(im, ax=ax, fraction=0.046, pad=0.04)
     cbar.set_label("Paper count")
+    finalize_figure(plt.gcf())
     plt.tight_layout()
+    finalize_figure(plt.gcf())
     plt.show()
 
 
@@ -2592,6 +2650,7 @@ def build_for_share_table(df: pd.DataFrame, name_map: dict[str, str]) -> pd.Data
 
 
 def plot_for_share_table(for_df: pd.DataFrame, top_n: int = 15) -> None:
+    apply_typography()
     if for_df.empty:
         print("No category_for_2020 level-2 codes found to plot.")
         return
@@ -2634,10 +2693,12 @@ def plot_for_share_table(for_df: pd.DataFrame, top_n: int = 15) -> None:
     plt.yticks(x, plot_df["l2_for_name"])
     plt.xlabel("Percent of papers")
     plt.ylabel("Level-2 FoR name")
-    plt.title("Taxonomy sector shares by category_for_2020 level-2 FoR")
+    set_title(plt.gca(), "Taxonomy sector shares by category_for_2020 level-2 FoR")
     plt.xlim(0, 100)
     plt.legend()
+    finalize_figure(plt.gcf())
     plt.tight_layout()
+    finalize_figure(plt.gcf())
     plt.show()
 
 
@@ -2669,6 +2730,7 @@ def build_uk_company_for_table(df: pd.DataFrame, name_map: dict[str, str]) -> pd
 
 
 def plot_uk_company_for_table(uk_for_df: pd.DataFrame, top_n: int = 15) -> None:
+    apply_typography()
     if uk_for_df.empty:
         print("No category_for_2020 level-2 codes found to plot.")
         return
@@ -2684,11 +2746,13 @@ def plot_uk_company_for_table(uk_for_df: pd.DataFrame, top_n: int = 15) -> None:
         edgecolor="black",
         linewidth=0.3,
     )
-    plt.title("UK company share by category_for_2020 level-2 FoR")
+    set_title(plt.gca(), "UK company share by category_for_2020 level-2 FoR")
     plt.xlabel("Percent of papers")
     plt.ylabel("Level-2 FoR name")
     plt.xlim(0, 100)
+    finalize_figure(plt.gcf())
     plt.tight_layout()
+    finalize_figure(plt.gcf())
     plt.show()
 
 
@@ -2842,6 +2906,7 @@ def load_world_geodata() -> Any:
 
 
 def plot_country_map(country_df: pd.DataFrame, title: str, cmap_name: str = "cividis", world: Any = None) -> None:
+    apply_typography()
     if country_df.empty:
         print(f"No data to map: {title}")
         return
@@ -2880,7 +2945,7 @@ def plot_country_map(country_df: pd.DataFrame, title: str, cmap_name: str = "civ
 
     world_counts.plot(ax=ax_map, color=colors, linewidth=0.3, edgecolor="black")
 
-    ax_map.set_title(title, pad=12)
+    set_title(ax_map, title, pad=12)
     ax_map.set_aspect("auto")
     ax_map.margins(0)
     ax_map.set_anchor("W")
@@ -2893,6 +2958,7 @@ def plot_country_map(country_df: pd.DataFrame, title: str, cmap_name: str = "civ
     cbar.ax.yaxis.set_ticks_position("left")
     cbar.ax.yaxis.set_label_position("left")
 
+    finalize_figure(plt.gcf())
     plt.show()
 
 
@@ -3043,15 +3109,16 @@ def build_top_cited_sections(
 
 def plot_publication_figure(
     df: pd.DataFrame,
-    start_year: int = 2016,
-    end_year: int = 2025,
+    start_year: int = ANALYSIS_START_YEAR,
+    end_year: int = ANALYSIS_END_YEAR,
     citation_col: str = "times_cited",
     top_company_n: int = 15,
     figsize: tuple[float, float] = (16, 12),
     save_path: str | Path | None = None,
-    save_formats: tuple[str, ...] = ("png", "pdf", "svg"),
+    save_formats: tuple[str, ...] = ("png", "pdf"),
 ) -> dict[str, Path]:
     """Create a 2x2 publication figure combining core collaboration visuals."""
+    apply_typography()
     def _clean_company_label(label: str) -> str:
         # Remove parenthetical qualifiers like "(Sweden)" from company labels.
         clean = re.sub(r"\s*\([^)]*\)\s*", " ", label).strip()
@@ -3158,7 +3225,7 @@ def plot_publication_figure(
                 color=color,
                 label=label,
             )
-        ax1.set_title("a.", loc="left", fontweight="bold")
+        set_title(ax1, "a.", loc="left", fontweight="bold")
         ax1.set_xlabel("")
         ax1.set_ylabel("Cumulative paper count")
         ax1.set_xticks(year_range)
@@ -3186,7 +3253,7 @@ def plot_publication_figure(
                 patch.set_linewidth(0.6)
         else:
             ax2.text(0.5, 0.5, "No citation data", ha="center", va="center")
-        ax2.set_title("b.", loc="left", fontweight="bold")
+        set_title(ax2, "b.", loc="left", fontweight="bold")
         ax2.set_xlabel("log10(citations + 1)")
         ax2.grid(True, linestyle="--", alpha=0.3)
 
@@ -3222,7 +3289,7 @@ def plot_publication_figure(
             legend_c.get_frame().set_edgecolor("black")
         else:
             ax3.text(0.5, 0.5, "No churn data", ha="center", va="center")
-        ax3.set_title("c.", loc="left", fontweight="bold")
+        set_title(ax3, "c.", loc="left", fontweight="bold")
         ax3.set_xlabel("")
         ax3.set_ylabel("Unique company collaborators")
         ax3.grid(True, linestyle="--", alpha=0.3)
@@ -3245,7 +3312,7 @@ def plot_publication_figure(
             ax4.set_yticklabels(org_labels)
             ax4.set_xlabel("")
             ax4.set_ylabel("")
-            ax4.set_title("d.", loc="left", fontweight="bold")
+            set_title(ax4, "d.", loc="left", fontweight="bold")
             ax4.grid(False)
             for spine in ax4.spines.values():
                 spine.set_visible(True)
@@ -3268,7 +3335,7 @@ def plot_publication_figure(
             ax4.text(0.5, 0.5, "No company-year matrix", ha="center", va="center")
             ax4.set_axis_off()
 
-        ax4.set_title("d.", loc="left", fontweight="bold")
+        set_title(ax4, "d.", loc="left", fontweight="bold")
 
         # Use tight layout as requested; suppress known colorbar/axes compatibility warning.
         with warnings.catch_warnings():
@@ -3277,6 +3344,7 @@ def plot_publication_figure(
                 message="This figure includes Axes that are not compatible with tight_layout",
                 category=UserWarning,
             )
+            finalize_figure(plt.gcf())
             plt.tight_layout(pad=0.6, w_pad=0.5, h_pad=0.5)
 
         if save_path is not None:
@@ -3286,11 +3354,15 @@ def plot_publication_figure(
         base_out.parent.mkdir(parents=True, exist_ok=True)
 
         saved_paths: dict[str, Path] = {}
-        for fmt in save_formats:
-            clean_fmt = fmt.lower().lstrip(".")
+        for clean_fmt in figure_export_formats(save_formats):
             out_path = base_out.with_suffix(f".{clean_fmt}")
-            fig.savefig(out_path, bbox_inches="tight")
+            save_kwargs = {"bbox_inches": "tight"}
+            if clean_fmt == "png":
+                save_kwargs["dpi"] = PNG_DPI
+            finalize_figure(fig)
+            fig.savefig(out_path, **save_kwargs)
             saved_paths[clean_fmt] = out_path
+        finalize_figure(plt.gcf())
         plt.show()
 
     return saved_paths

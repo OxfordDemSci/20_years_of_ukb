@@ -7,15 +7,39 @@ literature it represents, and what it has led to outside academia.
 ## Setup
 
 ```bash
-mamba activate ukbb20        # miniforge3; there is no environment.yml yet
+mamba create -n ukbb20 python=3.12 pip  # once, if the environment does not exist
+mamba activate ukbb20
+python -m pip install -r requirements-analysis.txt
 ```
+
+`requirements-analysis.txt` covers the active notebooks, shared analysis helpers and
+notebook runner. It preserves the fixed name-inference datasets and patent Louvain
+implementation. Use a dedicated environment; it does not include unrelated packages
+from a general-purpose base environment. Data-creation pipelines retain their own
+requirements files under `src/data_creation/`.
+
+Optional dependencies are installed only for the corresponding features:
+
+- `python -m pip install bitsandbytes` for CUDA 4-bit validation models.
+- `python -m pip install anthropic` for explicitly enabled paid collaboration
+  classification; analysis of saved labels does not require it.
+- `python -m pip install leidenalg` for the optional patent-clustering comparison.
+- `python -m pip install xlrd` if loading legacy `.xls` collaboration labels;
+  `.xlsx` support is included through `openpyxl`.
+
+Helvetica regular and bold must be installed as system fonts; pip cannot supply
+them. Model checkpoints and the research data are also separate from Python packages.
 
 The corpus is `data/showcase/showcase+/showcase_plus_all_endpoint.parquet` (26,109
 publications, 2013–2026). **`data/`, `output/`, `logs/` and `doc/` are gitignored**,
 so a fresh clone has code and settings only.
 
 Figures are saved under `output/figures/`, including patent figures in
-`output/figures/data_analysis/04_non_academic/patent/`.
+`output/figures/data_analysis/04_non_academic/patent/`. All notebook PNG exports use
+800 dpi, enforced by `PNG_DPI` in `src/utils/shared_style.py`; inline display resolution
+is configured separately. All figures use Helvetica; titles are uppercase, bold and
+left-aligned through the shared typography helpers. Rerun a notebook to regenerate
+existing figures with these settings.
 
 Never hardcode a path. Every notebook opens with the same bootstrap header and takes its
 paths from the registry:
@@ -47,16 +71,16 @@ directly — the nested columns are JSON and hand-rolled parsers fail *silently*
 Notebooks run in slug order; within a slug, in numeric order. Several are currently blocked
 or broken — [`doc/STATE.md`](doc/STATE.md) lists exactly which, and why.
 
-All analyses have a fixed upper date of **31 December 2025**, defined in
+All analyses use **1 January 2013–31 December 2025**, inclusive, defined in
 `src/utils/shared_analysis_window.py`. Publication and linked-event inputs are filtered
-before metrics, rankings, model fitting, and plotting; existing lower year limits are
-preserved. A future year or date excludes a record, and records with no usable date or
+before metrics, rankings, model fitting, and plotting. A year or date outside this
+window excludes a record, and records with no usable date or
 year are excluded. Raw source files remain intact, so source-inventory audits can still
 report all 26,109 records, including the excluded 2026 publications.
 
 `load_showcase()` reads the raw source. Analysis code must apply
 `filter_analysis_window()` before using it. BERTopic caches are tied to the eligible
-training corpus; old topic exports require retraining with the cutoff and a matching
+training corpus; old topic exports require retraining with the full 2013–2025 window and a matching
 `.analysis_window.json` provenance file before reuse.
 
 The publication/event cutoff is distinct from measurement time: citation totals retain

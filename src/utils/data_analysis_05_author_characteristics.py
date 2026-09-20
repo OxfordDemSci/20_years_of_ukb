@@ -39,12 +39,13 @@ from . import shared_name_gender as NG
 from . import shared_paths as P
 from .shared_for import add_for_columns
 from .shared_showcase import load_showcase, parse_dictcol, parse_listcol
-from .shared_analysis_window import ANALYSIS_END_DATE, ANALYSIS_END_YEAR, filter_analysis_window
+from .shared_analysis_window import (
+    ANALYSIS_START_DATE, ANALYSIS_START_YEAR, ANALYSIS_END_DATE, ANALYSIS_END_YEAR,
+    filter_analysis_window,
+)
 
-# Analysis window. 2014 is the first year, not the corpus's own first year: it is the
-# window every figure, table, caption and validation check in this notebook is built
-# from, so move it here and nowhere else.
-FIRST_YEAR = 2014
+# Shared publication window for every figure, table and validation check.
+FIRST_YEAR = ANALYSIS_START_YEAR
 LAST_COMPLETE_YEAR = ANALYSIS_END_YEAR
 HYPERAUTHOR_THRESHOLD = 100
 LEIDEN_RESOLUTION = 1.0
@@ -52,11 +53,11 @@ LEIDEN_SEED = 48652
 NETWORK_LAYOUT_ITERATIONS = 100
 NETWORK_BACKBONE_REPEAT_LIMIT = 80_000
 AUTHOR_CONCENTRATION_THRESHOLDS = (1, 5, 10, 25, 50)
-IMPACT_FIRST_YEAR = 2015
+IMPACT_FIRST_YEAR = ANALYSIS_START_YEAR
 IMPACT_LAST_YEAR = ANALYSIS_END_YEAR
 PORTFOLIO_MIN_PAPERS = 5
 PORTFOLIO_LABEL_COUNT = 8
-VENUE_FIRST_YEAR = 2014
+VENUE_FIRST_YEAR = ANALYSIS_START_YEAR
 VENUE_MIN_PAPERS = 20
 VENUE_TOP_N = 15
 TOP_AUTHOR_COUNT = 10
@@ -1183,6 +1184,7 @@ def _author_impact_from_legacy_summary(core: CoreTables) -> pd.DataFrame:
         raise ValueError(
             "The retained author-impact summary includes papers outside the publication "
             "cutoff. Rerun 03_academic_impact_02_citation.ipynb before reusing it.")
+    AI.require_author_impact_window(LEGACY_AUTHOR_IMPACT.parent, IMPACT_FIRST_YEAR, IMPACT_LAST_YEAR)
     legacy["researcher_id"] = legacy["researcher_id"].astype("string")
     legacy = legacy[
         legacy["researcher_id"].notna()
@@ -2439,6 +2441,7 @@ def analysis_parameters(
         ("source_records", len(source)),
         ("primary_records", len(papers)),
         ("first_year", FIRST_YEAR),
+        ("analysis_start_date", ANALYSIS_START_DATE.date().isoformat()),
         ("last_complete_year", LAST_COMPLETE_YEAR),
         ("analysis_end_date", ANALYSIS_END_DATE.date().isoformat()),
         ("provisional_years_excluded", ", ".join(map(str, sorted(source.loc[source["year"].gt(LAST_COMPLETE_YEAR), "year"].dropna().unique())))),

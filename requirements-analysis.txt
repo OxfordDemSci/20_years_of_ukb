@@ -1,8 +1,57 @@
-# Name-category inference is fully offline after package installation.
+# Dependencies for the active analysis notebooks, shared helpers and notebook runner.
+# Use Python 3.12; install with: python -m pip install -r requirements-analysis.txt
+# Optional GPU quantisation, paid classification and Leiden comparisons: see README.md.
+
+# Notebook execution and display.
+ipython>=8
+ipykernel>=6.29
+nbclient>=0.10
+nbformat>=5.10
+
+# Data, statistics, parquet/Excel exports and shared YAML settings.
+numpy>=1.26,<3
+pandas>=2.2,<3
+scipy>=1.13,<2
+scikit-learn>=1.6,<2
+pyarrow>=15
+openpyxl>=3.1.5
+PyYAML>=6
+requests>=2.31
+tqdm>=4.66
+
+# Figures, maps, patent metadata and author/co-authorship networks.
+# Helvetica is a system font, not a pip package; install its regular and bold faces.
+matplotlib>=3.8,<4
+seaborn>=0.13.2,<0.14
+plotly>=5,<8
+wordcloud>=1.9
+cycler>=0.12
+geopandas>=1.0
+pycountry>=24.6.1
+beautifulsoup4>=4.12
+networkx>=3.2,<4
+igraph>=0.11,<2
+# Original Louvain implementation for reproducible patent RCDC clusters.
+python-louvain==0.16
+
+# BERTopic, embeddings, coherence scores and local validation models.
+torch>=2.6
+transformers>=4.46,<6
+sentence-transformers>=3,<7
+bertopic>=0.17,<0.18
+# 0.8.40 calls the removed scikit-learn force_all_finite argument.
+hdbscan>=0.8.41,<0.9
+umap-learn>=0.5.9.post2,<0.6
+# Older Gensim releases depend on scipy.linalg.triu, removed in recent SciPy.
+gensim>=4.4,<5
+accelerate>=1
+Jinja2>=3.1
+sentencepiece>=0.2
+protobuf>=4.25
+
+# Pinned name-category inference data; fully offline after package installation.
 gender-guesser==0.4.0
 gender-detector==0.1.0
 nomquamgender==0.1.4
 names-dataset==3.3.1
 gename==0.0.7
-# Original Louvain implementation for reproducible patent RCDC clusters.
-python-louvain==0.16

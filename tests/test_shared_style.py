@@ -29,13 +29,13 @@ def test_academic_impact_colormap_uses_project_palette_endpoints():
     assert to_hex(cmap(1.0)) == shared_style.PALETTE_COLORS["navy"].lower()
 
 
-def test_svg_export_has_no_trailing_whitespace(tmp_path):
-    figure, axis = plt.subplots()
+def test_legacy_svg_and_json_requests_export_pdf_only(tmp_path):
+    figure, axis = plt.subplots(figsize=(1, 1))
     axis.plot([0, 1], [0, 1])
     style = {
         "save": True,
         "dpi": 72,
-        "formats": ["svg"],
+        "formats": ["svg", "json"],
         "savedir": tmp_path,
     }
 
@@ -44,7 +44,10 @@ def test_svg_export_has_no_trailing_whitespace(tmp_path):
     finally:
         plt.close(figure)
 
-    assert not any(line.endswith((" ", "\t")) for line in saved.read_text().splitlines())
+    assert saved.suffix == ".pdf"
+    assert list(tmp_path.iterdir()) == [saved]
+
+
 def _grid_visible(ax, axis):
     """(major, minor) gridline visibility on one axis of `ax`."""
     target = getattr(ax, f"{axis}axis")

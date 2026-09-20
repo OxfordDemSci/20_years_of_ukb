@@ -22,6 +22,10 @@ from typing import Any, Optional, List, Dict, Tuple, Callable
 import difflib
 
 from . import shared_paths as P
+from .shared_style import (
+    PNG_DPI, apply_typography, figure_export_formats, finalize_figure,
+    set_figure_title, set_title,
+)
 
 # Repo root, anchored on this file (utils/ -> src/ -> root).
 _ROOT = Path(__file__).resolve().parents[2]
@@ -34,6 +38,17 @@ from bs4 import BeautifulSoup
 from collections import Counter
 import pandas as pd
 
+
+def _figure_export_path(path):
+    """Map legacy output filenames to the project's supported figure formats."""
+    path = Path(path)
+    fmt = path.suffix or plt.rcParams['savefig.format']
+    return path.with_suffix('.' + figure_export_formats([fmt])[0])
+
+
+def _export_dpi(path, default_dpi):
+    """Enforce the shared PNG resolution while retaining PDF rasterization DPI."""
+    return PNG_DPI if _figure_export_path(path).suffix == '.png' else default_dpi
 
 
 import ast
@@ -847,6 +862,7 @@ def plot_bar_matplotlib(
         figsize: Figure size tuple
         savefile: Path to save figure
     """
+    apply_typography()
     if colors is None:
         colors = '#345995'
     
@@ -860,12 +876,15 @@ def plot_bar_matplotlib(
     
     plt.xlabel('Country')
     plt.ylabel('Count')
-    plt.title(f'Top {min(top_n, len(df))} countries by assignee occurrences')
+    set_title(plt.gca(), f'Top {min(top_n, len(df))} countries by assignee occurrences')
+    finalize_figure(plt.gcf())
     plt.tight_layout()
     
     if savefile:
-        plt.savefig(savefile, dpi=200)
+        finalize_figure(plt.gcf())
+        plt.savefig(_figure_export_path(savefile), dpi=_export_dpi(savefile, 200))
         print(f"Bar chart saved to: {savefile}")
+    finalize_figure(plt.gcf())
     plt.show()
 
 
@@ -922,6 +941,7 @@ def plot_topics_distribution(df_patent, cat_col,figsize=(10,6),savefigure=False)
     """
     Plots the distribution of the number of topics per patent for a given category column.
     """
+    apply_typography()
     avg_topics = df_patent['n_topics'].mean()
     median_topics = df_patent['n_topics'].median()
 
@@ -941,12 +961,14 @@ def plot_topics_distribution(df_patent, cat_col,figsize=(10,6),savefigure=False)
 
     ax.set_xlabel('Number of topics per patent')
     ax.set_ylabel('Number of patents')
-    ax.set_title(f'Distribution of topics per patent ({cat_col.replace("category_", "")})')
+    set_title(ax, f'Distribution of topics per patent ({cat_col.replace("category_", "")})')
     ax.legend()
+    finalize_figure(fig)
     fig.tight_layout()
     if savefigure:
         P.FIG_PATENT.mkdir(parents=True, exist_ok=True)
         figure_path = P.FIG_PATENT / f'topics_distribution_{cat_col}.pdf'
+        finalize_figure(fig)
         fig.savefig(figure_path)
         print(f"Topics distribution plot saved to: {P.raw_path(figure_path)}")
     else:
@@ -971,6 +993,7 @@ def map_plotting(country_df, column_to_show_counts,figsize=(12, 8),savefigure=Tr
     # merge world map with patent counts
 
     # load world shapefile 
+    apply_typography()
     world = gpd.read_file(P.WORLD_SHP)
     world.columns = [c.lower() for c in world.columns]
     # merge patent counts into map
@@ -999,11 +1022,13 @@ def map_plotting(country_df, column_to_show_counts,figsize=(12, 8),savefigure=Tr
         }
     )
 
-    ax.set_title('Global distribution of patent {}'.format(column_to_show_counts), fontsize=14)
+    set_title(ax, 'Global distribution of patent {}'.format(column_to_show_counts), fontsize=14)
     ax.axis('off')
+    finalize_figure(plt.gcf())
     plt.tight_layout()
     if savefigure:
         P.FIG_PATENT.mkdir(parents=True, exist_ok=True)
+        finalize_figure(fig)
         fig.savefig(P.FIG_PATENT / f'patent_countries_map_{column_to_show_counts}.pdf', dpi=500)
     else:
         return fig, ax
@@ -1025,6 +1050,7 @@ def plot_filing_status_over_time(df_patent,col,figsize=(10, 6),savefigure=True, 
     """
     
     
+    apply_typography()
     status_colors = {
         "Application Pending":"#4C72B0" ,        # teal
         "Application Ceased": "#8172B2",         # purple 
@@ -1124,16 +1150,18 @@ def plot_filing_status_over_time(df_patent,col,figsize=(10, 6),savefigure=True, 
     ax.set_ylabel('Number of Patents')
     if title is None:
         title = 'Patent Counts by Filing Status and Publication Year'
-    ax.set_title(title)
+    set_title(ax, title)
     ax.legend(title='Filing Status',frameon=False, loc='upper left')
     ax.set_ylim(0, totals.max() * 1.1)  # add some headroom for annotations
     ax.spines['top'].set_visible(False)
     ax.spines['right'].set_visible(False)
 
+    finalize_figure(fig)
     if created_fig:
         plt.tight_layout()
         if savefigure:
             P.FIG_PATENT.mkdir(parents=True, exist_ok=True)
+            finalize_figure(fig)
             fig.savefig(P.FIG_PATENT / 'patent_filing_status_over_time.pdf', dpi=300)
         else:
             return fig, ax
@@ -1161,6 +1189,7 @@ def plot_patent_counts_by_filing_status(
         figsize: Figure size tuple
         savefile: Path to save figure
     """
+    apply_typography()
     if colors is None:
         colors = ['#6E8B3D', '#345995']
     
@@ -1226,12 +1255,15 @@ def plot_patent_counts_by_filing_status(
     
     ax.set_xlabel('Publication Year')
     ax.set_ylabel('Number of Patents')
-    ax.set_title('Patent Counts by Filing Status and Publication Year')
+    set_title(ax, 'Patent Counts by Filing Status and Publication Year')
     ax.legend(title='Filing Status')
     
+    finalize_figure(plt.gcf())
     plt.tight_layout()
     if savefile:
-        plt.savefig(savefile, dpi=300)
+        finalize_figure(plt.gcf())
+        plt.savefig(_figure_export_path(savefile), dpi=_export_dpi(savefile, 300))
+    finalize_figure(plt.gcf())
     plt.show()
 
 
@@ -1254,6 +1286,7 @@ def plot_patent_countries_map(
         figsize: Figure size tuple
         savefile: Path to save figure
     """
+    apply_typography()
     if not _HAS_GEOPANDAS:
         print("GeoPandas not available. Cannot plot map.")
         return
@@ -1309,12 +1342,15 @@ def plot_patent_countries_map(
         }
     )
     
-    ax.set_title('Global distribution of patent assignees', fontsize=14)
+    set_title(ax, 'Global distribution of patent assignees', fontsize=14)
     ax.axis('off')
+    finalize_figure(plt.gcf())
     plt.tight_layout()
     
     if savefile:
-        plt.savefig(savefile, dpi=500)
+        finalize_figure(plt.gcf())
+        plt.savefig(_figure_export_path(savefile), dpi=_export_dpi(savefile, 500))
+    finalize_figure(plt.gcf())
     plt.show()
 
 
@@ -1335,6 +1371,7 @@ def plot_topics_histogram(
         figsize: Figure size tuple
         savefile: Path to save figure
     """
+    apply_typography()
     if colors is None:
         colors = '#345995'
     
@@ -1353,12 +1390,15 @@ def plot_topics_histogram(
     
     plt.xlabel('Number of topics per patent')
     plt.ylabel('Number of patents')
-    plt.title('Distribution of topics per patent')
+    set_title(plt.gca(), 'Distribution of topics per patent')
     plt.legend()
+    finalize_figure(plt.gcf())
     plt.tight_layout()
     
     if savefile:
-        plt.savefig(savefile, dpi=300)
+        finalize_figure(plt.gcf())
+        plt.savefig(_figure_export_path(savefile), dpi=_export_dpi(savefile, 300))
+    finalize_figure(plt.gcf())
     plt.show()
 
 
@@ -1383,6 +1423,7 @@ def plot_top_topics_horizontal(
         figsize: Figure size tuple
         savefile: Path to save figure
     """
+    apply_typography()
     if colors is None:
         colors = '#345995'
     
@@ -1393,11 +1434,14 @@ def plot_top_topics_horizontal(
     plt.gca().invert_yaxis()
     
     plt.xlabel('Number of patents')
-    plt.title(f'Top {top_n} patent topics')
+    set_title(plt.gca(), f'Top {top_n} patent topics')
+    finalize_figure(plt.gcf())
     plt.tight_layout()
     
     if savefile:
-        plt.savefig(savefile, dpi=300)
+        finalize_figure(plt.gcf())
+        plt.savefig(_figure_export_path(savefile), dpi=_export_dpi(savefile, 300))
+    finalize_figure(plt.gcf())
     plt.show()
 
 
@@ -1420,6 +1464,7 @@ def plot_collapsed_topics_horizontal(
         figsize: Figure size tuple
         savefile: Path to save figure
     """
+    apply_typography()
     if colors is None:
         colors = '#345995'
     
@@ -1451,11 +1496,14 @@ def plot_collapsed_topics_horizontal(
     ax.invert_yaxis()
     
     ax.set_xlabel('Count (occurrences)' if not fractional else 'Fractional count (patent-weighted)')
-    ax.set_title(f"Top {min(top_n, len(plot_df))} collapsed FOR top-level topics (high → low)")
+    set_title(ax, f"Top {min(top_n, len(plot_df))} collapsed FOR top-level topics (high to low)")
     
+    finalize_figure(plt.gcf())
     plt.tight_layout()
     if savefile:
-        plt.savefig(savefile, dpi=300)
+        finalize_figure(plt.gcf())
+        plt.savefig(_figure_export_path(savefile), dpi=_export_dpi(savefile, 300))
+    finalize_figure(plt.gcf())
     plt.show()
 
 
@@ -1482,6 +1530,7 @@ def plot_drug_dev_by_country(
         figsize: Figure size tuple
         savefile: Path to save figure
     """
+    apply_typography()
     if colors is None:
         colors = ['#6E8B3D', '#345995']
     
@@ -1529,7 +1578,7 @@ def plot_drug_dev_by_country(
         ax.text(i, total, f'{total:.1f}',
                ha='center', va='bottom', fontsize=10, fontweight='bold')
     
-    ax.set_title('Drug Development Patents: UK vs Other Countries by Year')
+    set_title(ax, 'Drug Development Patents: UK vs Other Countries by Year')
     ax.set_xlabel('Year')
     ax.set_ylabel('Number of Patents (fractional count)')
     ax.legend(title='Assignee Country', loc='upper left')
@@ -1537,9 +1586,12 @@ def plot_drug_dev_by_country(
     ax.spines['top'].set_visible(False)
     ax.spines['right'].set_visible(False)
     
+    finalize_figure(plt.gcf())
     plt.tight_layout()
     if savefile:
-        plt.savefig(savefile, dpi=300)
+        finalize_figure(plt.gcf())
+        plt.savefig(_figure_export_path(savefile), dpi=_export_dpi(savefile, 300))
+    finalize_figure(plt.gcf())
     plt.show()
 
 
@@ -1566,6 +1618,7 @@ def plot_development_stage_pies(
         figsize: Figure size tuple
         savefile: Path to save figure
     """
+    apply_typography()
     if colors is None:
         colors = ['#345995', '#6E8B3D', '#D4AF37', '#B80C09']
     
@@ -1601,7 +1654,7 @@ def plot_development_stage_pies(
         for t in autotexts:
             t.set_color('white')
         
-        ax.set_title(title, fontweight='bold')
+        set_title(ax, title, fontweight='bold')
         ax.axis('equal')
     
     draw_pie(
@@ -1618,11 +1671,14 @@ def plot_development_stage_pies(
         title='Other Countries'
     )
     
-    plt.suptitle('Drug Development Patents by Development Stage', fontsize=14)
+    set_figure_title(plt.gcf(), 'Drug Development Patents by Development Stage', fontsize=14)
+    finalize_figure(plt.gcf())
     plt.tight_layout()
     
     if savefile:
-        plt.savefig(savefile, dpi=300)
+        finalize_figure(plt.gcf())
+        plt.savefig(_figure_export_path(savefile), dpi=_export_dpi(savefile, 300))
+    finalize_figure(plt.gcf())
     plt.show()
 
 
@@ -1647,6 +1703,7 @@ def plot_top_cited_papers(
         figsize: Figure size tuple
         savefile: Path to save figure
     """
+    apply_typography()
     if colors is None:
         colors = '#345995'
     
@@ -1671,20 +1728,18 @@ def plot_top_cited_papers(
     ax.set_xticklabels([])
     ax.set_xticks([])
     
-    ax.annotate(
+    set_title(ax,
         f'Top {top_n} UKBB Papers Cited by Drug Development Patents',
-        xy=(-6, 1.01),
-        xycoords='axes fraction',
-        ha='left',
-        va='bottom',
         fontsize=12,
-        fontweight='bold'
     )
     
+    finalize_figure(plt.gcf())
     plt.subplots_adjust(left=0.8)
     
     if savefile:
-        plt.savefig(savefile, dpi=300)
+        finalize_figure(plt.gcf())
+        plt.savefig(_figure_export_path(savefile), dpi=_export_dpi(savefile, 300))
+    finalize_figure(plt.gcf())
     plt.show()
 
 
@@ -1703,6 +1758,7 @@ def plot_model_agreement_pairwise(
         figsize: Figure size tuple
         savefile: Path to save figure
     """
+    apply_typography()
     if colors is None:
         colors = '#345995'
     
@@ -1713,7 +1769,7 @@ def plot_model_agreement_pairwise(
     
     for i, (bar, val, kappa) in enumerate(zip(bars, df_pairwise['Agreement %'], df_pairwise['Cohen\'s Kappa'])):
         ax.text(bar.get_x() + bar.get_width()/2, bar.get_height() + 1,
-               f'{val:.1f}%\nκ={kappa:.2f}',
+               f'{val:.1f}%\nkappa={kappa:.2f}',
                ha='center', va='bottom', fontsize=9, fontweight='bold')
     
     pair_labels = [f"{row['Model 1']}\nvs\n{row['Model 2']}" for _, row in df_pairwise.iterrows()]
@@ -1721,15 +1777,18 @@ def plot_model_agreement_pairwise(
     ax.set_xticklabels(pair_labels, fontsize=9)
     
     ax.set_ylabel('Agreement (%)', fontsize=11)
-    ax.set_title('Pairwise Agreement Between Models on Drug Development Labels', fontsize=12, fontweight='bold')
+    set_title(ax, 'Pairwise Agreement Between Models on Drug Development Labels', fontsize=12, fontweight='bold')
     ax.set_ylim(0, 110)
     ax.spines['top'].set_visible(False)
     ax.spines['right'].set_visible(False)
     ax.axhline(y=100, color='gray', linestyle='--', alpha=0.3)
     
+    finalize_figure(plt.gcf())
     plt.tight_layout()
     if savefile:
-        plt.savefig(savefile, dpi=300)
+        finalize_figure(plt.gcf())
+        plt.savefig(_figure_export_path(savefile), dpi=_export_dpi(savefile, 300))
+    finalize_figure(plt.gcf())
     plt.show()
 
 
@@ -1750,6 +1809,7 @@ def plot_model_agreement_distribution(
         figsize: Figure size tuple
         savefile: Path to save figure
     """
+    apply_typography()
     if colors is None:
         colors = '#6E8B3D'
     
@@ -1766,14 +1826,17 @@ def plot_model_agreement_distribution(
     
     ax.set_xlabel('Number of models labeling as "yes"', fontsize=11)
     ax.set_ylabel('Number of patents', fontsize=11)
-    ax.set_title('Distribution of Model Agreement on Drug Development Labels', fontsize=12, fontweight='bold')
+    set_title(ax, 'Distribution of Model Agreement on Drug Development Labels', fontsize=12, fontweight='bold')
     ax.set_xticks([0, 1, 2, 3, 4])
     ax.spines['top'].set_visible(False)
     ax.spines['right'].set_visible(False)
     
+    finalize_figure(plt.gcf())
     plt.tight_layout()
     if savefile:
-        plt.savefig(savefile, dpi=300)
+        finalize_figure(plt.gcf())
+        plt.savefig(_figure_export_path(savefile), dpi=_export_dpi(savefile, 300))
+    finalize_figure(plt.gcf())
     plt.show()
 
 
@@ -2375,6 +2438,7 @@ def plot_topic_cooccurrence_network(
     savefile: Optional[str] = None,
 ):
     """Plot a topic co-occurrence network."""
+    apply_typography()
     import networkx as nx
 
     if graph.number_of_nodes() == 0:
@@ -2405,11 +2469,14 @@ def plot_topic_cooccurrence_network(
     edge_labels = {(u, v): graph[u][v].get('weight', 1) for u, v in graph.edges()}
     nx.draw_networkx_edge_labels(graph, pos, edge_labels=edge_labels, font_size=7, ax=ax)
     ax.axis('off')
+    finalize_figure(plt.gcf())
     plt.tight_layout()
 
     if savefile:
-        plt.savefig(savefile, dpi=200, bbox_inches='tight')
+        finalize_figure(plt.gcf())
+        plt.savefig(_figure_export_path(savefile), dpi=_export_dpi(savefile, 200), bbox_inches='tight')
         print(f'Network plot saved to: {savefile}')
+    finalize_figure(plt.gcf())
     plt.show()
     return fig, ax
 
@@ -2483,6 +2550,7 @@ def plot_country_topic_heatmap(
 ):
     """Plot a normalized country-topic heatmap."""
 
+    apply_typography()
     if code_to_label is None:
         code_to_label = {}
 
@@ -2515,16 +2583,19 @@ def plot_country_topic_heatmap(
 
     if title is None:
         title = 'Patent Topics by Country (%)'
-    ax.set_title(title, fontsize=10, fontweight='bold')
+    set_title(ax, title, fontsize=10, fontweight='bold')
     ax.set_xlabel('Country')
     ax.set_ylabel('Topic Division')
     plt.colorbar(im, ax=ax, orientation='vertical', pad=0.02, fraction=0.046)
+    finalize_figure(fig)
     if created_fig:
         plt.tight_layout()
 
     if savefile:
-        plt.savefig(savefile, dpi=200, bbox_inches='tight')
+        finalize_figure(fig)
+        plt.savefig(_figure_export_path(savefile), dpi=_export_dpi(savefile, 200), bbox_inches='tight')
         print(f'Heatmap saved to: {savefile}')
+    finalize_figure(fig)
     plt.show()
     return fig, ax
 
@@ -2537,6 +2608,7 @@ def plot_country_dominant_topics(
     savefile: Optional[str] = None,
 ):
     """Plot the dominant topic per country as a horizontal bar chart."""
+    apply_typography()
     if code_to_label is None:
         code_to_label = {}
 
@@ -2566,15 +2638,18 @@ def plot_country_dominant_topics(
         ax.text(count + 0.5, bar.get_y() + bar.get_height() / 2, f'{topic_label} ({count:.2f})', va='center', fontsize=8)
     ax.set_xlabel('Fractional Patent Count in Dominant Topic')
     ax.set_ylabel('Country')
-    ax.set_title('Dominant Topic per Country (Fractional)', fontsize=10, fontweight='bold')
+    set_title(ax, 'Dominant Topic per Country (Fractional)', fontsize=10, fontweight='bold')
     ax.invert_yaxis()
     ax.spines['top'].set_visible(False)
     ax.spines['right'].set_visible(False)
+    finalize_figure(plt.gcf())
     plt.tight_layout()
 
     if savefile:
-        plt.savefig(savefile, dpi=200, bbox_inches='tight')
+        finalize_figure(plt.gcf())
+        plt.savefig(_figure_export_path(savefile), dpi=_export_dpi(savefile, 200), bbox_inches='tight')
         print(f'Dominant-topic plot saved to: {savefile}')
+    finalize_figure(plt.gcf())
     plt.show()
     return fig, ax
 
@@ -2593,6 +2668,7 @@ def plot_two_level_hierarchy(
     savefile: Optional[str] = None,
 ):
     """Draw a bubble-tree style hierarchy plot for a two-level taxonomy."""
+    apply_typography()
     if counts.empty:
         print(f'No data available for {parent_name} hierarchy plot.')
         return None, None
@@ -2649,11 +2725,14 @@ def plot_two_level_hierarchy(
     ax.axis('off')
     ax.text(x_parent, -0.5, parent_name, ha='center', va='top', fontsize=9, style='italic')
     ax.text(x_child, -0.5, child_name, ha='center', va='top', fontsize=9, style='italic')
+    finalize_figure(plt.gcf())
     plt.tight_layout()
 
     if savefile:
-        plt.savefig(savefile, dpi=200, bbox_inches='tight')
+        finalize_figure(plt.gcf())
+        plt.savefig(_figure_export_path(savefile), dpi=_export_dpi(savefile, 200), bbox_inches='tight')
         print(f'Hierarchy plot saved to: {savefile}')
+    finalize_figure(plt.gcf())
     plt.show()
     return fig, ax
 
@@ -2762,6 +2841,7 @@ def plot_rcdc_macro_hierarchy(
     savefile: Optional[str] = None,
 ):
     """Plot the macro-cluster to RCDC category tree-style hierarchy."""
+    apply_typography()
     import ast
 
     cat_dict = rcdc_context['cat_dict']
@@ -2886,10 +2966,13 @@ def plot_rcdc_macro_hierarchy(
     ax.axis('off')
     ax.text(x_macro, -0.5, 'Macro Cluster', ha='center', va='top', fontsize=9, style='italic')
     ax.text(x_rcdc, -0.5, 'RCDC Category', ha='center', va='top', fontsize=9, style='italic')
+    finalize_figure(plt.gcf())
     plt.tight_layout()
 
     if savefile:
-        plt.savefig(savefile, dpi=300, bbox_inches='tight')
+        finalize_figure(plt.gcf())
+        plt.savefig(_figure_export_path(savefile), dpi=_export_dpi(savefile, 300), bbox_inches='tight')
+    finalize_figure(plt.gcf())
     plt.show()
     return fig, ax
 
@@ -2904,6 +2987,7 @@ def plot_rcdc_macro_heatmap(
     savefile: Optional[str] = None,
 ):
     """Plot the macro-cluster by RCDC-category heatmap used in the original notebook."""
+    apply_typography()
     import ast
     import textwrap
     from matplotlib.colors import LinearSegmentedColormap
@@ -3008,13 +3092,16 @@ def plot_rcdc_macro_heatmap(
 
     wrapped_labels = [textwrap.fill(label, width=14) for label in dis_df.columns]
     ax.set_xticklabels(wrapped_labels, rotation=0, ha='center', fontsize=9)
-    ax.set_title('Top 5 RCDC Categories per Macro Cluster', fontsize=12, fontweight='bold', pad=20)
+    set_title(ax, 'Top 5 RCDC Categories per Macro Cluster', fontsize=12, fontweight='bold', pad=20)
     ax.set_ylabel('RCDC Category', fontweight='bold')
     ax.set_xlabel('Macro Cluster', fontweight='bold')
     ax.set_yticklabels(ax.get_yticklabels(), fontsize=9)
+    finalize_figure(plt.gcf())
     plt.tight_layout()
 
     if savefile:
-        plt.savefig(savefile, format='svg')
+        finalize_figure(plt.gcf())
+        plt.savefig(_figure_export_path(savefile), dpi=_export_dpi(savefile, 300))
+    finalize_figure(plt.gcf())
     plt.show()
     return fig, ax, sorted_df

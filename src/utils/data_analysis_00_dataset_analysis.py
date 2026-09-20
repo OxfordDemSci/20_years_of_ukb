@@ -10,6 +10,7 @@ import pandas as pd
 
 from utils import shared_paths as P
 from utils.shared_analysis_window import filter_analysis_window
+from utils.shared_style import PNG_DPI, figure_export_formats, finalize_figure
 
 
 UKB_PATTERN = re.compile(
@@ -67,8 +68,11 @@ def output_dirs(name: str) -> tuple[Path, Path]:
 
 
 def save_figure(figure: plt.Figure, path: Path, dpi: int = 300) -> Path:
+    finalize_figure(figure)
     path.parent.mkdir(parents=True, exist_ok=True)
-    figure.savefig(path, dpi=dpi, bbox_inches="tight")
+    output_format = figure_export_formats([path.suffix or plt.rcParams["savefig.format"]])[0]
+    path = path.with_suffix(f".{output_format}")
+    figure.savefig(path, dpi=PNG_DPI if output_format == "png" else dpi, bbox_inches="tight")
     plt.close(figure)
     return path
 

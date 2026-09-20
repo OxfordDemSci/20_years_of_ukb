@@ -16,12 +16,16 @@ from matplotlib.colors import to_rgb, to_rgba
 from matplotlib.patches import Rectangle
 
 from .shared_showcase import load_showcase
-from .shared_analysis_window import ANALYSIS_END_DATE, ANALYSIS_END_YEAR, filter_analysis_window
+from .shared_analysis_window import (
+    ANALYSIS_START_DATE, ANALYSIS_START_YEAR, ANALYSIS_END_DATE, ANALYSIS_END_YEAR,
+    filter_analysis_window,
+)
 from .shared_style import compact_count as shared_compact_count
 from .shared_style import grid_on as shared_grid_on
 from .shared_style import marker_area as shared_marker_area
 from .shared_style import panel_label as shared_panel_label
-from .shared_style import sequential_colormap
+from .shared_style import style_axis as shared_style_axis
+from .shared_style import FONT_FAMILY, blue_cream_red_colormap, palette, uppercase_title
 
 ENDPOINT_SPECS = OrderedDict({
     "clinical_trials": {
@@ -151,7 +155,10 @@ def add_publication_indicators(
         lambda values: "oa_all" in values
     )
     papers["is_preprint"] = papers["type"].eq("preprint")
-    papers["future_dated"] = papers["publication_date"].gt(data_cutoff)
+    end_exclusive = pd.to_datetime(data_cutoff, utc=True).normalize() + pd.Timedelta(days=1)
+    papers["future_dated"] = pd.to_datetime(
+        papers["publication_date"], errors="coerce", utc=True
+    ).ge(end_exclusive)
     for key, spec in endpoint_specs.items():
         papers[f"has_{key}"] = papers[spec["id_col"]].apply(bool)
     return papers
@@ -160,18 +167,17 @@ def add_publication_indicators(
 def _to_event_year(value):
     if value is None:
         return np.nan
-    if isinstance(value, (int, np.integer)):
-        return int(value)
-    if isinstance(value, (float, np.floating)) and not pd.isna(value):
-        return int(value)
     text = str(value).strip()
     if not text:
         return np.nan
     try:
-        return int(float(text))
+        numeric_year = float(text)
     except ValueError:
-        parsed = pd.to_datetime(text, errors="coerce")
+        parsed = pd.to_datetime(text, errors="coerce", utc=True)
         return np.nan if pd.isna(parsed) else int(parsed.year)
+    if np.isfinite(numeric_year) and numeric_year.is_integer() and 1 <= numeric_year <= 9999:
+        return int(numeric_year)
+    return np.nan
 
 
 def _consensus_year(values):
@@ -183,7 +189,7 @@ def _consensus_year(values):
 
 
 def restrict_endpoint_dates(papers, endpoint_specs=ENDPOINT_SPECS):
-    """Keep dated endpoint links through 2025, preserving ID/date array alignment."""
+    """Keep endpoint links dated 2013–2025, preserving ID/date array alignment."""
     papers = papers.copy()
     excluded = {}
     for key, spec in endpoint_specs.items():
@@ -197,7 +203,7 @@ def restrict_endpoint_dates(papers, endpoint_specs=ENDPOINT_SPECS):
             # Join by actual record ID rather than shifting dates onto another link.
             date_by_id = dict(zip(records, dates))
             keep = [entity_id for entity_id in ids
-                    if 1 <= _to_event_year(date_by_id.get(entity_id)) <= ANALYSIS_END_YEAR]
+                    if ANALYSIS_START_YEAR <= _to_event_year(date_by_id.get(entity_id)) <= ANALYSIS_END_YEAR]
             ids_out.append(keep)
             dates_out.append([date_by_id[entity_id] for entity_id in keep])
             omitted += len(ids) - len(keep)
@@ -293,7 +299,7 @@ def build_quality_audit(papers, endpoint_audits, data_cutoff):
         & papers["publication_date"].dt.year.ne(papers["year"])
     )
     rows = [
-        {"check": "input_rows", "value": len(papers), "interpretation": "Records within the analysis cutoff"},
+        {"check": "input_rows", "value": len(papers), "interpretation": "Records within the 2013–2025 analysis window"},
         {"check": "source_rows", "value": papers.attrs.get("source_record_count", len(papers)),
          "interpretation": "Unfiltered source inventory; not the analytical denominator"},
         {
@@ -322,6 +328,11 @@ def build_quality_audit(papers, endpoint_audits, data_cutoff):
             "interpretation": "Date year differs from year field",
         },
         {
+            "check": "records_before_analysis_start",
+            "value": papers["year"].lt(ANALYSIS_START_YEAR).sum(),
+            "interpretation": f"Analytical records before {ANALYSIS_START_DATE.date()} must be absent",
+        },
+        {
             "check": "records_after_data_cutoff",
             "value": papers["future_dated"].sum(),
             "interpretation": f"Analytical records after {ANALYSIS_END_DATE.date()} must be absent",
@@ -342,7 +353,7 @@ def build_quality_audit(papers, endpoint_audits, data_cutoff):
     )
     rows.extend(
         {"check": f"{key}_links_excluded_by_event_date", "value": value,
-         "interpretation": "Event after 2025-12-31 or event date unknown"}
+         "interpretation": "Event outside 2013–2025 or event date unknown"}
         for key, value in papers.attrs.get("endpoint_links_excluded_by_date", {}).items()
     )
     return pd.DataFrame(rows)
@@ -352,7 +363,7 @@ def complete_year_corpus(papers, last_complete_year):
     papers = filter_analysis_window(papers, date_col="publication_date")
     last_complete_year = min(last_complete_year, ANALYSIS_END_YEAR)
     complete = papers.loc[
-        papers["year"].between(int(papers["year"].min()), last_complete_year)
+        papers["year"].between(ANALYSIS_START_YEAR, last_complete_year)
     ].copy()
     complete["year"] = complete["year"].astype(int)
     return complete
@@ -365,7 +376,7 @@ def build_annual_outputs(
     endpoint_specs=ENDPOINT_SPECS,
 ):
     """Build annual paper, collaboration, endpoint, and event-year tables."""
-    first_year = int(complete["year"].min())
+    first_year = ANALYSIS_START_YEAR
     years = pd.Index(range(first_year, last_complete_year + 1), name="year")
     annual = pd.DataFrame(index=years)
     grouped = complete.groupby("year")
@@ -529,7 +540,7 @@ def summarize_endpoints(
     last_complete_year,
     endpoint_specs=ENDPOINT_SPECS,
 ):
-    first_year = int(complete["year"].min())
+    first_year = ANALYSIS_START_YEAR
     rows = []
     for key, spec in endpoint_specs.items():
         unique = endpoint_unique[key]
@@ -790,7 +801,7 @@ def main_indicator_specs(metric_colors):
         "cross_sector": {
             "label": "Cross-sector collaboration",
             "rate_label": "Cross-\nsector",
-            "inset_label": "Cross-\nsector papers",
+            "inset_label": "Cross-sector\npapers",
             "profile_label": "Cross-\nsector",
             "matrix_label": "Cross",
             "flag_col": "cross_sector_collaboration",
@@ -933,7 +944,15 @@ def validate_growth_analysis(
         "The date and year fields must identify the same publication cohort.",
     )
 
-    first_year = int(complete["year"].min())
+    first_year = ANALYSIS_START_YEAR
+    add(
+        "corpus",
+        "complete_year_corpus_has_no_pre_window_records",
+        not complete["year"].lt(first_year).any(),
+        int(complete["year"].lt(first_year).sum()),
+        0,
+        f"No analytical record may fall before {ANALYSIS_START_DATE.date()}.",
+    )
     complete_future = int(complete["future_dated"].sum())
     complete_after_window = int(complete["year"].gt(last_complete_year).sum())
     add(
@@ -1192,7 +1211,8 @@ def cross_sector_composition_summary(
     return table, multiple_sector_count
 
 
-def supplementary_indicator_specs(metric_colors):
+def supplementary_indicator_specs():
+    """Return the supplementary indicators and their shared-palette colours."""
     columns = OrderedDict({
         "Altmetric attention": "has_altmetric_attention",
         "Cross-sector": "cross_sector_collaboration",
@@ -1203,13 +1223,13 @@ def supplementary_indicator_specs(metric_colors):
         "Dataset": "has_datasets",
     })
     colors = {
-        "Altmetric attention": metric_colors["altmetric"],
-        "Cross-sector": metric_colors["cross_sector"],
-        "International": metric_colors["international"],
-        "Patent": metric_colors["patents"],
-        "Clinical trial": metric_colors["clinical_trials"],
-        "Policy document": metric_colors["policy_documents"],
-        "Dataset": metric_colors["datasets"],
+        "Altmetric attention": palette("light_blue"),
+        "Cross-sector": palette("navy"),
+        "International": palette("steel_blue"),
+        "Patent": palette("red"),
+        "Clinical trial": palette("green"),
+        "Policy document": palette("cream"),
+        "Dataset": palette("blue"),
     }
     return columns, colors
 
@@ -1282,7 +1302,8 @@ class GrowthPlotter:
             zorder=3,
         )
         ax.set_xlim(self.first_year, self.last_complete_year + 0.35)
-        ax.set_ylim(0, max(y[-1] * 1.28, 1))
+        # Reserve separate rows above the curve for the heading and total.
+        ax.set_ylim(0, max(y[-1] * 2.5, 1))
         ax.set_xticks([self.first_year, self.baseline, self.last_complete_year])
         ax.set_yticks([0, y[-1] / 2, y[-1]])
         ax.tick_params(
@@ -1313,21 +1334,24 @@ class GrowthPlotter:
             spine.set_visible(spine_name in {"left", "bottom"})
             spine.set_color("#000000")
             spine.set_linewidth(max(self.style.get("axes_linewidth", 1.0), 1.3))
-        ax.set_ylabel(
-            title,
-            rotation=0,
-            ha="left",
-            va="top",
-            fontsize=self.style["annot_fs"] - 0.3,
-            fontweight="semibold",
-            multialignment="left",
-            linespacing=0.95,
-            color="#222222",
-        )
-        ax.yaxis.set_label_coords(0.055, 0.91)
+        # Explicit point offsets avoid compressed multiline font metrics.
+        for line_number, line in enumerate(uppercase_title(title).splitlines()):
+            ax.annotate(
+                line,
+                xy=(0.055, 0.95),
+                xycoords="axes fraction",
+                xytext=(0, -line_number * (self.style["annot_fs"] + 4)),
+                textcoords="offset points",
+                ha="left",
+                va="top",
+                fontsize=self.style["annot_fs"] - 0.3,
+                fontweight="bold",
+                fontfamily=FONT_FAMILY,
+                color="#222222",
+            )
         ax.text(
             0.945,
-            0.91,
+            0.59,
             self.compact_count(y[-1]),
             transform=ax.transAxes,
             ha="right",
@@ -1338,21 +1362,21 @@ class GrowthPlotter:
         )
         ax.text(
             0.055,
-            0.08,
+            -0.075,
             str(self.first_year),
             transform=ax.transAxes,
             ha="left",
-            va="bottom",
+            va="top",
             fontsize=self.style["annot_fs"] - 2,
             color="#6B7280",
         )
         ax.text(
             0.945,
-            0.08,
+            -0.075,
             str(self.last_complete_year),
             transform=ax.transAxes,
             ha="right",
-            va="bottom",
+            va="top",
             fontsize=self.style["annot_fs"] - 2,
             color="#6B7280",
         )
@@ -1768,7 +1792,6 @@ def plot_indicator_overlap_supplement(
     prevalence,
     indicator_colors,
     style,
-    metric_colors,
     plotter,
 ):
     """Build the Jaccard heatmap and indicator-prevalence supplement."""
@@ -1787,18 +1810,24 @@ def plot_indicator_overlap_supplement(
         mask=triangle_mask,
         annot=True,
         fmt=".2f",
-        cmap=sequential_colormap(metric_colors["publications"]),
+        cmap=blue_cream_red_colormap(),
         vmin=0,
         vmax=color_max,
         square=True,
-        linewidths=0.6,
-        linecolor="white",
+        linewidths=0,
         cbar_kws={"label": "Jaccard similarity"},
         ax=ax_heat,
     )
+    # Outline only populated cells, leaving the masked triangle blank.
+    for row, column in np.argwhere(~triangle_mask & jaccard.notna().to_numpy()):
+        ax_heat.add_patch(Rectangle(
+            (column, row), 1, 1,
+            fill=False, edgecolor=palette("navy"), linewidth=0.7,
+        ))
     heatmap_cbar = ax_heat.collections[0].colorbar
-    heatmap_cbar.outline.set_edgecolor("k")
+    heatmap_cbar.outline.set_edgecolor(palette("navy"))
     heatmap_cbar.outline.set_linewidth(1.0)
+    shared_style_axis(ax_heat, style, grid=False)
     ax_heat.set_xlabel("")
     ax_heat.set_ylabel("")
     plt.setp(
@@ -1813,7 +1842,7 @@ def plot_indicator_overlap_supplement(
         prevalence.index,
         prevalence.values,
         color=[indicator_colors[label] for label in prevalence.index],
-        edgecolor="#000000",
+        edgecolor=palette("navy"),
         linewidth=0.8,
     )
     for position, value in enumerate(prevalence.values):
@@ -1828,6 +1857,6 @@ def plot_indicator_overlap_supplement(
     ax_bar.set_xlabel("Share of publications (%)")
     ax_bar.set_ylabel("Reach indicator")
     ax_bar.xaxis.set_major_formatter(mticker.PercentFormatter(xmax=100))
-    shared_grid_on(ax_bar, axis="both", which="major", **plotter.grid_kws)
+    shared_style_axis(ax_bar, style, grid_kws={"which": "major", **plotter.grid_kws})
     plotter.panel_label(ax_bar, "B")
     return fig

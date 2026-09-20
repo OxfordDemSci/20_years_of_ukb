@@ -7,7 +7,7 @@
 # Main design:
 #     - Uses title + abstract as text input.
 #     - Uses fixed scientific document embedding model: allenai-specter.
-#     - Fits one global BERTopic model using publications through 2025-12-31.
+#     - Fits one global BERTopic model using publications from 2013-01-01 to 2025-12-31.
 #     - Computes dynamic topic counts/shares over publication year.
 
 from __future__ import annotations
@@ -40,7 +40,11 @@ from sklearn.feature_extraction.text import CountVectorizer, ENGLISH_STOP_WORDS
 from umap import UMAP
 
 from utils import shared_paths as P
-from utils.shared_analysis_window import ANALYSIS_END_DATE, ANALYSIS_END_YEAR, filter_analysis_window
+from utils.shared_style import PNG_DPI, apply_typography, finalize_figure, set_title
+from utils.shared_analysis_window import (
+    ANALYSIS_START_DATE, ANALYSIS_START_YEAR, ANALYSIS_END_DATE, ANALYSIS_END_YEAR,
+    filter_analysis_window,
+)
 from utils.data_analysis_02_content_window import (
     require_topic_window_provenance, topic_corpus_hash,
     validate_training_years, write_topic_window_provenance,
@@ -53,7 +57,7 @@ config = SimpleNamespace(
     ABSTRACT_COL=None,
     YEAR_COL=None,
     DATE_COL=None,
-    MIN_YEAR=2014,
+    MIN_YEAR=ANALYSIS_START_YEAR,
     INCOMPLETE_YEARS=[ANALYSIS_END_YEAR + 1],
     RANDOM_STATE=42,
     TOP_N_TOPICS_FOR_FIGURES=14,
@@ -88,6 +92,7 @@ mpl.rcParams.update(
         "axes.spines.right": False,
     }
 )
+apply_typography()
 
 ID_CANDIDATES = [
     "showcase_id",
@@ -269,16 +274,40 @@ def corpus_hash(docs: Sequence[str], years: Sequence[int]) -> str:
     return topic_corpus_hash(range(len(docs)), docs, years)
 
 
-def save_mpl(fig: plt.Figure, fig_dir: Path, basename: str, dpi: int = 600) -> Tuple[Path, Path, Path]:
+def save_mpl(fig: plt.Figure, fig_dir: Path, basename: str, dpi: int = PNG_DPI) -> Tuple[Path, Path]:
+    """Save PNG and PDF, enforcing project PNG resolution (``dpi`` is legacy)."""
     png = fig_dir / f"{basename}.png"
     pdf = fig_dir / f"{basename}.pdf"
-    svg = fig_dir / f"{basename}.svg"
+    finalize_figure(fig)
     fig.tight_layout()
-    fig.savefig(png, bbox_inches="tight", dpi=dpi)
+    fig.savefig(png, bbox_inches="tight", dpi=PNG_DPI)
     fig.savefig(pdf, bbox_inches="tight")
-    fig.savefig(svg, bbox_inches="tight")
     plt.close(fig)
-    return png, pdf, svg
+    return png, pdf
+
+
+def style_plotly_figure(fig):
+    """Apply the same font and main-title policy to interactive topic figures."""
+    fig.update_layout(
+        font={"family": "Helvetica"},
+        legend={"font": {"family": "Helvetica"}, "title": {"font": {"family": "Helvetica"}}},
+    )
+    fig.update_xaxes(title_font_family="Helvetica", tickfont_family="Helvetica")
+    fig.update_yaxes(title_font_family="Helvetica", tickfont_family="Helvetica")
+    fig.update_annotations(font={"family": "Helvetica"})
+    fig.update_coloraxes(colorbar={
+        "title": {"font": {"family": "Helvetica"}},
+        "tickfont": {"family": "Helvetica"},
+    })
+    title = fig.layout.title.text
+    if title:
+        fig.update_layout(title={
+            "text": f"<b>{str(title).upper()}</b>",
+            "font": {"family": "Helvetica"},
+            "x": 0.01,
+            "xanchor": "left",
+        })
+    return fig
 
 
 def tokenise_for_coherence(docs: Sequence[str]) -> List[List[str]]:
@@ -452,7 +481,10 @@ def prepare_input(input_parquet: Path, output_dir: Path) -> pd.DataFrame:
     df["analysis_year"] = df["analysis_year"].astype(int)
     df = df[df["analysis_year"] >= int(config.MIN_YEAR)].copy()
     if df.empty:
-        raise ValueError(f"No dated topic inputs remain through {ANALYSIS_END_DATE.date()}.")
+        raise ValueError(
+            f"No dated topic inputs remain from {ANALYSIS_START_DATE.date()} "
+            f"through {ANALYSIS_END_DATE.date()}."
+        )
 
     df["topic_text"] = df.apply(
         lambda r: clean_topic_text(r.get(title_col, ""), r.get(abstract_col, "")),
@@ -654,7 +686,9 @@ def fit_final_model(
 
     metrics = {
         **params,
+        "analysis_start_date": str(ANALYSIS_START_DATE.date()),
         "analysis_end_date": str(ANALYSIS_END_DATE.date()),
+        "training_min_year": int(min(years)),
         "training_max_year": int(max(years)),
         "embedding_model": config.EMBEDDING_MODEL_NAME,
         "n_documents": len(docs),
@@ -839,7 +873,7 @@ def make_topic_year_tables_and_figures(
 
     fig, ax = plt.subplots(figsize=(13, 8))
     ax.stackplot(years, y, labels=labels, alpha=0.88)
-    ax.set_title("Dynamic topic shares in UKB Showcase+ publications")
+    set_title(ax, "Dynamic topic shares in UKB Showcase+ publications")
     ax.set_xlabel("Publication year")
     ax.set_ylabel("Share of Showcase+ papers")
     ax.legend(loc="center left", bbox_to_anchor=(1.02, 0.5), frameon=False)
@@ -876,7 +910,7 @@ def make_topic_year_tables_and_figures(
             fontsize=8,
         )
 
-    ax.set_title("Topic evolution as ridge waves")
+    set_title(ax, "Topic evolution as ridge waves")
     ax.set_xlabel("Publication year")
     ax.set_yticks([])
     ax.set_xlim(smooth_df.index.min() - 1, smooth_df.index.max() + 0.5)
@@ -891,6 +925,7 @@ def make_topic_year_tables_and_figures(
         title="BERTopic topic prevalence over time",
     )
 
+    style_plotly_figure(fig_html)
     fig_html.write_html(fig_dir / "bertopic_topic_prevalence_heatmap.html")
 
     print(f"Selected {len(selected)} topics for figures.")
@@ -924,6 +959,7 @@ def make_native_topics_over_time(
             top_n_topics=config.TOP_N_TOPICS_FOR_FIGURES,
         )
 
+        style_plotly_figure(fig)
         fig.write_html(fig_dir / "bertopic_native_topics_over_time.html")
 
         print("Saved native BERTopic topics-over-time outputs.")
@@ -945,13 +981,15 @@ def write_manifest(
         "selected_params": params,
         "n_documents": n_docs,
         "min_year": config.MIN_YEAR,
+        "analysis_start_date": str(ANALYSIS_START_DATE.date()),
         "analysis_end_date": str(ANALYSIS_END_DATE.date()),
         "incomplete_years": getattr(config, "INCOMPLETE_YEARS", []),
         "notes": [
             "Topic text is title + abstract.",
             "Embedding input uses light cleaning only.",
             "Corpus-generic words are removed from topic-word representation via CountVectorizer.",
-            f"One global BERTopic model is fitted through {ANALYSIS_END_DATE.date()}.",
+            f"One global BERTopic model is fitted from {ANALYSIS_START_DATE.date()} "
+            f"through {ANALYSIS_END_DATE.date()}.",
         ],
     }
 

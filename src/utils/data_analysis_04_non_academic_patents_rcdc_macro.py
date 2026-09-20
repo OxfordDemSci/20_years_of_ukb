@@ -29,9 +29,10 @@ from pathlib import Path
 _ROOT = Path(__file__).resolve().parents[2]
 if str(_ROOT / "src") not in sys.path:
     sys.path.insert(0, str(_ROOT / "src"))
-from utils.shared_analysis_window import ANALYSIS_END_DATE, filter_analysis_window
+from utils.shared_analysis_window import ANALYSIS_START_DATE, ANALYSIS_END_DATE, filter_analysis_window
 from utils.shared_showcase import parse_listcol
 from utils import shared_paths as P
+from utils.shared_style import PNG_DPI, apply_typography, figure_export_formats, finalize_figure
 
 import numpy as np
 import pandas as pd
@@ -54,7 +55,7 @@ except Exception:
     HAS_IGRAPH = False
 
 
-result_path = str(P.PATENT_RCDC_MACRO / "through_2025-12-31")
+result_path = str(P.PATENT_RCDC_MACRO / f"{ANALYSIS_START_DATE.date()}_through_{ANALYSIS_END_DATE.date()}")
 
 # The original invocation at the foot of this module used ten repeats and kept
 # the last partition, so seed 9 is its reproducible canonical fit.
@@ -78,7 +79,8 @@ def _partition_provenance(frame, patent_labels, method):
         [[str(pid), sorted(set(labels))] for pid, labels in zip(frame[id_col], patent_labels)]
     )
     return {
-        "schema_version": 1,
+        "schema_version": 2,
+        "analysis_start_date": ANALYSIS_START_DATE.date().isoformat(),
         "analysis_end_date": ANALYSIS_END_DATE.date().isoformat(),
         "cohort_sha256": sha256(json.dumps(cohort, separators=(",", ":")).encode()).hexdigest(),
         "patents": len(cohort),
@@ -90,7 +92,7 @@ def _partition_provenance(frame, patent_labels, method):
 def load_or_build_analysis_partition(frame, *, category_col="category_rcdc", cache_dir=None):
     """Fit the original Louvain method on eligible patents, or reuse its verified cache.
 
-    Cache identity includes the cutoff, patent IDs, label assignments, algorithm
+    Cache identity includes both window boundaries, patent IDs, label assignments, algorithm
     parameters and dependency versions. Legacy summaries without that provenance
     are never used as fitted partitions and are never overwritten.
     """
@@ -301,6 +303,7 @@ def summarize_communities(partition, label_counts, top_k=10):
 # --------------------------
 def plot_network(G, partition, outpath=result_path + "/network_plot.png", figsize=(12,10), weight_attr='weight'):
     # partition: dict label->comm
+    apply_typography()
     communities = defaultdict(list)
     for n, com in partition.items():
         communities[com].append(n)
@@ -318,8 +321,12 @@ def plot_network(G, partition, outpath=result_path + "/network_plot.png", figsiz
     nx.draw_networkx_labels(G, pos, font_size=8)
     plt.axis('off')
     plt.legend()
+    finalize_figure(plt.gcf())
     plt.tight_layout()
-    plt.savefig(outpath, dpi=300)
+    output_format = figure_export_formats([Path(outpath).suffix or plt.rcParams['savefig.format']])[0]
+    outpath = Path(outpath).with_suffix(f'.{output_format}')
+    finalize_figure(plt.gcf())
+    plt.savefig(outpath, dpi=PNG_DPI if output_format == 'png' else 300)
     plt.close()
 
 # --------------------------

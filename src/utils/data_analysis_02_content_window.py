@@ -8,24 +8,29 @@ from pathlib import Path
 
 import pandas as pd
 
-from utils.shared_analysis_window import ANALYSIS_END_DATE, ANALYSIS_END_YEAR
+from utils.shared_analysis_window import (
+    ANALYSIS_START_DATE, ANALYSIS_START_YEAR, ANALYSIS_END_DATE, ANALYSIS_END_YEAR,
+)
 
 
 def validate_training_years(years):
-    """Reject missing/future training years before model or cache access."""
+    """Reject missing or out-of-window training years before model or cache access."""
     values = pd.to_numeric(pd.Series(list(years)), errors="coerce")
     if (values.empty or values.isna().any()
-            or not (values.between(1, ANALYSIS_END_YEAR) & values.mod(1).eq(0)).all()):
+            or not (values.between(ANALYSIS_START_YEAR, ANALYSIS_END_YEAR)
+                    & values.mod(1).eq(0)).all()):
         raise ValueError(
-            f"Topic training requires dated papers through {ANALYSIS_END_DATE.date()} only."
+            f"Topic training requires dated papers from {ANALYSIS_START_DATE.date()} "
+            f"through {ANALYSIS_END_DATE.date()} only."
         )
     return values
 
 
 def topic_corpus_hash(ids, docs, years):
-    """Key the complete ordered training input, including its publication cutoff."""
+    """Key the complete ordered training input, including both publication boundaries."""
     years = validate_training_years(years)
-    digest = hashlib.sha256(str(ANALYSIS_END_DATE.date()).encode())
+    window = [str(ANALYSIS_START_DATE.date()), str(ANALYSIS_END_DATE.date())]
+    digest = hashlib.sha256(json.dumps(window).encode())
     for paper_id, text, year in zip(ids, docs, years, strict=True):
         digest.update(json.dumps([str(paper_id), str(text), float(year)], ensure_ascii=False).encode())
         digest.update(b"\n")
@@ -45,6 +50,7 @@ def write_topic_window_provenance(path, training_years):
     years = validate_training_years(training_years)
     path = Path(path)
     provenance = {
+        "analysis_start_date": str(ANALYSIS_START_DATE.date()),
         "analysis_end_date": str(ANALYSIS_END_DATE.date()),
         "training_min_year": int(years.min()),
         "training_max_year": int(years.max()),
@@ -57,22 +63,27 @@ def write_topic_window_provenance(path, training_years):
 
 
 def require_topic_window_provenance(path):
-    """Old topic tables cannot be made valid by hiding post-cutoff rows."""
+    """Require a model fitted for the complete current analysis window."""
     path = Path(path)
     sidecar = path.with_suffix(".analysis_window.json")
     message = (
-        f"Outdated or unverified topic cache {path.name}: training must exclude papers after "
-        f"{ANALYSIS_END_DATE.date()}. Rerun the filtered BERTopic analysis and retain "
+        f"Outdated or unverified topic cache {path.name}: training must use the "
+        f"{ANALYSIS_START_DATE.date()} through {ANALYSIS_END_DATE.date()} analysis window. "
+        "Rerun the filtered BERTopic analysis and retain "
         "the table's .analysis_window.json sidecar."
     )
     if not sidecar.is_file():
         raise FileNotFoundError(message)
     try:
         provenance = json.loads(sidecar.read_text(encoding="utf-8"))
-        cutoff = pd.Timestamp(provenance["analysis_end_date"])
+        start = pd.Timestamp(provenance["analysis_start_date"])
+        end = pd.Timestamp(provenance["analysis_end_date"])
+        training_min = int(provenance["training_min_year"])
+        training_max = int(provenance["training_max_year"])
         valid = (
-            cutoff <= ANALYSIS_END_DATE
-            and int(provenance["training_max_year"]) <= ANALYSIS_END_YEAR
+            start == ANALYSIS_START_DATE
+            and end == ANALYSIS_END_DATE
+            and ANALYSIS_START_YEAR <= training_min <= training_max <= ANALYSIS_END_YEAR
             and int(provenance["training_documents"]) > 0
             and provenance["artifact_sha256"] == _file_hash(path)
         )

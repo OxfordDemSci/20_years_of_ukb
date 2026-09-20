@@ -18,9 +18,9 @@ one `04_non_academic_99_all` style section, so a panel's type is the panel's typ
 "patents are steel blue" holds from panel A to panel F.
 
 **Two inventories, used deliberately.** Publication reach uses Dimensions' full
-reverse index, restricted to outcomes with known publication/start dates through the
-analysis cutoff. Descriptive patent panels use the existing detailed patent cohort,
-filtered by publication date. Missing endpoint metadata cannot establish date eligibility
+reverse index, restricted to outcomes with known publication/start dates in the
+2013–2025 analysis window. Descriptive patent panels use the existing detailed patent cohort,
+filtered to the same publication window. Missing endpoint metadata cannot establish date eligibility
 and therefore cannot enter the reach numerator. The raw source inventories are preserved.
 
 **The four sources.** Nothing here re-derives anything the source notebooks derive; it
@@ -51,20 +51,15 @@ import pandas as pd
 from utils import shared_for as F
 from utils import shared_paths as P
 from utils import shared_rcdc as RCDC
-from utils.shared_analysis_window import ANALYSIS_END_YEAR, filter_analysis_window
+from utils.shared_analysis_window import ANALYSIS_START_YEAR, ANALYSIS_END_YEAR, filter_analysis_window
 from utils.data_analysis_04_non_academic_sources import filter_endpoint_links
 
 # =============================================================================
 # The analysis window
 # =============================================================================
-# Paper and outcome dates are capped at 31 December 2025 before aggregation.
-# Existing lower bounds are retained; trials beginning before 2014 use an opening bin.
-YEAR_MIN, YEAR_MAX = 2014, ANALYSIS_END_YEAR
+# Paper and outcome dates use the shared inclusive 2013–2025 analysis window.
+YEAR_MIN, YEAR_MAX = ANALYSIS_START_YEAR, ANALYSIS_END_YEAR
 YEARS = list(range(YEAR_MIN, YEAR_MAX + 1))
-
-#: Trials beginning in or before YEAR_MIN share an opening bin. The final bin
-#: contains only starts in the final analysis year; later starts are excluded.
-EARLY_TRIAL_BIN, LATE_TRIAL_BIN = YEAR_MIN, YEAR_MAX
 
 #: Evidence streams, in the order they are told. Keys match `stream_colors` in
 #: universal_settings.yml, so a panel asks the style for its colour by stream name.
@@ -549,7 +544,7 @@ def _linked_paper_ids(frame: pd.DataFrame, corpus_ids: set[str],
 def linked_papers(corpus: pd.DataFrame, stream: str, pull: pd.DataFrame) -> tuple[set, str]:
     """Papers linked to eligible outcomes, preferring the wider publication index.
 
-    ``load_corpus`` has already removed links to outcomes beyond the cutoff or with
+    ``load_corpus`` has already removed links to outcomes outside 2013–2025 or with
     unknown dates. Descriptive patent panels use the separate detailed pull. For
     narrow corpus exports without reverse linkage, the filtered artefact pull is
     the fallback. Return the linked paper IDs and their inventory provenance.
@@ -557,7 +552,7 @@ def linked_papers(corpus: pd.DataFrame, stream: str, pull: pd.DataFrame) -> tupl
     column = LINKED_ID_COLUMNS.get(stream)
     if column and column in corpus.columns:
         linked = corpus.loc[corpus[column].apply(lambda v: bool(_lst(v))), "id"]
-        return set(linked), "Dimensions publication index, outcomes through 2025"
+        return set(linked), "Dimensions publication index, outcomes in 2013–2025"
     return _linked_paper_ids(pull, set(corpus["id"])), "artefact pull"
 
 
@@ -596,13 +591,13 @@ def build_reach(corpus, patents, trials, policy, altmetric, collab) -> pd.DataFr
          len(linked_papers(corpus, "clinical_trials", trials)[0])),
         ("policy", "Cited by a policy document",
          len(linked_papers(corpus, "policy", policy)[0])),
-        ("altmetric", "≥1 news mention",
+        ("altmetric", "1+ news mentions",
          int((alt_by_paper["News mentions"] > 0).sum())),
-        ("altmetric", "≥1 Altmetric policy mention",
+        ("altmetric", "1+ Altmetric policy mentions",
          int((alt_by_paper["Policy mentions"] > 0).sum())),
-        ("collaboration", "≥1 non-academic collaborator",
+        ("collaboration", "1+ non-academic collaborators",
          int(non_acad_flag.sum())),
-        ("collaboration", "≥1 company collaborator",
+        ("collaboration", "1+ company collaborators",
          int(company_flag.sum())),
     ]
     reach = pd.DataFrame(rows, columns=["stream", "linkage", "papers"])
@@ -806,22 +801,14 @@ def build_trial_aggregates(trials: pd.DataFrame, corpus: pd.DataFrame) -> dict:
     """Everything the clinical-trial panels draw."""
     out = {}
 
-    # (a) Starts through 2025 only; preserve the historical opening bin.
+    # (a) Calendar years in the analysis window; earlier starts are excluded.
     trials = filter_analysis_window(trials, year_col="start_year", date_col="start_date")
     by_year = (trials.dropna(subset=["start_year"]).astype({"start_year": int})
                .groupby(["start_year", "study_type"]).size().unstack(fill_value=0)
-               .sort_index())
-    early, late = by_year.index <= EARLY_TRIAL_BIN, by_year.index >= LATE_TRIAL_BIN
-    binned = pd.concat([
-        by_year[early].sum().to_frame(f"\u2264{EARLY_TRIAL_BIN}").T,
-        by_year[~early & ~late].rename(index=str),
-        by_year[late].sum().to_frame(f"{LATE_TRIAL_BIN}").T,
-    ]).fillna(0).astype(int)
-    out["start_year_by_type"] = binned
+               .reindex(YEARS, fill_value=0).astype(int))
+    out["start_year_by_type"] = by_year.rename(index=str)
     out["start_year_bins"] = {
-        f"\u2264{EARLY_TRIAL_BIN}": int(by_year[early].to_numpy().sum()),
-        f"{LATE_TRIAL_BIN}": int(by_year[late].to_numpy().sum()),
-        "no start date": int(trials["start_year"].isna().sum()),
+        str(year): int(by_year.loc[year].sum()) for year in YEARS
     }
 
     # (b) lifecycle stage. The registry's nine `overall_status` values folded into five
@@ -1089,7 +1076,7 @@ def build_collaboration_aggregates(collab: pd.DataFrame) -> dict:
     out["flag_totals"] = pd.Series({s: int(flags[s].sum()) for s in SECTOR_ORDER})
 
     # (b) share of that year's papers carrying each non-academic sector. A share, because
-    # the corpus grows from 26 papers in 2014 to 5,747 in 2025 and a count panel would
+    # the corpus grows substantially across the analysis window and a count panel would
     # only redraw that growth curve six times.
     year = collab.dropna(subset=["year"]).astype({"year": int})
     year = year[(year["year"] >= YEAR_MIN) & (year["year"] <= YEAR_MAX)]
@@ -1229,7 +1216,8 @@ from matplotlib.ticker import FuncFormatter, MaxNLocator               # noqa: E
 from contextlib import contextmanager                                  # noqa: E402
 
 from utils.shared_style import (                                       # noqa: E402
-    grid_on, palette, panel_label, savefig, semantic_colors, warm_cold_colormap,
+    apply_typography, finalize_figure, grid_on, palette, panel_label, savefig,
+    semantic_colors, warm_cold_colormap,
 )
 
 
@@ -1570,7 +1558,7 @@ def draw_patent_topic_count(ax, D):
     ax.hist(values, bins=bins, color=_stream_colors()["patents"],
             edgecolor=st.get("edgecolor", "black"), linewidth=0.6)
     _ref_lines(ax, values, fmt="{:.2f}")
-    ax.set_xlabel("Research divisions per patent (patents carrying ≥1)")
+    ax.set_xlabel("Research divisions per patent (at least 1)")
     ax.set_ylabel("Patents")
     ax.xaxis.set_major_locator(MaxNLocator(integer=True))
     grid_on(ax, axis="y")
@@ -1711,7 +1699,7 @@ def _trial_type_colors() -> dict:
 
 
 def draw_trials_by_year(ax, D):
-    """Trials beginning by the analysis cutoff, grouped by study type."""
+    """Trials beginning in 2013–2025, grouped by study type."""
     frame = D["trials"]["start_year_by_type"]
     colors = _trial_type_colors()
     order = [c for c in ["Interventional", "Observational"] if c in frame.columns]
@@ -1867,7 +1855,7 @@ def draw_trial_bodymap(ax, D):
     n_trials = len(D["trials"]["papers_per_trial"])
     ax.text(0.5, -0.01,
             f"{D['trials']['icd_mapped_trials']} of {n_trials} trials mapped to "
-            f"\u22651 chapter\ndot area is proportional to the trial count",
+            f"1+ chapters\ndot area is proportional to the trial count",
             transform=ax.transAxes, fontsize=st["annot_fs"] - 1, va="top", ha="center",
             color="#666666")
     return ax
@@ -2204,14 +2192,14 @@ def draw_altmetric_mentions_by_year(ax, D):
 def draw_altmetric_coverage(ax, D):
     """The share of each year's papers picking up any news / any policy mention.
 
-    A rate rather than a total: the corpus grows from 26 papers in 2014 to 5,747 in 2025,
+    A rate rather than a total: the corpus grows substantially across the analysis window,
     so a count panel would only redraw that growth curve twice.
     """
     frame = D["altmetric"]["coverage_by_year"][["pct_news", "pct_policy"]]
     colors = {"pct_news": palette(ATTENTION_PRIMARY),
               "pct_policy": palette(ATTENTION_SECONDARY)}
     _lines(ax, frame, colors, "Publication year", "% of that year's publications",
-           labels={"pct_news": "≥1 news mention", "pct_policy": "≥1 policy mention"},
+           labels={"pct_news": "1+ news mentions", "pct_policy": "1+ policy mentions"},
            legend_loc="upper right")
     _year_axis(ax)
     return ax
@@ -2230,7 +2218,7 @@ def draw_altmetric_vs_citations(ax, D):
     ax.set_xlabel("Times cited (log)")
     ax.set_ylabel("Altmetric Attention Score (log)")
     rho = scatter[["times_cited", "Altmetric Attention Score"]].corr(method="spearman").iat[0, 1]
-    ax.text(0.03, 0.97, f"{len(scatter):,} publications\nSpearman ρ = {rho:.2f}",
+    ax.text(0.03, 0.97, f"{len(scatter):,} publications\nSpearman rho = {rho:.2f}",
             transform=ax.transAxes, va="top", ha="left", fontsize=st["annot_fs"],
             bbox=dict(boxstyle="round,pad=0.35", fc="white", ec="black", lw=0.8))
     grid_on(ax)
@@ -2419,8 +2407,8 @@ def draw_collab_citations(ax, D):
                 va="center", ha="left", fontsize=st["annot_fs"])
     ax.set_xticks(range(1, len(order) + 1))
     ax.set_xticklabels([_wrap(o, 14) for o in order])
-    ax.set_ylabel("Times cited (log₁₀)")
-    ax.set_xlabel("Collaboration type (publications with ≥1 citation)")
+    ax.set_ylabel("Times cited (log10)")
+    ax.set_xlabel("Collaboration type (cited publications)")
     grid_on(ax, axis="y")
     return ax
 
@@ -2437,18 +2425,17 @@ MAIN_CAPTION = {
     "A": "UK Biobank publications carrying each non-academic linkage, accumulated over "
          "time and dated by the publication's own year (log scale). Patent, trial and "
          "policy linkage uses Dimensions' publication index, restricted to outcomes "
-         "with publication/start dates through 31 December 2025.",
+         "with publication/start dates from 1 January 2013 to 31 December 2025.",
     "B": "Legal status of the patents citing UK Biobank research, by patent publication "
          "year; the number above each bar is that year's total. Patent metadata comes "
-         "from the detailed pull, restricted to publication dates through 2025; panel "
+         "from the detailed pull, restricted to publication dates in 2013–2025; panel "
          "A counts linked publications using the wider endpoint inventory.",
     "C": "Clinical trials citing UK Biobank research, by trial start year and study "
-         "type, for starts through 2025. Trials starting in or before 2014 share "
-         "the opening bin; the final bin contains only 2025 starts.",
+         "type, for starts in 2013–2025 inclusive. Each calendar year is shown separately.",
     "D": "Share of each year's publications with at least one collaborator in each "
          "non-academic sector.",
     "E": "Altmetric Attention Score against substantive (news + policy) mentions, for "
-         "publications through 2025 with at least one of each. Counts are source "
+         "publications in 2013–2025 with at least one of each. Counts are source "
          "snapshot totals; the two most-mentioned publications are named.",
     "F": "Overlap between the collaborator sectors, row-normalised: of the publications "
          "carrying a collaborator in the row's sector, the percentage also carrying one "
@@ -2501,7 +2488,7 @@ SI_CAPTIONS = {
              "sector.",
         "D": "Publications with a company collaborator, UK against non-UK.",
         "E": "The company collaborators themselves.",
-        "F": "Company-collaboration rate by research division (divisions with ≥100 "
+        "F": "Company-collaboration rate by research division (divisions with 100+ "
              "publications).",
     },
 }
@@ -2524,8 +2511,10 @@ def _grid_kw(height_ratios=None, width_ratios=None) -> dict:
 
 def _panel_grid(nrows, ncols, figsize, *, hspace=0.42, wspace=0.26,
                 height_ratios=None, width_ratios=None):
+    apply_typography()
     fig, axes = plt.subplots(nrows, ncols, figsize=figsize,
                              gridspec_kw=_grid_kw(height_ratios, width_ratios) or None)
+    finalize_figure(fig)
     fig.subplots_adjust(hspace=hspace, wspace=wspace)
     return fig, np.atleast_1d(axes).ravel()
 
@@ -2547,6 +2536,7 @@ def _assemble(spec, nrows, ncols, figsize, D, name, save=True, slots=None,
     `slots`, and both are lists as long as the grid's rows / columns — NOT as long as
     `spec`, which is a different number as soon as a panel spans a cell.
     """
+    apply_typography()
     letters = "ABCDEFGHIJKL"
     if slots is None:
         fig, axes = _panel_grid(nrows, ncols, figsize, hspace=hspace, wspace=wspace,
@@ -2566,6 +2556,7 @@ def _assemble(spec, nrows, ncols, figsize, D, name, save=True, slots=None,
         draw(ax, D)
         if label_panels:                # a one-panel figure has nothing to letter
             panel_label(ax, letter)
+    finalize_figure(fig)
     if save:
         savefig(fig, name)
     return fig

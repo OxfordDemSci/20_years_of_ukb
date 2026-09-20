@@ -16,13 +16,14 @@ from matplotlib.lines import Line2D
 from matplotlib.patches import Rectangle
 from scipy import sparse as sp
 from scipy.sparse.csgraph import breadth_first_tree
+from scipy.stats import gaussian_kde
 
 from . import data_analysis_05_author_characteristics as A
 from . import shared_name_gender as NG
 from . import shared_paths as P
 from .shared_style import (
-    academic_impact_colormap,
     black_legend,
+    blue_cream_red_colormap,
     compact_count,
     extended_palette,
     gridspec_figure,
@@ -37,6 +38,7 @@ from .shared_style import (
     save_figure,
     semantic_colors,
     sequential_colormap,
+    set_title,
     style_axis,
     style_colorbar,
     summary_box,
@@ -63,7 +65,7 @@ def _year_periods(n_periods=4):
     the papers behind them cannot drift apart when the window moves.
 
     Returns `(bins, labels)` ready for `pd.cut`: bins are right-closed edges starting one
-    year below the first year, labels read "2014-16".
+    year below the first year, with labels derived from the shared analysis window.
     """
     chunks = np.array_split(
         np.arange(A.FIRST_YEAR, A.LAST_COMPLETE_YEAR + 1), n_periods
@@ -188,7 +190,7 @@ def _draw_author_impact_portfolio(ax, impact: A.HeadlineImpactTables, style):
     y_high = float(positive.quantile(0.98))
     data["impact_plot"] = data["mean_impact_metric"].clip(y_low, y_high)
 
-    cmap = academic_impact_colormap()
+    cmap = blue_cream_red_colormap()
     scatter = ax.scatter(
         data["showcase_paper_count"],
         data["impact_plot"],
@@ -342,7 +344,7 @@ def _draw_author_impact_portfolio(ax, impact: A.HeadlineImpactTables, style):
 def _draw_venue_impact(ax, impact: A.HeadlineImpactTables, style):
     """Draw the citation-stock ranking of eligible publication venues."""
     data = impact.venue_plot.copy()
-    cmap = academic_impact_colormap()
+    cmap = blue_cream_red_colormap()
     normalizer = Normalize(data["papers"].min(), data["papers"].max())
     bars = ax.barh(
         np.arange(len(data)),
@@ -370,11 +372,10 @@ def _draw_venue_impact(ax, impact: A.HeadlineImpactTables, style):
             color="black",
         )
     ax.set_xlabel("Total citations")
-    ax.set_title(
+    set_title(
+        ax,
         "Leading publication venues by citation impact",
-        loc="left",
         fontsize=style["label_fs"],
-        fontweight="bold",
         pad=10,
     )
     ax.xaxis.set_major_formatter(
@@ -536,6 +537,7 @@ def plot_headline_figure(
         colorbar_label="Fractional publication credit",
         scale="linear",
         colorbar_orientation="vertical",
+        cmap=plt.get_cmap("Blues"),
     )
 
     # F: institutional concentration over time.
@@ -602,13 +604,15 @@ def plot_headline_figure(
         fig,
         "05_01_figure_01_author_characteristics",
         style,
-        formats=["pdf", "png", "svg"],
+        formats=["pdf", "png"],
     )
 
 
 def plot_author_metrics_supplement(core: A.CoreTables, style):
     metrics = core.author_metrics.copy()
     colors = semantic_colors("author_metric_colors", style)
+    # Major ticks keep the logarithmic grids readable without dense minor lines.
+    metrics_grid = {"linestyle": "--", "log": True, "which": "major"}
     fig, axes = panel_grid(
         2,
         2,
@@ -616,7 +620,7 @@ def plot_author_metrics_supplement(core: A.CoreTables, style):
         adjust={
             "left": 0.08,
             "right": 0.98,
-            "bottom": 0.10,
+            "bottom": 0.16,
             "top": 0.95,
             "wspace": 0.32,
             "hspace": 0.38,
@@ -639,7 +643,7 @@ def plot_author_metrics_supplement(core: A.CoreTables, style):
     ax.yaxis.set_major_formatter(
         mticker.FuncFormatter(lambda value, _: f"{value:g}%")
     )
-    style_axis(ax, style)
+    style_axis(ax, style, grid_axis="both", grid_kws=metrics_grid)
     paper_quartiles = metrics["n_ukb_papers"].quantile([0.25, 0.5, 0.75])
     summary_box(
         ax,
@@ -661,15 +665,34 @@ def plot_author_metrics_supplement(core: A.CoreTables, style):
     ax = axes[0, 1]
     max_h = int(metrics["ukb_h_index"].quantile(0.995))
     bins = np.arange(-0.5, max_h + 1.5, 1)
+    shown_h = metrics.loc[metrics["ukb_h_index"].le(max_h), "ukb_h_index"].dropna()
     ax.hist(
-        metrics.loc[metrics["ukb_h_index"].le(max_h), "ukb_h_index"],
+        shown_h,
         bins=bins,
         color=colors["h_index"],
         edgecolor="black",
         linewidth=0.55,
+        label="Histogram",
     )
+    if shown_h.nunique() > 1:
+        kde = gaussian_kde(shown_h)
+        # Smooth discrete h-index values over at least 0.6 units. Reflect at the
+        # displayed bin edges to retain mass, then convert density to author counts.
+        kde.set_bandwidth(max(kde.factor, 0.6 / shown_h.std(ddof=1)))
+        kde_x = np.linspace(bins[0], bins[-1], 512)
+        kde_density = kde(kde_x) + kde(2 * bins[0] - kde_x) + kde(2 * bins[-1] - kde_x)
+        ax.plot(
+            kde_x,
+            kde_density * len(shown_h) * (bins[1] - bins[0]),
+            color=colors["h_index_kde"],
+            linewidth=2.5,
+            label="KDE",
+            zorder=3,
+        )
     ax.set(xlabel="UK Biobank h-index", ylabel="Resolved authors")
-    style_axis(ax, style)
+    ax.yaxis.set_major_locator(mticker.MaxNLocator(nbins=5, integer=True))
+    style_axis(ax, style, grid_axis="both", grid_kws=metrics_grid)
+    black_legend(ax, style, loc="upper right", bbox_to_anchor=(0.98, 0.63))
     h_quartiles = metrics["ukb_h_index"].quantile([0.25, 0.5, 0.75])
     shown_share = 100 * metrics["ukb_h_index"].le(max_h).mean()
     summary_box(
@@ -697,7 +720,7 @@ def plot_author_metrics_supplement(core: A.CoreTables, style):
         facecolor=colors["association"],
         edgecolor="black",
         linewidth=0.25,
-        alpha=0.24,
+        alpha=0.55,
         rasterized=True,
     )
     association = metrics[["n_ukb_papers", "ukb_h_index"]].corr(
@@ -717,7 +740,8 @@ def plot_author_metrics_supplement(core: A.CoreTables, style):
     )
     ax.set_xscale("log")
     ax.set(xlabel="UK Biobank publications", ylabel="UK Biobank h-index")
-    style_axis(ax, style)
+    ax.yaxis.set_major_locator(mticker.MaxNLocator(nbins=5, integer=True))
+    style_axis(ax, style, grid_axis="both", grid_kws=metrics_grid)
 
     ax = axes[1, 1]
     leaders = metrics.nlargest(
@@ -728,27 +752,24 @@ def plot_author_metrics_supplement(core: A.CoreTables, style):
     )
     labels = [_short_label(value, 26) for value in leaders["full_name"]]
     h_values = leaders["ukb_h_index"].to_numpy(dtype=float)
-    h_span = np.ptp(h_values)
-    blue_positions = (
-        0.38 + 0.62 * (h_values - h_values.min()) / h_span
-        if h_span > 0
-        else np.ones_like(h_values)
+    h_min, h_max = float(h_values.min()), float(h_values.max())
+    h_norm = Normalize(
+        vmin=h_min if h_min < h_max else h_min - 0.5,
+        vmax=h_max if h_min < h_max else h_max + 0.5,
     )
-    blue_scale = sequential_colormap(colors["leaders"])
+    h_cmap = blue_cream_red_colormap()
     bars = ax.barh(
         labels,
         leaders["ukb_h_index"],
-        color=blue_scale(blue_positions),
+        color=h_cmap(h_norm(h_values)),
         edgecolor="black",
         linewidth=0.6,
     )
     ax.set_xlabel("UK Biobank h-index")
     x_max = max(120, 1.55 * leaders["ukb_h_index"].max())
-    annotation_start = leaders["ukb_h_index"].max() + 2
     ax.set_xlim(0, x_max)
     ax.xaxis.set_major_locator(mticker.MultipleLocator(20))
-    style_axis(ax, style, grid_axis="x")
-    mask_grid_region(ax, annotation_start, x_max)
+    style_axis(ax, style, grid=False)
     ax.bar_label(
         bars,
         labels=[
@@ -763,6 +784,16 @@ def plot_author_metrics_supplement(core: A.CoreTables, style):
         fontsize=style["annot_fs"] - 1,
         zorder=3,
     )
+    colorbar_ax = ax.inset_axes([0.16, -0.32, 0.68, 0.045])
+    colorbar = fig.colorbar(
+        plt.cm.ScalarMappable(norm=h_norm, cmap=h_cmap),
+        cax=colorbar_ax,
+        orientation="horizontal",
+    )
+    colorbar.set_ticks(np.unique([h_min, (h_min + h_max) / 2, h_max]))
+    style_colorbar(colorbar, "UK Biobank h-index")
+    for ax in axes.flat:
+        ax.grid(False, which="minor", axis="both")
     label_panels(axes, "ABCD", style)
     return save_figure(
         fig,
@@ -927,8 +958,9 @@ def _draw_country_map(
     scale="log",
     colorbar_orientation="horizontal",
     norm=None,
+    cmap=None,
 ):
-    cmap = _map_colormap(style)
+    cmap = _map_colormap(style) if cmap is None else cmap
     merged = world.merge(country_values[["iso3", value_col]], on="iso3", how="left")
     positive = merged[value_col].dropna()
     positive = positive[positive > 0]
@@ -946,9 +978,7 @@ def _draw_country_map(
         column=value_col,
         cmap=cmap,
         norm=norm,
-        # Hatched, not merely pale: the ramp now runs white-to-navy, so a flat light
-        # grey for "no record" would sit right next to the lowest measured value. The
-        # hatch says absence in a way no point on the scale can.
+        # Hatching distinguishes missing records from the lowest measured value.
         missing_kwds={"color": "#EFEFEF", "edgecolor": "black", "hatch": "///"},
         edgecolor="black",
         linewidth=0.38,
@@ -1505,8 +1535,17 @@ def plot_institution_supplement(core: A.CoreTables, style):
         y=0.94,
     )
     ax_c.set_xscale("log")
+    # Plain log labels avoid a mathtext minus glyph absent from Helvetica.
+    ax_c.xaxis.set_major_formatter(mticker.LogFormatter(base=10, labelOnlyBase=True))
     ax_c.set(xlabel="Fractional publication credit", ylabel="Institutional UKB h-index")
     style_axis(ax_c, style)
+
+    # Match the network supplement, including vertical grids on C's log axis.
+    for ax in (ax_a, ax_b, ax_c):
+        style_axis(
+            ax, style, grid_axis="both",
+            grid_kws={"linestyle": "--", "log": True},
+        )
 
     label_panels([ax_a, ax_b, ax_c], "ABC", style)
     return save_figure(
@@ -1806,11 +1845,13 @@ def _draw_component_network(ax, network, style, *, compact=False, meta_ax=None):
         meta_ax.text(
             0.0,
             0.20,
-            "Authors by component class",
+            "AUTHORS BY COMPONENT CLASS",
             transform=meta_ax.transAxes,
             ha="left",
             va="bottom",
             fontsize=style["annot_fs"] - 1,
+            fontfamily="Helvetica",
+            fontweight="bold",
         )
         left = 0.0
         for key in ["isolate", "small", "intermediate", "giant"]:
@@ -2133,6 +2174,13 @@ def plot_network_supplement(core: A.CoreTables, network: A.NetworkTables, style)
     ax_f.xaxis.set_major_formatter(mticker.PercentFormatter(100))
     style_axis(ax_f, style, grid_axis="x")
     black_legend(ax_f, style, loc="lower left")
+
+    # Use the same dashed grid in both directions, including the log axes in C and E.
+    for ax in (ax_a, ax_b, ax_c, ax_d, ax_e, ax_f):
+        style_axis(
+            ax, style, grid_axis="both",
+            grid_kws={"linestyle": "--", "log": True},
+        )
 
     panel_label(ax_a, "A", style, x=-0.03)
     for ax, label in zip([ax_b, ax_c, ax_d, ax_e, ax_f], "BCDEF"):

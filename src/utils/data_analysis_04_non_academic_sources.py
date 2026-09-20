@@ -33,7 +33,7 @@ def filter_endpoint_links(corpus: pd.DataFrame, *, wide: pd.DataFrame | None = N
     """Limit reverse links to entities dated within the analysis window.
 
     Publication dates and outcome dates are separate: an eligible paper can cite
-    or be cited by an outcome beyond the cutoff. Only links with dated endpoint
+    or be cited by an outcome outside the analysis window. Only links with dated endpoint
     metadata qualify. The source snapshot and its metadata arrays are unchanged.
     """
     result = corpus.copy()

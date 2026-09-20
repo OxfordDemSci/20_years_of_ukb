@@ -1,4 +1,4 @@
-"""Future outcomes and cached rows must not leak into pre-2026 analyses."""
+"""Outcomes and cached rows must stay inside the inclusive 2013–2025 window."""
 
 import json
 from pathlib import Path
@@ -13,10 +13,19 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 from utils import shared_paths as P
 from utils import data_analysis_04_non_academic_panels as panels
 from utils import data_analysis_04_non_academic_collab_classifier as classifier
+from utils import data_analysis_04_non_academic_collab_helpers as collaboration
 from utils.data_analysis_04_non_academic_sources import filter_endpoint_links
 
 
 class NonAcademicCutoffTests(unittest.TestCase):
+    def test_default_collaboration_metrics_include_2013(self):
+        frame = pd.DataFrame({"year": [2012, 2013, 2025, 2026],
+                              "non_academic_flag": [1, 1, 1, 1]})
+        result = collaboration.build_yearly_metrics_table(frame).set_index("year")
+        self.assertEqual(result.index.tolist(), list(range(2013, 2026)))
+        self.assertEqual(result.loc[2013, "papers_total"], 1)
+        self.assertEqual(result.papers_total.sum(), 2)
+
     def test_reverse_links_use_endpoint_ids_and_both_date_and_year(self):
         corpus = pd.DataFrame({
             "id": ["paper"],
@@ -54,14 +63,37 @@ class NonAcademicCutoffTests(unittest.TestCase):
     def test_trial_loader_excludes_future_starts_without_changing_source(self):
         with tempfile.TemporaryDirectory() as tmp:
             path = Path(tmp) / "trials.csv"
-            pd.DataFrame({"id": ["old", "new", "unknown"],
-                          "start_date": ["2025-12-31", "2026-01-01", None],
-                          "study_type": ["Interventional"] * 3}).to_csv(path, index=False)
+            pd.DataFrame({"id": ["old", "new", "unknown", "first", "before"],
+                          "start_date": ["2025-12-31", "2026-01-01", None,
+                                         "2013-01-01", "2012-12-31"],
+                          "study_type": ["Interventional"] * 5}).to_csv(path, index=False)
             original = path.read_bytes()
             with patch.object(P, "CT_CSV", path):
                 result = panels.load_trials()
-            self.assertEqual(result.id.tolist(), ["old"])
+            self.assertEqual(result.id.tolist(), ["old", "first"])
             self.assertEqual(path.read_bytes(), original)
+
+    def test_reverse_links_exclude_pre2013_outcomes_and_keep_first_day(self):
+        corpus = pd.DataFrame({
+            "patents__linked_ids": ['["first", "before", "conflict"]'],
+            "clinical_trials__linked_ids": ['["first", "before"]'],
+            "policy_documents__linked_ids": ['["first", "before"]'],
+        })
+        wide = pd.DataFrame({
+            "patents__n_records": [3],
+            "patents__id": ['["first", "before", "conflict"]'],
+            "patents__publication_year": ['[2013, 2012, 2013]'],
+            "patents__publication_date": ['["2013-01-01", "2012-12-31", "2012-12-31"]'],
+            "clinical_trials__n_records": [2],
+            "clinical_trials__id": ['["first", "before"]'],
+            "clinical_trials__start_date": ['["2013-01-01", "2012-12-31"]'],
+            "policy_documents__n_records": [2],
+            "policy_documents__id": ['["first", "before"]'],
+            "policy_documents__year": ['[2013, 2012]'],
+        })
+        result = filter_endpoint_links(corpus, wide=wide)
+        for column in corpus:
+            self.assertEqual(result.loc[0, column], ["first"])
 
     def test_patent_loader_uses_publication_date_not_earlier_priority_date(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -94,14 +126,15 @@ class NonAcademicCutoffTests(unittest.TestCase):
     def test_existing_classifier_cache_is_filtered_in_memory(self):
         with tempfile.TemporaryDirectory() as tmp:
             path = Path(tmp) / "classified.csv"
-            df = pd.DataFrame({"id": ["old", "new"], "year": [2025, 2026]})
+            df = pd.DataFrame({"id": ["old", "new", "first", "before"],
+                               "year": [2025, 2026, 2013, 2012]})
             df.to_csv(path, index=False)
             original = path.read_bytes()
             with patch.object(classifier, "classify_institution_lists",
                               side_effect=AssertionError("API must not run")):
                 result, ran = classifier.load_or_classify(df, out_path=path)
             self.assertFalse(ran)
-            self.assertEqual(result.id.tolist(), ["old"])
+            self.assertEqual(result.id.tolist(), ["old", "first"])
             self.assertEqual(path.read_bytes(), original)
 
 

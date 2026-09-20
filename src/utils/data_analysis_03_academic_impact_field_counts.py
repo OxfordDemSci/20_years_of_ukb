@@ -178,9 +178,9 @@ import pyarrow as pa
 import pyarrow.parquet as pq
 
 if __package__:
-    from .shared_analysis_window import ANALYSIS_END_YEAR, filter_analysis_window
+    from .shared_analysis_window import ANALYSIS_START_YEAR, ANALYSIS_END_YEAR, filter_analysis_window
 else:
-    from shared_analysis_window import ANALYSIS_END_YEAR, filter_analysis_window
+    from shared_analysis_window import ANALYSIS_START_YEAR, ANALYSIS_END_YEAR, filter_analysis_window
 
 ID_COL, YEAR_COL, TYPE_COL = "id", "year", "type"
 MISSING_YEAR = -1
@@ -618,7 +618,7 @@ class Tally:
         cannot be resolved until we know which category we are counting into — that
         resolution happens inside the code loop below.
         """
-        if not 1 <= year <= ANALYSIS_END_YEAR:
+        if not ANALYSIS_START_YEAR <= year <= ANALYSIS_END_YEAR:
             return
         t = self.totals[(year, typ)]
         t[0] += 1
@@ -1026,7 +1026,7 @@ def cmd_citdist(args: argparse.Namespace) -> None:
                             y = int(year)
                         except (TypeError, ValueError):
                             y = MISSING_YEAR
-                        if not 1 <= y <= ANALYSIS_END_YEAR:
+                        if not ANALYSIS_START_YEAR <= y <= ANALYSIS_END_YEAR:
                             continue
                         t = typ or MISSING_TYPE
                         c = int(cit)

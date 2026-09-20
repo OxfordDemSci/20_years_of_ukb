@@ -2,6 +2,7 @@
 # Use this code to replace the existing IPC dendrogram plot in patents_analysis.ipynb
 # This version automatically adapts to showing 3 or 4 levels based on available data
 
+from utils.shared_style import apply_typography, finalize_figure
 from pathlib import Path
 
 import matplotlib.pyplot as plt
@@ -143,6 +144,7 @@ if not hier_df_ipc.empty and hier_df_ipc['section_code'].notna().any():
         
         # Create figure
         fig_width = 20 if use_4_levels else 16
+        apply_typography()
         fig, ax = plt.subplots(figsize=(fig_width, 20))
         
         # Color scheme
@@ -349,7 +351,9 @@ if not hier_df_ipc.empty and hier_df_ipc['section_code'].notna().any():
         if use_4_levels:
             ax.text(x_maingroup, -0.5, "Main Group", ha="center", va="top", fontsize=10, style="italic", fontweight="bold")
         
+        finalize_figure(plt.gcf())
         plt.tight_layout()
+        finalize_figure(plt.gcf())
         plt.show()
     else:
         print("No IPC data with sufficient hierarchy levels available.")

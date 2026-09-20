@@ -107,9 +107,9 @@ from pathlib import Path
 from typing import Dict, Iterable, List, Optional, Sequence, Tuple
 
 if __package__:
-    from .shared_analysis_window import ANALYSIS_END_YEAR, filter_analysis_window
+    from .shared_analysis_window import ANALYSIS_START_YEAR, ANALYSIS_END_YEAR, filter_analysis_window
 else:
-    from shared_analysis_window import ANALYSIS_END_YEAR, filter_analysis_window
+    from shared_analysis_window import ANALYSIS_START_YEAR, ANALYSIS_END_YEAR, filter_analysis_window
 
 # The FOR code list shipped with the repo: level, id, code, name, publication_count.
 # The API facets by entity id ("80003"), the corpus and the analysis key on the numeric
@@ -369,6 +369,7 @@ def records_to_counts(records: Iterable[dict], codes, category: str, arm: str,
 
     records = list(records)
     eligible = filter_analysis_window(pd.DataFrame(records)).index if records else []
+    year_min = max(year_min, ANALYSIS_START_YEAR)
     year_max = min(year_max, ANALYSIS_END_YEAR)
     n_kept, n_out_of_range = 0, len(records) - len(eligible)
     for index in eligible:
@@ -1461,7 +1462,7 @@ def main() -> None:
 
     sp = sub.add_parser("counts", help="year x field counts -> partials in the VM schema")
     common(sp)
-    sp.add_argument("--year-min", type=int, default=2004)
+    sp.add_argument("--year-min", type=int, default=ANALYSIS_START_YEAR)
     sp.add_argument("--year-max", type=int, default=DEFAULT_YEAR_MAX)
     sp.add_argument("--out", default="data/analysis/academic_impact/for_counts_api")
     sp.add_argument("--ukbb-counts",
@@ -1475,7 +1476,7 @@ def main() -> None:
                     help="print the queries and exit; needs no key")
 
     def window(sp):
-        sp.add_argument("--year-min", type=int, default=2004)
+        sp.add_argument("--year-min", type=int, default=ANALYSIS_START_YEAR)
         sp.add_argument("--year-max", type=int, default=DEFAULT_YEAR_MAX)
         sp.add_argument("--out", default="data/analysis/academic_impact/for_counts_api")
 
@@ -1567,6 +1568,8 @@ def main() -> None:
                     default="data/analysis/academic_impact/for_counts_out")
 
     args = p.parse_args()
+    if hasattr(args, "year_min"):
+        args.year_min = max(args.year_min, ANALYSIS_START_YEAR)
     if hasattr(args, "year_max"):
         args.year_max = min(args.year_max, ANALYSIS_END_YEAR)
     {"check": cmd_check, "codes": cmd_codes, "counts": cmd_counts,

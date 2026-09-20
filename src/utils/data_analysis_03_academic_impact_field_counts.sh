@@ -24,6 +24,8 @@
 # dominated by id/year/type, and a second category column adds a few hundred KB per
 # file — so listing them together is cheaper than two separate submissions, which
 # would also recompute the (category-independent) citation thresholds twice.
+# The Python count and reference jobs enforce the shared 2013–2025 study window
+# before aggregation; input corpus files and citation snapshot values are unchanged.
 #
 # CITATION WEIGHTING AND WHY BOTH ARMS RUN HERE
 # ---------------------------------------------

@@ -298,9 +298,18 @@ def make_text_for_analysis(df):
 
 def savefig(fig_dir, name, dpi=220):
     import matplotlib.pyplot as plt
+    import sys
+    from pathlib import Path
+    src_dir = str(Path(__file__).resolve().parents[2])
+    if src_dir not in sys.path:
+        sys.path.insert(0, src_dir)
+    from utils.shared_style import PNG_DPI, figure_export_formats, finalize_figure
     os.makedirs(fig_dir, exist_ok=True)
     path = os.path.join(fig_dir, name)
-    plt.savefig(path, dpi=dpi, bbox_inches="tight")
+    finalize_figure(plt.gcf())
+    output_format = figure_export_formats([Path(path).suffix or plt.rcParams["savefig.format"]])[0]
+    path = str(Path(path).with_suffix(f".{output_format}"))
+    plt.savefig(path, dpi=PNG_DPI if output_format == "png" else dpi, bbox_inches="tight")
     plt.close()
     return path
 

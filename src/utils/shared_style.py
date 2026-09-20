@@ -26,8 +26,11 @@ Notebooks that still build a ``STYLE`` dict by hand keep working: register it wi
 from __future__ import annotations
 
 from pathlib import Path
+import re
 
 import matplotlib.pyplot as plt
+from matplotlib.axes import Axes
+from matplotlib.text import Text
 import seaborn as sns
 
 # utils/ -> src/ -> repo root. Kept local rather than imported from shared_paths so this
@@ -36,6 +39,8 @@ ROOT = Path(__file__).resolve().parents[2]
 SETTINGS_FILE = ROOT / "universal_settings.yml"
 DEFAULT_MARKER_SIZE = 8.5
 DEFAULT_DOT_MARKER_AREA = 76.0
+PNG_DPI = 800
+FONT_FAMILY = "Helvetica"
 
 # The style most recently registered by a notebook via use_style(); used whenever a
 # helper is called without an explicit `style=` argument (the common case).
@@ -122,12 +127,97 @@ def marker_area(style=None, *, scale=1.0):
     return float(base) * float(scale)
 
 
-def apply_style(style=None):
-    """Push the shared style into matplotlib rcParams (call once / after edits).
+def apply_typography():
+    """Apply the project font and title defaults without changing sizes or colours."""
+    plt.rcParams.update({
+        "font.family": FONT_FAMILY,
+        "font.sans-serif": [FONT_FAMILY],
+        "axes.titleweight": "bold",
+        "axes.titlelocation": "left",
+        # The installed Helvetica faces use the standard hyphen for negative ticks.
+        "axes.unicode_minus": False,
+        "figure.titleweight": "bold",
+        "mathtext.fontset": "custom",
+        "mathtext.rm": FONT_FAMILY,
+        "mathtext.it": f"{FONT_FAMILY}:italic",
+        "mathtext.bf": f"{FONT_FAMILY}:bold",
+        "mathtext.bfit": f"{FONT_FAMILY}:bold:italic",
+        "mathtext.sf": FONT_FAMILY,
+        "mathtext.tt": FONT_FAMILY,
+        "mathtext.cal": FONT_FAMILY,
+    })
 
-    Body is verbatim from the notebooks (identical across 01/04/05)."""
+
+def uppercase_title(label):
+    """Uppercase title prose, preserving case-sensitive mathematical notation."""
+    parts = re.split(r"(\$.*?\$)", str(label), flags=re.DOTALL)
+    return "".join(part if i % 2 else part.upper() for i, part in enumerate(parts))
+
+
+def _title_kwargs(kwargs):
+    # Remove aliases so an older font/alignment argument cannot defeat the policy.
+    for key in ("family", "fontname", "weight", "horizontalalignment", "position"):
+        kwargs.pop(key, None)
+    kwargs.update(fontfamily=FONT_FAMILY, fontweight="bold", ha="left")
+    return kwargs
+
+
+def set_title(ax, label, fontdict=None, **kwargs):
+    """Set an uppercase, bold, left-aligned Helvetica axes title."""
+    apply_typography()
+    kwargs = _title_kwargs(kwargs)
+    kwargs.update(loc="left", x=0.0)
+    return ax.set_title(uppercase_title(label), fontdict=fontdict, **kwargs)
+
+
+def set_figure_title(fig, label, **kwargs):
+    """Set an uppercase, bold, left-aligned Helvetica figure title."""
+    apply_typography()
+    kwargs = _title_kwargs(kwargs)
+    kwargs.pop("loc", None)  # Figure.suptitle uses x/ha rather than loc.
+    kwargs["x"] = 0.01
+    return fig.suptitle(uppercase_title(label), **kwargs)
+
+
+def finalize_figure(fig):
+    """Enforce typography on existing artists before layout, display or export.
+
+    Third-party plotters can create text with their own font properties. Native axes
+    titles (including inset axes) and figure titles also receive the title policy;
+    axis labels, legends and data annotations keep their wording and weights.
+    """
+    apply_typography()
+    for ax in fig.findobj(match=Axes):
+        titles = [title for title in (ax._left_title, ax.title, ax._right_title)
+                  if title.get_text()]
+        if not titles:
+            continue
+        base = titles[0]
+        labels = list(dict.fromkeys(title.get_text() for title in titles))
+        properties = {"fontsize": base.get_fontsize(), "color": base.get_color()}
+        if not ax._autotitlepos:
+            properties["y"] = base.get_position()[1]
+        ax.title.set_text("")
+        ax._right_title.set_text("")
+        set_title(ax, "\n".join(labels), **properties)
+    for container in [fig, *fig.findobj(match=lambda artist: hasattr(artist, "_suptitle"))]:
+        title = getattr(container, "_suptitle", None)
+        if title is not None and title.get_text():
+            title.set_text(uppercase_title(title.get_text()))
+            title.set_fontweight("bold")
+            title.set_ha("left")
+            title.set_x(0.01)
+    for artist in fig.findobj(match=Text):
+        properties = artist.get_fontproperties().copy()
+        properties.set_file(None)
+        properties.set_family(FONT_FAMILY)
+        artist.set_fontproperties(properties)
+    return fig
+
+
+def apply_style(style=None):
+    """Apply shared figure settings and the project-wide typography policy."""
     style = _resolve(style)
-    font_family = style.get("font_family", "DejaVu Sans")
     plt.rcParams.update({
         "figure.dpi": 110,            # on-screen
         "savefig.dpi": style["dpi"],  # exported
@@ -166,12 +256,12 @@ def apply_style(style=None):
         "grid.alpha": style.get("grid_alpha", 0.6),
         "axes.spines.top": False,
         "axes.spines.right": False,
-        "font.family": font_family,
+        "font.family": FONT_FAMILY,
         "pdf.fonttype": 42,
         "ps.fonttype": 42,
-        "svg.fonttype": "none",
     })
     sns.set_palette(style["colors"])
+    apply_typography()
 
 
 def extended_palette(n, style=None):
@@ -264,7 +354,7 @@ def panel_label(ax, letter, style=None, *, x=None, y=None, ha="left", va="bottom
         kwargs.setdefault("fontweight", "bold")
         kwargs.setdefault("loc", "left")
         kwargs.setdefault("pad", 8)
-        return ax.set_title(str(letter).upper(), fontsize=fontsize, **kwargs)
+        return set_title(ax, letter, fontsize=fontsize, **kwargs)
     artist = ax.text(
         -0.12 if x is None else x,
         1.07 if y is None else y,
@@ -273,6 +363,7 @@ def panel_label(ax, letter, style=None, *, x=None, y=None, ha="left", va="bottom
         ha=ha,
         va=va,
         fontsize=fontsize,
+        fontfamily=FONT_FAMILY,
         fontweight=kwargs.pop("fontweight", "bold"),
         color=kwargs.pop("color", "black"),
         clip_on=clip_on,
@@ -499,6 +590,13 @@ def academic_impact_colormap(reverse: bool = False):
     )
 
 
+def blue_cream_red_colormap():
+    """The balanced three-colour ramp used in growth Supplementary Figure 1."""
+    return palette_colormap(
+        "light_blue", "cream", "red", name="blue_cream_red",
+    )
+
+
 def warm_cold_colormap(reverse: bool = False):
     """The cold-to-warm palette ramp as a Matplotlib colormap (low = navy, high = red)."""
     return palette_colormap(
@@ -513,15 +611,25 @@ def sequential_colormap(color):
     return sns.light_palette(color, as_cmap=True)
 
 
+def figure_export_formats(formats):
+    """Keep PNG/PDF exports, falling back to PDF for legacy format requests."""
+    if isinstance(formats, str):
+        formats = [formats]
+    normalized = (str(ext).lower().lstrip(".") for ext in formats)
+    return list(dict.fromkeys(ext for ext in normalized if ext in {"png", "pdf"})) or ["pdf"]
+
+
 def savefig(fig, name, style=None, formats=None, dpi=None, **kwargs):
-    """Optionally persist a figure in one or more configured formats.
+    """Optionally persist a figure as PNG and/or PDF.
 
     `savedir` is anchored on the repo root when relative, so a figure lands in the same
     place whether the notebook was launched from the root or from src/data_analysis/.
-    Explicit ``formats=`` and ``dpi=`` values override the active style. Saved paths are
-    returned, while log messages always use repository-relative paths.
+    PNG exports always use the project-wide ``PNG_DPI``. Legacy format requests
+    cannot create SVG or JSON figure files. Saved paths are returned, while log
+    messages always use repository-relative paths.
     """
     style = _resolve(style)
+    finalize_figure(fig)
     if not style.get("save"):
         return []
     outdir = Path(style["savedir"])
@@ -529,24 +637,16 @@ def savefig(fig, name, style=None, formats=None, dpi=None, **kwargs):
         outdir = ROOT / outdir
     outdir.mkdir(parents=True, exist_ok=True)
     requested = formats or style.get("formats") or ["pdf"]
-    requested = list(dict.fromkeys(str(ext).lower().lstrip(".") for ext in requested))
+    requested = figure_export_formats(requested)
     stem = str(Path(name).with_suffix("")) if Path(name).suffix else str(name)
     saved = []
     for ext in requested:
         dest = outdir / f"{stem}.{ext}"
         dest.parent.mkdir(parents=True, exist_ok=True)
         save_kwargs = {"bbox_inches": "tight", "facecolor": "white", **kwargs}
-        if ext in {"png", "jpg", "jpeg", "tif", "tiff"}:
-            save_kwargs.setdefault("dpi", dpi or style["dpi"])
+        if ext == "png":
+            save_kwargs["dpi"] = PNG_DPI
         fig.savefig(dest, format=ext, **save_kwargs)
-        if ext == "svg":
-            # Matplotlib leaves spaces at the end of multiline path-data rows. They are
-            # visually inert but make generated SVGs fail `git diff --check`.
-            svg = dest.read_text(encoding="utf-8")
-            dest.write_text(
-                "\n".join(line.rstrip() for line in svg.splitlines()) + "\n",
-                encoding="utf-8",
-            )
         saved.append(dest)
         try:
             shown = dest.relative_to(ROOT).as_posix()

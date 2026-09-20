@@ -41,7 +41,7 @@ import pandas as pd
 
 from utils import data_analysis_03_academic_impact_analysis as AI
 from utils import shared_paths as P
-from .shared_analysis_window import ANALYSIS_END_YEAR, filter_analysis_window
+from .shared_analysis_window import ANALYSIS_START_YEAR, ANALYSIS_END_YEAR, filter_analysis_window
 
 # =============================================================================
 # 1. Analysis parameters — the FOR notebook's, verbatim
@@ -56,12 +56,11 @@ FOR_LEVEL = "L4"
 RCDC_VIEW = "all"
 
 #: D19 — one window for every UK Biobank measure in analysis 03.
-ANALYSIS_MIN, ANALYSIS_MAX = 2015, ANALYSIS_END_YEAR
+ANALYSIS_MIN, ANALYSIS_MAX = ANALYSIS_START_YEAR, ANALYSIS_END_YEAR
 UKBB_YEAR = ANALYSIS_MIN
 
-#: How far back the BACKGROUND arm is carried. Not part of the analysis window: it exists
-#: so a field's twenty-year trend has something to be a trend against.
-YEAR_MIN, YEAR_MAX = 2004, ANALYSIS_MAX
+#: Background and UK Biobank publications use the same inclusive study window.
+YEAR_MIN, YEAR_MAX = ANALYSIS_START_YEAR, ANALYSIS_MAX
 
 TOP_N = 8                      # UK Biobank's own top fields, followed through both arms
 WEIGHT = "n_papers"
@@ -84,7 +83,7 @@ GROW_MIN_BASE, GROW_MIN_LAST = 5, 20
 
 #: Author entry cohorts, cut on the analysis window — the author notebook's `COHORT_BINS`.
 COHORT_BINS = [
-    (2015, 2017, "2015–2017\nfoundational entrants"),
+    (ANALYSIS_START_YEAR, 2017, "2013–2017\nfoundational entrants"),
     (2018, 2020, "2018–2020\nexpansion entrants"),
     (2021, 2023, "2021–2023\nconsolidation entrants"),
     (2024, 2025, "2024–2025\nrecent entrants"),
@@ -113,7 +112,7 @@ from matplotlib.colors import LinearSegmentedColormap, to_hex, to_rgb   # noqa: 
 
 from utils.shared_style import (                                        # noqa: E402
     PALETTE_COLORS, academic_impact_colormap, grid_on, panel_label, savefig,
-    year_ticks,
+    set_title, year_ticks,
 )
 
 
@@ -243,6 +242,7 @@ def _author_arm(say) -> dict:
             f"Run 03_academic_impact_02_citation.ipynb first — it writes them, and this "
             f"module reads rather than rebuilds them (267,571 author slots).")
 
+    AI.require_author_impact_window(table_dir, ANALYSIS_MIN, ANALYSIS_MAX)
     ap = pd.read_csv(paper_csv, usecols=[
         "author_key", "year", "entry_cohort", "fractional_paper_credit",
         "fractional_citation_credit", "fractional_top_decile_credit",
@@ -808,10 +808,10 @@ def _cut_note(D, code, year):
     r = cuts.reindex([(int(year), code)]).iloc[0]
     if r["median"] != r["median"]:
         return ""
-    ten = "" if r.thr10 != r.thr10 else f"top 10% ≥ {_cites(r.thr10)}   ·   "
+    ten = "" if r.thr10 != r.thr10 else f"top 10% >= {_cites(r.thr10)}   ·   "
     got = r["med_pct"]
     tail = "" if (got != got or abs(got - 50) <= 5) else f" (= top {got:.0f}%)"
-    return f"{int(year)}:   {ten}median ≥ {_cites(r['median'])}{tail}"
+    return f"{int(year)}:   {ten}median >= {_cites(r['median'])}{tail}"
 
 
 def block_footprint_quality(fig, spec, D, nrow: int = 2, ncol: int = 4,
@@ -891,7 +891,7 @@ def block_footprint_quality(fig, spec, D, nrow: int = 2, ncol: int = 4,
         ax.fill_between(idx, 0, b, color=col, alpha=0.85, lw=0)
         ax.fill_between(idx, b, h, color=col, alpha=0.18, lw=0)
         ax.plot(idx, a, color=col, lw=1.8)
-        ax.set_title(AI.short(lab, 28), fontsize=st["annot_fs"] + 1, loc="left")
+        set_title(ax, AI.short(lab, 28), fontsize=st["annot_fs"] + 1)
         ax.yaxis.set_major_formatter(mticker.FuncFormatter(_pct_fmt))
         ax.set_ylim(bottom=0)
         ax.margins(x=0.02)
@@ -963,7 +963,7 @@ def cut_off_table(D) -> pd.DataFrame:
     want = set(D["TOP_CODES"])
     # The cells panel D DRAWS: the eight fields, inside the analysis window, and only
     # where the decile was actually measured. Without the last condition the table carries
-    # the background arm's 2004-2014 rows, which have an interpolated median, no decile,
+    # earlier cache rows outside the study window, which may have no measured decile,
     # and no panel.
     out = (cuts.reset_index()
            .query("code in @want")

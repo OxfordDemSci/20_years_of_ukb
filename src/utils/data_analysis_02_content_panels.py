@@ -10,7 +10,7 @@ wrong place for, following the shape analyses 03 and 04 already use (D28, D31):
     figure_main(D)          the main-paper panel;  figure_si_<name>(D) the SI ones
 
 **What the main panel is.** One page, three stacked rows, one grammar: a 100%-normalised
-composition stream over 2014–2025, drawn once per vocabulary.
+composition stream over 2013–2025, drawn once per vocabulary.
 
     A   BERTopic topics      what the papers are about, learned from the text
     B   FOR 2020 Level 4     what field the publisher's classifier assigns them to
@@ -30,7 +30,7 @@ has already sized, under the one `02_content_99_all` style section.
 **The band threshold is per vocabulary, and it is a rule, not a literal.** D23 fixed
 twelve bands plus a remainder for both flows. That is the wrong constant for both: twelve
 L4 fields already hold ~87.5% of a year, while twelve RCDC tags hold ~52.3%, because a
-paper carries 1.5 L4 codes and 7.4 RCDC tags spread fractionally over 271 of them. So
+paper carries 1.5 L4 codes and 7.4 RCDC tags spread fractionally over many categories. So
 `choose_bands` takes a coverage target and a legibility floor per vocabulary
 (`BAND_RULES`) and the drawn count follows from the data. Where the target cannot be met
 at any readable band count — RCDC, whose tail is irreducible — the panel says so on its
@@ -58,16 +58,15 @@ from utils import shared_for as F
 from utils import shared_paths as P
 from utils import shared_rcdc as RCDC
 from utils.shared_showcase import item_names, load_showcase
-from utils.shared_analysis_window import ANALYSIS_END_YEAR, filter_analysis_window
+from utils.shared_analysis_window import ANALYSIS_START_YEAR, ANALYSIS_END_YEAR, filter_analysis_window
 from utils.data_analysis_02_content_window import require_topic_window_provenance
 
 # =============================================================================
 # 1. The window and the weights
 # =============================================================================
-#: The composition window. 2014 is where the corpus starts; 2026 is a partial year and is
-#: excluded from every panel here (D23). The first two years rest on 26 and 61 papers, so
+#: The shared inclusive composition window. Early years contain very few papers, so
 #: the panels print their populations rather than leaving that to be remembered.
-FLOW_MIN, FLOW_MAX = 2014, ANALYSIS_END_YEAR
+FLOW_MIN, FLOW_MAX = ANALYSIS_START_YEAR, ANALYSIS_END_YEAR
 FLOW_YEARS = list(range(FLOW_MIN, FLOW_MAX + 1))
 
 #: Whole counting for FOR L4 (1.48 codes/paper, so it barely inflates) and fractional for
@@ -92,7 +91,7 @@ OTHER_LABEL = "All other categories"
 # fall under the legibility floor. When the target is unreachable — RCDC — it stops at
 # `max_bands` and the panel reports the coverage it actually got.
 #
-# Measured on the current corpus, over 2014-2025:
+# Historical calibration over 2014-2025 (the rule is recomputed for the current window):
 #
 #   FOR L4   119 fields   12 bands -> 87.5% mean cover   15 bands -> 90.6%   (rule picks 15)
 #   RCDC     271 tags     12 bands -> 52.3%              18 bands -> 62.3%   (rule picks 18)
@@ -243,9 +242,9 @@ TOPIC_SOURCES = (
 TOPIC_MISSING_NOTE = (
     "BERTopic assignments not found.\n\n"
     "Run 02_content_1_bert_topic.ipynb separately to train on publications\n"
-    "through 2025-12-31, then use its output/bertopic/ tables with their\n"
+    f"dated {FLOW_MIN}–{FLOW_MAX}, then use its output/bertopic/ tables with their\n"
     ".analysis_window.json sidecars. Legacy copied outputs require the\n"
-    "same provenance; filtering their rows cannot undo later training data."
+    "same provenance; filtering their rows cannot correct a different training window."
 )
 
 
@@ -303,7 +302,7 @@ def load_topic_year_matrix(corpus: pd.DataFrame):
     for path in TOPIC_SOURCES:
         if not Path(path).exists():
             continue
-        # Filtering exported rows cannot undo a model trained on later publications.
+        # Filtering exported rows cannot correct a different model training window.
         require_topic_window_provenance(path)
         frame = pd.read_csv(path)
         columns = set(frame.columns)
@@ -474,7 +473,7 @@ import matplotlib.patheffects as pe                                     # noqa: 
 import matplotlib.pyplot as plt                                         # noqa: E402
 
 from utils.shared_style import (                                        # noqa: E402
-    extended_palette, grid_on, panel_label, savefig,
+    extended_palette, grid_on, panel_label, savefig, set_title,
 )
 
 #: The closing remainder is grey in every panel of the family, and it is the only grey.
@@ -559,12 +558,12 @@ def _short_label(text: str, limit: int = 40) -> str:
 def _label_year(band, n_papers, column):
     """(index, ha) for a band's in-place label: its thickest year that carries weight.
 
-    Two rules, both there because the window opens on 26 papers. The label goes at the
+    Two rules, both there because the window opens on very few papers. The label goes at the
     band's OWN thickest year — a band that peaks early and thins out is the shape this
     figure exists to show, and a fixed mid-point rule leaves it unnamed — but the first
-    years are excluded from the search, because a band is at its widest in 2014 for the
+    years are excluded from the search, because a band can be at its widest early for the
     same reason every share there is unstable, and a name pinned to that edge both reads
-    as a claim about 26 papers and runs off the left of the axes.
+    as a claim about a tiny sample and runs off the left of the axes.
     """
     values = np.asarray(band[column], dtype=float)
     counts = np.asarray([n_papers.get(y, 0) for y in band.index], dtype=float)
@@ -602,12 +601,12 @@ def _missing_panel(ax, title: str, note: str):
         spine.set_edgecolor("#C4C4C4")
         spine.set_linewidth(0.9)
     ax.set_facecolor("#FAFAFA")
-    ax.set_title(title, fontweight="bold", loc="left", pad=26)
+    set_title(ax, title, pad=26)
     ax.text(0.0, 1.015, "source not on disk — this row is reserved, not dropped",
             transform=ax.transAxes, ha="left", va="bottom",
             fontsize=st["annot_fs"] - 1.5, color="#666666")
     ax.text(0.5, 0.5, note, transform=ax.transAxes, ha="center", va="center",
-            fontsize=st["annot_fs"], color="#555555", family="monospace",
+            fontsize=st["annot_fs"], color="#555555", family="Helvetica",
             linespacing=1.7,
             bbox=dict(boxstyle="round,pad=1.0", facecolor="white",
                       edgecolor="#D6D6D6", linewidth=0.8))
@@ -673,7 +672,7 @@ def draw_share_stream(ax, block, title, *, label_min=7.0, callout_gap=4.2,
     ax.set_ylim(0, 100)
     ax.set_xticks(years)
     if show_year_n:
-        # The window's first years rest on 26 and 61 papers. That n belongs under the tick
+        # The window's first years contain very few papers. Their n belongs under the tick
         # rather than in a footnote, because it is what says how much a wiggle is worth.
         counts = block["n_papers"]
         ax.set_xticklabels([f"{y}\n{counts.get(y, 0):,}" for y in years])
@@ -684,7 +683,7 @@ def draw_share_stream(ax, block, title, *, label_min=7.0, callout_gap=4.2,
     ax.set_ylabel("Share of the year's total")
     if xlabel:
         ax.set_xlabel(xlabel, labelpad=6)
-    ax.set_title(title, fontweight="bold", loc="left", pad=26)
+    set_title(ax, title, pad=26)
 
     # The panel states its own coverage: with a remainder this large on the RCDC row, a
     # reader who cannot see what the grey is worth cannot read the panel at all.
@@ -718,7 +717,7 @@ def draw_rcdc_stream(ax, D):
     return draw_share_stream(ax, D["rcdc"], "RCDC categories", label_min=4.4,
                              callout_gap=3.6,
                              xlabel="Publication year, and the papers carrying "
-                                    "≥1 category that year")
+                                    "at least one category that year")
 
 
 def draw_rank_flow(ax, block, title):
@@ -763,7 +762,7 @@ def draw_rank_flow(ax, block, title):
     grid_on(ax, axis="y")
     ax.set_axisbelow(True)
     ax.spines["left"].set_visible(False)
-    ax.set_title(title, fontweight="bold", loc="left", pad=12)
+    set_title(ax, title, pad=12)
     return ax
 
 
@@ -783,7 +782,7 @@ def draw_rcdc_rank_flow(ax, D):
 # 6. The pages
 # =============================================================================
 MAIN_CAPTION = {
-    "A": "Composition of UK Biobank publications by BERTopic topic, 2014–2025. Topics "
+    "A": f"Composition of UK Biobank publications by BERTopic topic, {FLOW_MIN}–{FLOW_MAX}. Topics "
          "are learned from title and abstract text (SPECTER embeddings, UMAP + HDBSCAN, "
          "outliers force-reassigned so every paper carries exactly one topic — D5, D6). "
          "Each year is normalised independently, so a narrowing band means a topic "
@@ -795,14 +794,13 @@ MAIN_CAPTION = {
     "C": "The same window in the funder vocabulary: RCDC categories, fractional counting "
          "(each paper spreads a weight of 1 across the ~7.4 tags it carries, so a paper "
          "tagged with twenty conditions does not outvote one tagged with two). The grey "
-         "remainder is large and irreducible — 271 tags at that density leave ~38% "
-         "outside any readable number of bands — and is labelled with its own category "
-         "count rather than left unexplained.",
+         "remainder contains the categories outside the selected bands and is labelled "
+         "with its category count; coverage is reported on the panel.",
 }
 
 SI_CAPTIONS = {
     "rank_flow": {
-        "A": "Rank of each drawn FOR Level 4 field by its share of the year, 2014–2025. "
+        "A": f"Rank of each drawn FOR Level 4 field by its share of the year, {FLOW_MIN}–{FLOW_MAX}. "
              "Line width is proportional to mean share, so the heavy lines here are the "
              "thick bands of the main panel's B.",
         "B": "The same for RCDC categories. Rank answers the question a stack of eighteen "
@@ -814,19 +812,18 @@ def thin_years_note(D) -> str:
     """The window's weakest years, derived rather than written down.
 
     Printed on the page rather than left to a caption that may not travel with it: the
-    flow opens on a couple of dozen papers, where a single paper moves a share by several
+    flow opens on very few papers, where a single paper moves a share by several
     percentage points, and every panel's left-hand edge has to be read with that in hand.
     """
     counts = D["for"]["n_papers"]
     years = list(counts.index)
     first, second, last = counts.iloc[0], counts.iloc[1], counts.iloc[-1]
     fields = D["for"]["n_categories"]
-    move = 100.0 / max(int(first), 1)
     return (
         f"The window opens thin: {int(first):,} papers in {years[0]} and {int(second):,} "
         f"in {years[1]}, against {int(last):,} in {years[-1]}. A share across {fields} "
-        f"fields computed on {int(first):,} papers moves ~{move:.0f} percentage points "
-        f"when one paper changes, so read the left-hand edge of every panel as indicative "
+        f"fields computed on {int(first):,} papers is sensitive to individual papers, "
+        f"so read the left-hand edge of every panel as indicative "
         f"only — each year's population is printed under its own tick, per panel, because "
         f"the three vocabularies do not cover the same papers."
     )

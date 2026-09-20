@@ -7,3 +7,5 @@ sentencepiece
 huggingface_hub
 bitsandbytes
 tqdm
+matplotlib>=3.8,<4
+seaborn>=0.13.2,<0.14
