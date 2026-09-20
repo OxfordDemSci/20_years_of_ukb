@@ -195,17 +195,17 @@ FIG_PATENT = FIG_NON_ACADEMIC / "patent"
 FIG_GEOGRAPHY = FIG_AUTHOR_CHARACTERISTICS / "geography"
 
 
-def bootstrap() -> Path:
+def bootstrap() -> None:
     """Put `src` on sys.path and make the repo root the working directory.
 
-    Returns ROOT. Safe to call repeatedly (re-running a notebook cell is the normal
-    case), and safe to call from any starting directory inside the repo.
+    Return nothing so a notebook's display hook cannot expose the absolute root.
+    Callers can use ROOT internally. Safe to call repeatedly and from any starting
+    directory inside the repo.
     """
     if str(SRC) not in sys.path:
         sys.path.insert(0, str(SRC))
     if Path.cwd().resolve() != ROOT:
         os.chdir(ROOT)
-    return ROOT
 
 
 def raw_path(path: Path) -> str:

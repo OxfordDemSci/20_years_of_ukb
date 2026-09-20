@@ -151,10 +151,15 @@ def _flow_block(long, cat_col, key, n_total=None, *, view_note="") -> dict:
     """Everything one panel row needs: the matrices, the bands and the self-description."""
     weight = WEIGHTS[key]
     w, share, n_papers = flow_shares(long, cat_col, weight)
+    # Growth tables use distinct paper counts even when composition is fractional.
+    paper_counts = (w.copy() if weight == "n_papers" else
+                    category_weights(long, cat_col, "n_papers").reindex(
+                        index=w.index, columns=w.columns, fill_value=0).fillna(0))
     band, keep, order = top_bands(share, w, BAND_RULES[key])
     covered = band[keep].sum(axis=1, min_count=1)
     return {
         "weights": w,
+        "paper_counts": paper_counts,
         "share": share,
         "band": band,
         "keep": keep,

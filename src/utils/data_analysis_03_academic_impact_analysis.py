@@ -48,6 +48,7 @@ import numpy as np
 import pandas as pd
 
 from .shared_analysis_window import ANALYSIS_START_YEAR, ANALYSIS_END_YEAR, filter_analysis_window
+from .shared_paths import raw_path
 
 # The measure columns the count job writes. Everything is derived from these two plus
 # whichever citation weights the partials happen to carry.
@@ -541,7 +542,7 @@ def build(counts_dir, col_type, *, level, rcdc_view="all", year_min, year_max,
         unit = "disease"
 
     if verbose:
-        print(f"loading {col_type} partials from {counts_dir}")
+        print(f"loading {col_type} partials from {raw_path(counts_dir)}")
     ukbb, q_ukbb = load_arm(counts_dir, col_type, "ukbb", level, year_min, year_max,
                             verbose)
     background, q_background = load_arm(counts_dir, col_type, "background", level,

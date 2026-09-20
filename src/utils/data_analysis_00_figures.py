@@ -19,8 +19,8 @@ GROUP_COLORS = palette("red", "steel_blue")
 MODEL_COLORS = palette("red", "navy", "light_blue")
 
 
-def _axis(ax, title, *, grid="both"):
-    set_title(ax, title, fontsize=11, y=1.035)
+def _axis(ax, title, *, grid="both", title_y=1.035):
+    set_title(ax, title, fontsize=11, y=title_y)
     ax.spines[["top", "right"]].set_visible(False)
     ax.tick_params(labelsize=9)
     ax.xaxis.label.set_size(10)
@@ -155,7 +155,7 @@ def plot_candidate_agreement(model_summary, vote_distribution, agreement_matrix,
 def plot_candidate_text(category_summary, tfidf_terms):
     """Combine mention/keyword profiles and signed, descriptive TF-IDF contrasts."""
     apply_typography()
-    fig = plt.figure(figsize=(13.2, 8.5), layout="constrained")
+    fig = plt.figure(figsize=(13.2, 12.5), layout="constrained")
     fig.get_layout_engine().set(w_pad=.10, h_pad=.12, wspace=.12, hspace=.12)
     grid = fig.add_gridspec(2, 2, width_ratios=[1.12, 1])
     ax = fig.add_subplot(grid[:, 0])
@@ -170,12 +170,13 @@ def plot_candidate_text(category_summary, tfidf_terms):
     ax.set(ylim=(len(pivot) + .8, -.8), xlim=(0, 105), xlabel="Candidates with cue in title or abstract")
     _percent(ax, axis="x")
     _legend(ax, loc="lower left")
-    _axis(ax, "A  Mentions and keyword profiles", grid="x")
+    # This axis spans both rows; scale its relative title offset accordingly.
+    _axis(ax, "A  Mentions and keyword profiles", grid="x", title_y=1.015)
 
     difference = "difference_TRUE_minus_rest"
     subsets = (
-        tfidf_terms.loc[tfidf_terms[difference].gt(0)].nlargest(12, difference),
-        tfidf_terms.loc[tfidf_terms[difference].lt(0)].nsmallest(12, difference),
+        tfidf_terms.loc[tfidf_terms[difference].gt(0)].nlargest(25, difference),
+        tfidf_terms.loc[tfidf_terms[difference].lt(0)].nsmallest(25, difference),
     )
     max_difference = max(float(tfidf_terms[difference].abs().max()), .001)
     for row, (data, title, color, sign) in enumerate(zip(subsets,
@@ -220,9 +221,141 @@ def plot_semantic_diagnostics(data):
     return fig
 
 
+def plot_consensus_validation(model_summary, yearly, category_summary,
+                              semantic_data=None, semantic_metrics=None):
+    """Restore the four-panel annual/text/semantic diagnostic from the manuscript.
+
+    A missing semantic cache is labelled explicitly rather than silently dropping
+    panel D or substituting coordinates from an older candidate pool.
+    """
+    apply_typography()
+    fig, axes = plt.subplots(2, 2, figsize=(14, 10.2), layout="constrained")
+    fig.get_layout_engine().set(w_pad=.12, h_pad=.14, wspace=.09, hspace=.12)
+    series = yearly.set_index("year_int").reindex(range(2013, 2026))
+
+    ax = axes[0, 0]
+    for model, color, label in zip(model_summary.model, MODEL_COLORS, model_summary.display_name):
+        ax.plot(series.index, series[f"{model}_TRUE"], marker="o", markersize=4,
+                linewidth=1.7, color=color, label=label)
+    ax.set(ylabel="TRUE predictions", ylim=(0, None))
+    ax.yaxis.set_major_locator(MaxNLocator(nbins=5, integer=True))
+    ax.yaxis.set_major_formatter(FuncFormatter(lambda value, _: f"{value:,.0f}"))
+    _years(ax)
+    _legend(ax, loc="upper left")
+    _axis(ax, "A  Annual positive predictions")
+
+    ax = axes[0, 1]
+    for column, color, label in zip(
+            ("three_model_TRUE_agreement", "rest_NOT_three_model_TRUE_agreement"),
+            GROUP_COLORS, GROUP_LABELS):
+        counts = series[column].astype(float)
+        ax.plot(series.index, counts.where(counts.gt(0)), marker="o", markersize=4,
+                linewidth=1.7, color=color, label=label)
+    ax.set_yscale("log")
+    ax.yaxis.set_major_formatter(FuncFormatter(
+        lambda value, _: f"{value:,.0f}" if value >= 1 else f"{value:g}"))
+    ax.set_ylabel("Candidates (log scale)")
+    _years(ax)
+    _legend(ax, loc="upper left")
+    _axis(ax, "B  Consensus versus other candidates")
+
+    ax = axes[1, 0]
+    pivot = category_summary.pivot(index="category", columns="binary_split", values="percent_with_category")
+    pivot = pivot.sort_values(TRUE_GROUP, ascending=False)
+    sizes = category_summary.groupby("binary_split").n_group.first()
+    y = np.arange(len(pivot))
+    for offset, group, label, color in zip((-.19, .19), GROUPS, GROUP_LABELS, GROUP_COLORS):
+        ax.barh(y + offset, pivot[group], height=.36, color=color,
+                edgecolor=palette("navy"), linewidth=.5, label=f"{label} (n={sizes[group]:,})")
+    labels = [name.replace("explicit UKB", "Explicit UK Biobank mention") for name in pivot.index]
+    ax.set_yticks(y, labels)
+    ax.set(ylim=(len(pivot) + 1.3, -.8), xlim=(0, 105), xlabel="Candidates with cue in title or abstract")
+    _percent(ax, axis="x")
+    _legend(ax, loc="lower right")
+    _axis(ax, "C  Keyword profiles", grid="x")
+
+    ax = axes[1, 1]
+    _axis(ax, "D  Semantic separation")
+    if semantic_data is None or semantic_metrics is None:
+        ax.grid(False)
+        ax.set_xticks([])
+        ax.set_yticks([])
+        ax.text(.5, .58, "SEMANTIC PANEL UNAVAILABLE", transform=ax.transAxes,
+                ha="center", va="center", fontsize=11, fontweight="bold", color=palette("navy"))
+        ax.text(.5, .43, "No matching coordinates and metrics.\nPanels A–C use the current candidate data;\nthis four-panel figure is incomplete.",
+                transform=ax.transAxes, ha="center", va="center", fontsize=10, linespacing=1.5)
+        return fig
+
+    if not semantic_data.year_int.between(2013, 2025).all():
+        plt.close(fig)
+        raise ValueError("Semantic coordinates must describe the 2013–2025 analysis window.")
+    metrics = semantic_metrics.set_index("metric").value
+    silhouette = float(metrics["SI_silhouette_index_cosine"])
+    if not np.isfinite(silhouette):
+        plt.close(fig)
+        raise ValueError("The semantic silhouette index must be finite.")
+    # Draw the majority/background category first, preserving the group's colour
+    # identity used by panel C and the other diagnostic figures.
+    for group, label, color in reversed(list(zip(GROUPS, GROUP_LABELS, GROUP_COLORS))):
+        subset = semantic_data.loc[semantic_data.binary_split.eq(group)]
+        ax.scatter(subset.semantic_x, subset.semantic_y, s=9, alpha=.6, color=color,
+                   linewidths=0, rasterized=True, label=f"{label} (n={len(subset):,})")
+    ax.set(xlabel="Embedding principal component 1", ylabel="Embedding principal component 2")
+    ax.margins(x=.08, y=.15)
+    ax.xaxis.set_major_locator(MaxNLocator(nbins=4))
+    ax.yaxis.set_major_locator(MaxNLocator(nbins=4))
+    _legend(ax, loc="lower left")
+    ax.text(.02, .97, f"Cosine silhouette index = {silhouette:.4f}", transform=ax.transAxes,
+            ha="left", va="top", fontsize=9,
+            bbox=dict(facecolor="white", edgecolor="none", alpha=.9, pad=3))
+    return fig
+
+
+def plot_consensus_groups(group_distribution):
+    """Retain unanimous FALSE, disagreements and unparsed groups separately."""
+    apply_typography()
+    data = group_distribution.sort_values("n_candidates", ascending=False, kind="stable")
+    labels = {
+        TRUE_GROUP: "Unanimous TRUE",
+        "Three-model FALSE agreement": "Unanimous FALSE",
+        "Two TRUE votes": "Two TRUE predictions",
+        "One TRUE vote": "One TRUE prediction",
+        "No TRUE votes / parsed non-positive": "No TRUE predictions; some labels unparsed",
+        "No parsed model labels": "No parsed model labels",
+    }
+    colors = {
+        TRUE_GROUP: palette("red"),
+        "Three-model FALSE agreement": palette("navy"),
+        "Two TRUE votes": palette("cream"),
+        "One TRUE vote": palette("light_blue"),
+        "No TRUE votes / parsed non-positive": palette("steel_blue"),
+        "No parsed model labels": palette("blue"),
+    }
+    fig, ax = plt.subplots(figsize=(10.8, max(4.2, .6 * len(data) + 1.5)), layout="constrained")
+    fig.get_layout_engine().set(w_pad=.12, h_pad=.12)
+    y = np.arange(len(data))
+    bars = ax.barh(y, data.n_candidates, height=.66,
+                   color=[colors.get(group, palette("blue")) for group in data.consensus_group],
+                   edgecolor=palette("navy"), linewidth=.6)
+    total = float(data.n_candidates.sum())
+    annotations = []
+    for count in data.n_candidates:
+        share = float(count) / total if total else 0
+        share_label = "<0.1%" if 0 < share < .001 else f"{share:.1%}"
+        annotations.append(f"{int(count):,} ({share_label})")
+    ax.bar_label(bars, labels=annotations, padding=5, fontsize=9)
+    ax.set_yticks(y, [labels.get(group, group) for group in data.consensus_group])
+    ax.invert_yaxis()
+    ax.set(xlabel="Candidates", xlim=(0, max(float(data.n_candidates.max()), 1) * 1.3))
+    ax.xaxis.set_major_locator(MaxNLocator(nbins=4, integer=True))
+    ax.xaxis.set_major_formatter(FuncFormatter(lambda value, _: f"{value:,.0f}"))
+    _axis(ax, "A  Consensus groups", grid="x")
+    return fig
+
+
 def render_agreement_figures(*, model_summary, vote_distribution, agreement_matrix, yearly,
                              category_summary, tfidf_terms, tfidf_data,
-                             semantic_data=None, semantic_metrics=None,
+                             semantic_data=None, semantic_metrics=None, group_distribution=None,
                              figure_dir, show_figures=True):
     """Export only the current grouped figures and their manuscript captions."""
     count = int(vote_distribution.n_candidates.sum())
@@ -244,7 +377,7 @@ def render_agreement_figures(*, model_summary, vote_distribution, agreement_matr
         "Text characteristics of candidate publications, 2013–2025. "
         "A, Prevalence of explicit UK Biobank mentions and prespecified keyword cues in titles or abstracts, "
         "comparing unanimous three-model TRUE predictions with all other candidates. Cues are not mutually exclusive. "
-        "B,C, Up to 12 terms or bigrams with the largest positive mean TF-IDF differences for each group; "
+        "B,C, Up to 25 terms or bigrams with the largest positive mean TF-IDF differences for each group; "
         f"sample sizes are {sizes.get(TRUE_GROUP, 0):,} unanimous TRUE and {sizes.get(REST_GROUP, 0):,} other candidates. "
         "Only terms enriched in the stated direction are plotted. Full term scores and exact cue counts are available as CSV. "
         "These are descriptive contrasts in model-selected groups, not independent validation of classification accuracy."
@@ -265,4 +398,41 @@ def render_agreement_figures(*, model_summary, vote_distribution, agreement_matr
         )
         files.extend(_export(plot_semantic_diagnostics(semantic_data), figure_dir,
                               "00_05_figure_semantic_diagnostics", caption, show=show_figures))
+
+    complete = semantic_data is not None and semantic_metrics is not None
+    caption = (
+        f"Three-model consensus and candidate characteristics, 2013–2025 (n={count:,} candidates). "
+        "A, Annual TRUE predictions from Qwen, Llama3-8B and Mistral-7B. "
+        "B, Annual numbers with unanimous TRUE predictions versus all other candidates "
+        "(log scale; zero counts are omitted and missing years left blank). "
+        "C, Prevalence of prespecified keyword cues in titles or abstracts, by consensus group; "
+        "cues are not mutually exclusive. "
+    )
+    if complete:
+        caption += (
+            f"D, Principal-component projection of {method} representations for "
+            f"{len(semantic_data):,} sampled candidates, coloured by consensus group. "
+            f"The cosine silhouette index in the full representation is {silhouette:.4f}. "
+        )
+    else:
+        caption += "D is unavailable because matching semantic coordinates and metrics are missing; this figure is incomplete. "
+    caption += (
+        "These post-hoc contrasts describe model-defined groups, not independent validation accuracy. "
+        "Other candidates include disagreements and unparsed responses as well as unanimous FALSE predictions."
+    )
+    stem = "00_06_figure_consensus_validation" + ("" if complete else "_incomplete")
+    files.extend(_export(plot_consensus_validation(model_summary, yearly, category_summary,
+                                                   semantic_data, semantic_metrics),
+                          figure_dir, stem, caption, show=show_figures))
+    if group_distribution is not None:
+        caption = (
+            f"Three-model consensus categories, 2013–2025 (n={count:,} candidates). "
+            "Counts and percentages describe mutually exclusive groups of candidate publications. "
+            "Unanimous TRUE and FALSE require three parsed predictions. One or two TRUE predictions "
+            "may coexist with FALSE or unparsed responses. Candidates without a TRUE prediction are "
+            "separated into unanimous FALSE, some labels unparsed, and no parsed labels. "
+            "Only categories represented in the data are shown."
+        )
+        files.extend(_export(plot_consensus_groups(group_distribution), figure_dir,
+                              "00_07_figure_consensus_groups", caption, show=show_figures))
     return files

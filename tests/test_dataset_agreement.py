@@ -84,6 +84,9 @@ class DatasetAgreementTests(unittest.TestCase):
             folder = Path(folder)
             source = folder / "labels.csv"
             pd.DataFrame(rows).to_csv(source, index=False)
+            (folder / "tables").mkdir()
+            stale_table = folder / "tables/semantic_metrics.csv"
+            stale_table.write_text("metric,value\nSI_silhouette_index_cosine,0.9\n")
             # Exercise figure construction while avoiding large publication exports in a unit test.
             with patch("matplotlib.figure.Figure.savefig") as savefig, \
                  patch.object(A, "_semantic_cache", return_value=None), \
@@ -92,13 +95,23 @@ class DatasetAgreementTests(unittest.TestCase):
                                          figure_dir=folder / "figures", show_figures=False)
             self.assertEqual(result["status"], "PASS")
             self.assertEqual(result["semantic_status"], "SKIP")
+            self.assertNotIn(str(stale_table), result["tables"])
+            self.assertTrue(stale_table.is_file())
             self.assertEqual([Path(path).name for path in result["figures"]], [
                 "00_01_figure_candidate_agreement.png", "00_01_figure_candidate_agreement.pdf",
                 "00_02_figure_candidate_text.png", "00_02_figure_candidate_text.pdf",
+                "00_06_figure_consensus_validation_incomplete.png", "00_06_figure_consensus_validation_incomplete.pdf",
+                "00_07_figure_consensus_groups.png", "00_07_figure_consensus_groups.pdf",
             ])
-            self.assertEqual(savefig.call_count, 4)
+            self.assertEqual(savefig.call_count, 8)
             self.assertTrue(all(call.kwargs["dpi"] == 500 for call in savefig.call_args_list))
-            self.assertEqual(len(list((folder / "figures").glob("*_caption.txt"))), 2)
+            self.assertEqual(len(list((folder / "figures").glob("*_caption.txt"))), 4)
+            self.assertEqual(set(result["table_frames"]), {
+                "overview", "model_summary", "vote_distribution", "group_distribution",
+                "signature_distribution", "pairwise_agreement", "yearly", "explicit_summary",
+                "category_summary", "tfidf_terms",
+            })
+            self.assertEqual(result["table_frames"]["group_distribution"].n_candidates.sum(), 24)
             normalised = pd.read_csv(folder / "tables/combined_consensus_normalised.csv")
             self.assertEqual(len(normalised), 24)
             self.assertEqual(normalised.three_model_TRUE_agreement.sum(), 12)

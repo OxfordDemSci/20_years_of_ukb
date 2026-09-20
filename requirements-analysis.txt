@@ -24,7 +24,8 @@ tqdm>=4.66
 
 # Figures, maps, patent metadata and author/co-authorship networks.
 # Helvetica is a system font, not a pip package; install its regular and bold faces.
-matplotlib>=3.8,<4
+# 3.8.4 is the first release with PyPI wheels built against NumPy 2.
+matplotlib>=3.8.4,<4
 seaborn>=0.13.2,<0.14
 plotly>=5,<8
 wordcloud>=1.9

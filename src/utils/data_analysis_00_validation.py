@@ -72,6 +72,29 @@ def _path(value, env_name, default):
     return path if path.is_absolute() else P.ROOT / path
 
 
+def validation_cache_status(output_dir=None):
+    """Describe the retained validation figures and their inputs without inference.
+
+    ``READY`` means all six input files exist; their cohort and prediction values
+    are still validated by :func:`run_validation` before any figure is rendered.
+    Aggregate agreement matrices alone cannot establish the publication years or
+    ground-truth labels, so they are not a substitute for these prediction files.
+    """
+    output = _path(output_dir, "UKB_VALIDATION_OUTPUT_DIR", P.OUTPUT / "validation")
+    expected = [output / f"predictions_{prompt}.csv" for prompt, _ in PROMPTS]
+    missing = [path for path in expected if not path.is_file()]
+    status = "ready" if not missing else ("missing" if len(missing) == len(expected) else "incomplete")
+    detail = ("All six prediction files are present; publication years and cohort identity will be checked."
+              if not missing else
+              f"Requires six prompt-specific prediction files; {len(missing)} missing from {output}.")
+    figures = [
+        {"figure": PERFORMANCE_STEM, "layout": "2 × 2 performance heatmaps", "status": "READY" if not missing else "SKIP", "detail": detail},
+        {"figure": AGREEMENT_STEM, "layout": "2 × 3 pairwise-agreement heatmaps", "status": "READY" if not missing else "SKIP", "detail": detail},
+    ]
+    return {"cache_status": status, "input_directory": output, "expected_inputs": expected,
+            "missing_inputs": missing, "figure_status": figures}
+
+
 def _sample_size(value, env_name, *, required=False):
     raw = value if value is not None else os.environ.get(env_name, "").strip()
     if raw in (None, "") and not required:
@@ -308,7 +331,8 @@ def run_validation(output_dir=None, *, positive_csv=None, negative_csv=None,
     explicitly before requesting a new evaluation; this function never overwrites
     them automatically.
     """
-    output = _path(output_dir, "UKB_VALIDATION_OUTPUT_DIR", P.OUTPUT / "validation")
+    availability = validation_cache_status(output_dir)
+    output = availability["input_directory"]
     figures = Path(figure_dir) if figure_dir is not None else P.FIG_DATA_ANALYSIS / "00_dataset" / "validation"
     if not figures.is_absolute():
         figures = P.ROOT / figures
@@ -319,7 +343,7 @@ def run_validation(output_dir=None, *, positive_csv=None, negative_csv=None,
         reason = ("No saved validation predictions. Supply all six predictions_*.csv files "
                   f"under {output}, or explicitly enable validation inference with labelled inputs and sample sizes.")
         print(f"[SKIP] Validation: {reason}")
-        return {"status": "SKIP", "reason": reason, "files": [], "figure_files": []}
+        return {"status": "SKIP", "reason": reason, "files": [], "figure_files": [], **availability}
     if any(present) and not all(present):
         absent = [path.name for path in paths.values() if not path.is_file()]
         raise ValueError(f"Incomplete validation prediction cache: missing {', '.join(absent)}. No models were run.")
@@ -415,8 +439,11 @@ def run_validation(output_dir=None, *, positive_csv=None, negative_csv=None,
     action = "reused" if reused_predictions else "generated"
     reason = "Reused saved predictions" if reused_predictions else "Generated predictions by explicit inference"
     print(f"[PASS] Validation: {action} six prediction tables; {len(reference):,} papers, {len(summary)} model/prompt results.")
+    availability = validation_cache_status(output)
+    for entry in availability["figure_status"]:
+        entry.update(status="PASS", detail=f"Rendered from six verified prediction tables ({len(reference):,} papers, 2013–2025).")
     return {"status": "PASS", "reason": reason, "files": files, "figure_files": figure_files,
-            "n_papers": len(reference), "summary": summary, "ranked": ranked}
+            "n_papers": len(reference), "summary": summary, "ranked": ranked, **availability}
 
 
 def _run_original_inference(TP_PATH, TN_PATH, OUT_DIR, FIGURE_DIR, N_POS, N_NEG):

@@ -56,6 +56,8 @@ class ValidationReuseTests(unittest.TestCase):
         result, render = self.run_cached()
         self.assertEqual(result["status"], "PASS")
         self.assertEqual(result["n_papers"], 4)
+        self.assertEqual(result["missing_inputs"], [])
+        self.assertEqual({entry["status"] for entry in result["figure_status"]}, {"PASS"})
         render.assert_called_once()
         self.assertEqual(len(result["summary"]), 12)
         qwen = result["summary"].query('model == "qwen2_5_7b"').iloc[0]
@@ -74,8 +76,33 @@ class ValidationReuseTests(unittest.TestCase):
         result, render = self.run_cached()
         self.assertEqual(result["status"], "SKIP")
         self.assertIn("No saved validation predictions", result["reason"])
+        self.assertEqual(len(result["missing_inputs"]), 6)
+        self.assertEqual(result["missing_inputs"], result["expected_inputs"])
+        self.assertEqual({entry["layout"] for entry in result["figure_status"]},
+                         {"2 × 2 performance heatmaps", "2 × 3 pairwise-agreement heatmaps"})
+        self.assertEqual({entry["status"] for entry in result["figure_status"]}, {"SKIP"})
         render.assert_not_called()
         self.assertFalse(self.output.exists())
+
+    def test_aggregate_matrices_do_not_bypass_cohort_and_date_checks(self):
+        self.output.mkdir()
+        matrix = pd.DataFrame([[100., 95.], [95., 100.]],
+                              index=["qwen2_5_7b", "llama3_8b"], columns=["qwen2_5_7b", "llama3_8b"])
+        for prompt, _ in validation.PROMPTS:
+            matrix.to_csv(self.output / f"pairwise_agreement_percent_{prompt}.csv")
+        result, render = self.run_cached()
+        self.assertEqual(result["status"], "SKIP")
+        self.assertEqual(len(result["missing_inputs"]), 6)
+        render.assert_not_called()
+
+    def test_availability_lists_partial_cache_without_loading_predictions(self):
+        self.make_cache()
+        absent = self.output / "predictions_p2_balanced.csv"
+        absent.unlink()
+        with patch.object(pd, "read_csv", side_effect=AssertionError("Loaded predictions during availability check")):
+            status = validation.validation_cache_status(self.output)
+        self.assertEqual(status["cache_status"], "incomplete")
+        self.assertEqual(status["missing_inputs"], [absent])
 
     def test_out_of_window_cache_is_rejected_before_plotting(self):
         frame = self.make_cache()

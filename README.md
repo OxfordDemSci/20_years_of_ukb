@@ -10,7 +10,13 @@ literature it represents, and what it has led to outside academia.
 mamba create -n ukbb20 python=3.12 pip  # once, if the environment does not exist
 mamba activate ukbb20
 python -m pip install -r requirements-analysis.txt
+python -m ipykernel install --user --name ukbb20 --display-name "Python (ukbb20)"
 ```
+
+In Jupyter or VS Code, select **Python (ukbb20)** as the notebook kernel. Check
+`sys.executable` in a notebook cell to confirm it points to that environment;
+activating an environment in a terminal does not switch an already running kernel.
+Restart the kernel after changing installed packages.
 
 `requirements-analysis.txt` covers the active notebooks, shared analysis helpers and
 notebook runner. It preserves the fixed name-inference datasets and patent Louvain
@@ -81,6 +87,10 @@ P.bootstrap()
 
 Load the corpus through `utils.shared_showcase.load_showcase()`, never `pd.read_parquet`
 directly — the nested columns are JSON and hand-rolled parsers fail *silently* against them.
+
+Show only project-relative paths in notebook output and logs using `P.raw_path(path)`.
+Never display raw absolute paths or `Path` object representations. The shared bootstrap
+is silent; print a readable data summary when a notebook needs a status update.
 
 ## The analyses
 
@@ -153,8 +163,10 @@ Set `UKB_COMBINED_LABELS_CSV` to override it with another full candidate-level
 three-model labels CSV. If the default is absent, the loader searches `data/`
 for this filename or a uniquely named `three_model_combined_labels.csv` (including
 its original long filename). Showcase+ is not a substitute for this input. Matching
-semantic coordinates/metrics are reused; new semantic encoding requires
-`RUN_SEMANTIC_ANALYSIS = True` (or `UKB_RUN_SEMANTIC_ANALYSIS=1`).
+semantic coordinates/metrics are reused. The semantic diagnostic is enabled by
+default again, as in the original notebook; set `UKB_RUN_SEMANTIC_ANALYSIS=0` to
+skip new encoding. `SEMANTIC_LOCAL_ONLY=True` uses locally cached MiniLM weights;
+Qwen, Llama and Mistral deployment labels are never recomputed by this section.
 
 Validation reuses all six `predictions_*.csv` tables under `output/validation/`
 (overridable with `UKB_VALIDATION_OUTPUT_DIR`) after checking dates, IDs and labels.
@@ -175,11 +187,16 @@ use the `three_model_agreement/` subdirectory; validation tables remain under
 `output/figures/data_analysis/00_dataset/` as 500-DPI PNGs and PDFs.
 The publication figure set combines candidate agreement and annual trends (`00_01`),
 mention/keyword profiles and TF-IDF contrasts (`00_02`), validation performance
-(`00_03`), and agreement across six prompts (`00_04`). Optional cached semantic
-maps are combined in `00_05`. Each has a manuscript caption in a matching
-`_caption.txt`; detailed source tables are preserved. Unavailable inputs skip the
-corresponding figure rather than generate placeholder results. The notebook lists
-which CSVs underlie each figure. No standalone per-prompt figures, SVGs or JSON
+(`00_03`), and agreement across six prompts (`00_04`). Semantic maps are combined
+in `00_05`. The original manuscript 2×2 layout is restored as
+`00_06_figure_consensus_validation`: annual model positives, consensus/rest counts,
+keyword profiles and the semantic map with its recomputed silhouette index.
+`00_07` restores the detailed consensus-group bar chart. The TF-IDF panels show
+25 terms per group again. Every original summary table and the validation rankings
+have explicit notebook display cells. Each figure has a matching `_caption.txt`.
+If the semantic panel is unavailable, `00_06` is explicitly marked `_incomplete`;
+missing validation inputs are listed alongside separate 2×3 agreement and 2×2
+performance sections. Old screenshots are not substituted for missing current data. No standalone per-prompt figures, SVGs or JSON
 figure sidecars are produced.
 
 `02_content` uses the local Showcase+ parquet, writes topic results to
@@ -187,6 +204,13 @@ figure sidecars are produced.
 Figures go to `output/figures/data_analysis/02_content/` and publication tables to
 `output/tables/02_content/`. It does not install dependencies automatically.
 Run it alone with `bash run_analysis_notebooks.sh --only 02_content`.
+The content notebook also exports fastest-growing FoR, RCDC and BERTopic categories
+as CSV, Excel and editable Word tables under `output/tables/02_content/`. Defaults
+compare distinct paper counts in 2018 and 2025, ranked by compound annual growth
+rate with at least 10 baseline papers; recent annual growth and composition-share
+changes are shown alongside. Separate share-gain rankings retain categories with
+small or zero baselines. Configure the comparison years and cutoff in notebook
+section 3. Existing topic assignments are reused.
 Academic field/citation analyses require the original
 `data/analysis/academic_impact/for_counts_api/` cache. Set `UKB_FOR_COUNTS_DIR` if
 it is stored elsewhere. This contains both UK Biobank and whole-database counts,

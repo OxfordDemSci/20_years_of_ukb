@@ -131,7 +131,7 @@ def _semantic_cache(output_dir, sample):
 def run_agreement(input_path=None, *, output_dir=None, figure_dir=None,
                   run_semantic=False, max_tfidf_per_group=20_000,
                   max_semantic_per_group=3_000, seed=42, show_figures=True,
-                  show_tables=False):
+                  show_tables=False, semantic_local_only=False):
     """Run all original agreement/text analyses, with optional semantic encoding."""
     INPUT_PATH = resolve_combined_labels(input_path)
     if INPUT_PATH is None:
@@ -171,9 +171,12 @@ def run_agreement(input_path=None, *, output_dir=None, figure_dir=None,
         )
 
 
+    table_files = []
+
     def save_table(frame, filename):
         path = OUTPUT_DIR / filename
         frame.to_csv(path, index=False)
+        table_files.append(path)
         # Paths are summarised once at the end.
         return path
 
@@ -382,13 +385,15 @@ def run_agreement(input_path=None, *, output_dir=None, figure_dir=None,
     semantic_available = cached_semantic is not None or RUN_SEMANTIC_ANALYSIS
     if cached_semantic is not None:
         semantic_data, semantic_metrics = cached_semantic
+        table_files.extend(OUTPUT_DIR / name for name in (
+            "semantic_sample_with_coordinates.csv", "semantic_metrics.csv"))
         silhouette = float(semantic_metrics.set_index("metric").loc["SI_silhouette_index_cosine", "value"])
         print("[SKIP] Semantic encoding: using matching saved coordinates and metrics.")
     elif RUN_SEMANTIC_ANALYSIS:
         embedding_method = "sentence-transformers/all-MiniLM-L6-v2"
         try:
             from sentence_transformers import SentenceTransformer
-            embedder = SentenceTransformer(embedding_method)
+            embedder = SentenceTransformer(embedding_method, local_files_only=semantic_local_only)
             embeddings = embedder.encode(
                 semantic_data["analysis_text"].tolist(),
                 batch_size=128,
@@ -440,14 +445,30 @@ def run_agreement(input_path=None, *, output_dir=None, figure_dir=None,
         print("[SKIP] Semantic encoding: no matching cache; enable RUN_SEMANTIC_ANALYSIS to compute it.")
     figure_files = render_agreement_figures(
         model_summary=model_summary, vote_distribution=vote_distribution,
+        group_distribution=group_distribution,
         agreement_matrix=agreement_matrix, yearly=yearly,
         category_summary=category_summary, tfidf_terms=tfidf_terms, tfidf_data=tfidf_data,
         semantic_data=semantic_data if semantic_available else None,
         semantic_metrics=semantic_metrics if semantic_available else None,
         figure_dir=FIGURE_DIR, show_figures=show_figures,
     )
-    table_files = sorted(OUTPUT_DIR.glob("*.csv"))
+    table_files = sorted(table_files)
     figure_count = sum(path.suffix == ".png" for path in figure_files)
     print(f"[PASS] Three-model agreement: {len(combined):,} candidates; {len(table_files)} CSVs, {figure_count} combined figures.")
+    # Make every original result available to explicit notebook display cells.
+    table_frames = {
+        "overview": overview, "model_summary": model_summary,
+        "vote_distribution": vote_distribution, "group_distribution": group_distribution,
+        "signature_distribution": signature_distribution, "pairwise_agreement": pairwise_agreement,
+        "yearly": yearly, "explicit_summary": explicit_summary,
+        "category_summary": category_summary, "tfidf_terms": tfidf_terms,
+    }
+    if semantic_available:
+        table_frames["semantic_metrics"] = semantic_metrics
     return {"section": "Three-model agreement", "status": "PASS", "detail": f"{len(combined):,} candidates; {len(three_true):,} unanimous TRUE",
-            "semantic_status": "PASS" if semantic_available else "SKIP", "tables": [str(p) for p in table_files], "figures": [str(p) for p in figure_files]}
+            "semantic_status": "PASS" if semantic_available else "SKIP",
+            "semantic_detail": str(semantic_metrics.set_index("metric").loc["embedding_method", "value"])
+                if semantic_available and "embedding_method" in set(semantic_metrics.metric)
+                else "No matching semantic cache; encoding disabled.",
+            "table_frames": table_frames,
+            "tables": [str(p) for p in table_files], "figures": [str(p) for p in figure_files]}

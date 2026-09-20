@@ -31,6 +31,8 @@ import ast
 import json
 import re
 
+from .shared_paths import raw_path
+
 INSTITUTION_KEYS = {
     "name",
     "institution",
@@ -637,7 +639,7 @@ def load_or_classify(
 
     out_path.parent.mkdir(parents=True, exist_ok=True)
     _write_frame(out, out_path)
-    print(f"  wrote {out_path}")
+    print(f"  wrote {raw_path(out_path)}")
     return out, True
 
 

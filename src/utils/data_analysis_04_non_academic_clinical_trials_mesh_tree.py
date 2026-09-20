@@ -47,6 +47,8 @@ from typing import Dict, Iterable, List, Optional, Set
 
 import pandas as pd
 
+from .shared_paths import raw_path
+
 SPARQL = "https://id.nlm.nih.gov/mesh/sparql"
 
 # Anchored on this file (utils/ -> src/ -> repo root) so the cache resolves the same
@@ -193,7 +195,7 @@ def fetch_tree_numbers(dids: Iterable[str], cache: Path = CACHE,
 
         cache.parent.mkdir(parents=True, exist_ok=True)
         pd.to_pickle(known, cache)
-        print(f"MeSH tree: cached {len(known)} descriptors -> {cache}")
+        print(f"MeSH tree: cached {len(known)} descriptors -> {raw_path(cache)}")
     return known
 
 

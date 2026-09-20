@@ -307,7 +307,7 @@ def load_papers(path=None, fold_parents: bool = False,
     df = load_showcase(path=path) if str(path).endswith(".parquet") else pd.read_pickle(path)
     add_for_columns(df, fold_parents=fold_parents)
     if verbose:
-        print(f"{path}: {len(df):,} papers | FOR column: '{resolve_for_column(df)}'")
+        print(f"{_P.raw_path(path)}: {len(df):,} papers | FOR column: '{resolve_for_column(df)}'")
         print(for_coverage(df).to_string(index=False))
     return df
 
