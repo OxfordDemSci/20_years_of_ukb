@@ -40,8 +40,9 @@ how many categories are inside it, and each panel prints the coverage it achieve
 **Sources.** The FOR and RCDC arms re-derive from the corpus, exactly as
 `02_content_2_other_category_flow.ipynb` does, through `shared_for.for_long` and a plain
 explode of `category_rcdc` (D2, D22, D24). The topic arm reads what the BERTopic run
-wrote; that run is Colab-side and its output is not in this repository, so
-`load_topic_year_matrix` looks for it in `data/analysis/content/` and returns `None`
+wrote; `load_topic_year_matrix` looks in `output/bertopic/` and the legacy
+`data/analysis/content/` directory, and requires verified training-window provenance.
+It returns `None`
 rather than inventing topics when it is absent — the panel then draws the reason it is
 empty, the way 04's RCDC macro-cluster panel does for its missing partition.
 """
@@ -57,6 +58,8 @@ from utils import shared_for as F
 from utils import shared_paths as P
 from utils import shared_rcdc as RCDC
 from utils.shared_showcase import item_names, load_showcase
+from utils.shared_analysis_window import ANALYSIS_END_YEAR, filter_analysis_window
+from utils.data_analysis_02_content_window import require_topic_window_provenance
 
 # =============================================================================
 # 1. The window and the weights
@@ -64,7 +67,7 @@ from utils.shared_showcase import item_names, load_showcase
 #: The composition window. 2014 is where the corpus starts; 2026 is a partial year and is
 #: excluded from every panel here (D23). The first two years rest on 26 and 61 papers, so
 #: the panels print their populations rather than leaving that to be remembered.
-FLOW_MIN, FLOW_MAX = 2014, 2025
+FLOW_MIN, FLOW_MAX = 2014, ANALYSIS_END_YEAR
 FLOW_YEARS = list(range(FLOW_MIN, FLOW_MAX + 1))
 
 #: Whole counting for FOR L4 (1.48 codes/paper, so it barely inflates) and fractional for
@@ -219,54 +222,52 @@ def start_end_table(share, keep):
 # =============================================================================
 # 3. The sources
 # =============================================================================
-CORPUS_COLUMNS = ["id", "year", "category_for_2020", "category_rcdc"]
+CORPUS_COLUMNS = ["id", "year", "date", "category_for_2020", "category_rcdc"]
 
-#: Where the BERTopic run's output is looked for, best first. The first two are matrices
-#: the Colab notebook writes directly; the last two are per-paper assignments, which are
-#: better because they carry EVERY topic rather than the fourteen that notebook
+#: Where the BERTopic run's output is looked for, best first. Per-paper assignments
+#: are preferred because they carry EVERY topic rather than the fourteen the notebook
 #: pre-selected for its wave figure — so the same band rule can be applied here as to the
 #: other two rows, remainder and all. `P.TOPIC_ASSIGNMENTS` is the two-column `id, topics`
-#: file §18 of that notebook validates, and it needs only a year join to be usable.
+#: file §18 of that notebook validates, and it needs a corpus/year join to be usable.
+#: Every source also requires its matching .analysis_window.json sidecar.
 TOPIC_SOURCES = (
+    P.OUTPUT / "bertopic" / "bertopic_document_topic_assignments.csv",
+    P.OUTPUT / "bertopic" / "showcase_plus_id_topics.csv",
     P.TOPIC_ASSIGNMENTS,                                        # id, topics
     P.CONTENT / "bertopic_document_topic_assignments.csv",      # id, year, topic, topics
     P.CONTENT / "bertopic_topic_year_counts_selected.csv",      # year x topic counts
     P.CONTENT / "bertopic_topic_year_proportions_selected.csv",  # year x topic shares
 )
 
-#: What a reader should be told when none of the above is on disk. The BERTopic fit runs
-#: on Colab against Drive (see `doc/02_content_methodology.md` §4.1); nothing in this
-#: repository can re-derive it, and inventing topics from a local re-fit would silently
-#: contradict the ledger's 76 topics / 44.0% wave coverage.
+#: Missing outputs must not silently trigger a model fit inside a figure builder.
 TOPIC_MISSING_NOTE = (
     "BERTopic assignments not found.\n\n"
-    "Copy one of these out of the Colab run's Drive output into\n"
-    "data/analysis/content/ and re-run this notebook:\n\n"
-    "    showcase_plus_id_topics.csv                (id, topics)\n"
-    "    bertopic_document_topic_assignments.csv    (id, year, topic, topics)\n"
-    "    bertopic_topic_year_counts_selected.csv    (year x topic)\n\n"
-    "The panel is not re-fitted locally on purpose: a fresh UMAP/HDBSCAN run\n"
-    "would not reproduce the 76 topics the ledger records (D5, D6)."
+    "Run 02_content_1_bert_topic.ipynb separately to train on publications\n"
+    "through 2025-12-31, then use its output/bertopic/ tables with their\n"
+    ".analysis_window.json sidecars. Legacy copied outputs require the\n"
+    "same provenance; filtering their rows cannot undo later training data."
 )
 
 
 def load_corpus() -> pd.DataFrame:
-    """The corpus, four columns wide, with `year` numeric and the nested cells parsed."""
+    """The dated analysis corpus, with numeric years and parsed category records."""
     df = load_showcase(columns=CORPUS_COLUMNS,
                        parse=["category_for_2020", "category_rcdc"])
+    df = filter_analysis_window(df)
     df["year"] = pd.to_numeric(df["year"], errors="coerce").astype("Int64")
     return df
 
 
 def build_for_pairs(corpus: pd.DataFrame) -> pd.DataFrame:
     """One row per (paper, L2 division, L4 field), through `shared_for` (D22)."""
-    frame = corpus.copy()
+    frame = filter_analysis_window(corpus)
     F.add_for_columns(frame, fold_parents=True)
     return F.for_long(frame, carry=("year",))
 
 
 def build_rcdc_pairs(corpus: pd.DataFrame) -> pd.DataFrame:
     """One row per (paper, RCDC tag). RCDC is flat — no levels, so a plain explode."""
+    corpus = filter_analysis_window(corpus)
     tags = corpus["category_rcdc"].apply(lambda cell: sorted(set(item_names(cell))))
     return (corpus[["id", "year"]]
             .assign(rcdc=tags)
@@ -298,19 +299,21 @@ def load_topic_year_matrix(corpus: pd.DataFrame):
     pre-selected wave topics, so `n_total` comes back as the column count and the
     remainder band is what the selection left behind rather than the true tail.
     """
+    corpus = filter_analysis_window(corpus)
     for path in TOPIC_SOURCES:
         if not Path(path).exists():
             continue
+        # Filtering exported rows cannot undo a model trained on later publications.
+        require_topic_window_provenance(path)
         frame = pd.read_csv(path)
         columns = set(frame.columns)
 
         if {"id", "topics"} <= columns:
-            long = frame[["id", "topics"]].copy()
             if "year" in columns:
-                long["year"] = frame["year"]
-            else:
-                long = long.merge(corpus[["id", "year"]], on="id", how="inner",
-                                  validate="one_to_one")
+                frame = filter_analysis_window(frame)
+            long = frame[["id", "topics"]].copy()
+            long = long.merge(corpus[["id", "year"]], on="id", how="inner",
+                              validate="one_to_one")
             long = long[long["topics"].astype(str).str.strip().str.lower() != "outlier"]
             long["topic_label"] = long["topics"].map(_topic_label)
             long["year"] = pd.to_numeric(long["year"], errors="coerce")
@@ -320,6 +323,7 @@ def load_topic_year_matrix(corpus: pd.DataFrame):
 
         # Matrix shaped: first column is the year, every other column a topic.
         year_col = frame.columns[0]
+        frame = filter_analysis_window(frame, year_col=year_col)
         matrix = frame.set_index(year_col)
         matrix.index = pd.to_numeric(matrix.index, errors="coerce")
         matrix = matrix[matrix.index.notna()]
@@ -418,7 +422,7 @@ def build_panel_data(verbose: bool = True) -> dict:
         for key, title in (("topics", "topics"), ("for", "FOR L4"), ("rcdc", "RCDC  ")):
             block = D[key]
             if not block["available"]:
-                print(f"{title:<8}: NOT AVAILABLE — {block['searched'][0]} and 3 others absent")
+                print(f"{title:<8}: NOT AVAILABLE — all {len(block['searched'])} topic sources absent")
                 continue
             print(f"{title:<8}: {block['n_bands']} bands of {block['n_categories']} "
                   f"hold {block['coverage_min']:.1f}-{block['coverage_max']:.1f}% "

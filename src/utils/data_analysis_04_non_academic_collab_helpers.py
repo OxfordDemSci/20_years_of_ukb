@@ -22,6 +22,7 @@ import pandas as pd
 from cycler import cycler
 
 from .shared_style import DEFAULT_DOT_MARKER_AREA, DEFAULT_MARKER_SIZE
+from .shared_analysis_window import filter_analysis_window
 
 # The canonical output first; the `output/` entries below it are pre-2026-08-26 homes,
 # kept only so a stale file on someone's disk is still found rather than silently missed.
@@ -99,7 +100,7 @@ def load_input_dataframe(data_path: Path | None = None) -> tuple[pd.DataFrame, P
         df = pd.read_excel(path)
     else:
         raise ValueError(f"Unsupported input file format: {path}")
-    return df, path
+    return filter_analysis_window(df), path
 
 
 def safe_parse(value: Any) -> Any:
@@ -241,7 +242,7 @@ def _subtract_lists(base_items: list[str], remove_items: list[str]) -> list[str]
 
 def prepare_analysis_dataframe(raw_df: pd.DataFrame) -> pd.DataFrame:
     """Parse and normalize institution columns for analysis."""
-    df = _rows_with_authorship(raw_df)
+    df = _rows_with_authorship(filter_analysis_window(raw_df))
 
     df["author_institutions_list"] = parse_col_as_list(df, "author_institutions_list")
     df["academic_institutions_raw"] = parse_col_as_list(df, "academic_institutions")

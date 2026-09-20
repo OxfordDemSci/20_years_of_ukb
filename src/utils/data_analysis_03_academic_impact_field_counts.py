@@ -177,6 +177,11 @@ from typing import Dict, Iterable, List, Optional, Pattern, Sequence, Set, Tuple
 import pyarrow as pa
 import pyarrow.parquet as pq
 
+if __package__:
+    from .shared_analysis_window import ANALYSIS_END_YEAR, filter_analysis_window
+else:
+    from shared_analysis_window import ANALYSIS_END_YEAR, filter_analysis_window
+
 ID_COL, YEAR_COL, TYPE_COL = "id", "year", "type"
 MISSING_YEAR = -1
 MISSING_TYPE = "unknown"
@@ -613,6 +618,8 @@ class Tally:
         cannot be resolved until we know which category we are counting into — that
         resolution happens inside the code loop below.
         """
+        if not 1 <= year <= ANALYSIS_END_YEAR:
+            return
         t = self.totals[(year, typ)]
         t[0] += 1
         self.n_kept += 1
@@ -695,6 +702,9 @@ def count_file(path: str, tally: Tally, spec: CategorySpec, id_set: Optional[Set
     fmt = column_format(pf.schema_arrow, cat_col)
 
     cols = [ID_COL, YEAR_COL, cat_col] + ([TYPE_COL] if has_type else [])
+    window_cols = [YEAR_COL] + (["date"] if "date" in names else [])
+    if "date" in window_cols:
+        cols.append("date")
     # Several weights can share one column (cit and top10 both read times_cited), so the
     # projection carries each column once and the specs index back into it.
     specs = [WEIGHTS[w] for w in tally.weights]
@@ -718,7 +728,9 @@ def count_file(path: str, tally: Tally, spec: CategorySpec, id_set: Optional[Set
         rows += len(ids)
         tally.n_rows += len(ids)
 
-        for i, (pid, year, typ, cell) in enumerate(zip(ids, years, types, cells)):
+        eligible = filter_analysis_window(batch.select(window_cols).to_pandas()).index
+        for i in eligible:
+            pid, year, typ, cell = ids[i], years[i], types[i], cells[i]
             try:
                 y = int(year)
             except (TypeError, ValueError):
@@ -991,6 +1003,9 @@ def cmd_citdist(args: argparse.Namespace) -> None:
                                    f"{list(spec.columns)})")
                 cols = [YEAR_COL, CIT_COL] + ([TYPE_COL] if has_type else []) \
                     + ([cat_col] if cat_col else [])
+                window_cols = [YEAR_COL] + (["date"] if "date" in names else [])
+                if "date" in window_cols:
+                    cols.append("date")
                 fmt = column_format(pf.schema_arrow, cat_col) if cat_col else "text"
                 rows = 0
                 for batch in pf.iter_batches(batch_size=args.batch_size, columns=cols):
@@ -1001,7 +1016,9 @@ def cmd_citdist(args: argparse.Namespace) -> None:
                     cells = (batch.column(cols.index(cat_col)).to_pylist()
                              if cat_col else [None] * len(years))
                     rows += len(years)
-                    for year, typ, cit, cell in zip(years, types, cits, cells):
+                    eligible = filter_analysis_window(batch.select(window_cols).to_pandas()).index
+                    for index in eligible:
+                        year, typ, cit, cell = years[index], types[index], cits[index], cells[index]
                         if cit is None:
                             n_missing += 1
                             continue
@@ -1009,6 +1026,8 @@ def cmd_citdist(args: argparse.Namespace) -> None:
                             y = int(year)
                         except (TypeError, ValueError):
                             y = MISSING_YEAR
+                        if not 1 <= y <= ANALYSIS_END_YEAR:
+                            continue
                         t = typ or MISSING_TYPE
                         c = int(cit)
                         glob_acc.add((y, t), c)
@@ -1097,6 +1116,8 @@ def cmd_thresholds(args: argparse.Namespace) -> None:
 
     thr_rows, exp_rows = [], []
     for cat, (dist, stats) in frames.items():
+        dist = filter_analysis_window(dist)
+        stats = filter_analysis_window(stats)
         keys = ["year", "type"] if not cat else ["level", "code", "year", "type"]
         dist = dist.groupby(keys + ["times_cited"], as_index=False).n.sum()
         stats = stats.groupby(keys, as_index=False)[["n_papers", "sum_cit"]].sum()
@@ -1192,7 +1213,7 @@ def cmd_merge(args: argparse.Namespace) -> None:
             if "category" not in d.columns:   # partials written before categories existed
                 d["category"] = "for"
             dfs.append(d)
-        return pd.concat(dfs, ignore_index=True)
+        return filter_analysis_window(pd.concat(dfs, ignore_index=True))
 
     counts = _read("counts")
     # Every measure column is summable and named n_*; weights therefore need no special

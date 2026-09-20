@@ -602,21 +602,29 @@ def load_or_classify(
 ):
     """Load saved labels or reconstruct them from the classification cache.
 
-    If `out_path` already exists it is read and returned unchanged — the classified
-    file is the expensive artefact and re-deriving it must never be accidental.
+    If `out_path` already exists it is read and filtered for the analysis window;
+    the saved file is preserved, and re-deriving labels is never accidental.
     Pass `force=True` to rebuild the output from the cache. Uncached institution
     sets also require `allow_api=True` before any provider or credentials are used.
     """
     import pandas as pd
+    from utils.shared_analysis_window import filter_analysis_window
 
+    if df is not None:
+        df = filter_analysis_window(df)
     out_path = Path(out_path)
     if out_path.exists() and not force:
         loaded = (pd.read_excel(out_path) if out_path.suffix in {".xlsx", ".xls"}
                   else pd.read_csv(out_path))
+        loaded = filter_analysis_window(loaded)
+        if df is not None and "id" in loaded and "id" in df:
+            loaded = loaded.loc[loaded["id"].isin(df["id"])].copy()
         print(f"  reusing {out_path.name} ({len(loaded):,} rows) — no API calls, "
               f"no cost. Pass force=True to reclassify.")
         return loaded, False
 
+    if df is None:
+        raise ValueError("A dated publication corpus is required when saved labels are unavailable")
     institution_lists = institution_lists_from_research_orgs(df)
     n_with = sum(1 for x in institution_lists if any(x))
     print(f"  classifying: {len(df):,} rows, {n_with:,} ({n_with/len(df):.1%}) "

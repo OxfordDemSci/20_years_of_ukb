@@ -2664,9 +2664,20 @@ def prepare_rcdc_macro_context(
     summary_csv: str = str(_ROOT / 'data/analysis/non_academic/patent/paten_rcdc_macro/cluster_label_summary_louvain.csv'),
     macro_cluster_names: Optional[Dict[int, str]] = None,
 ) -> Dict[str, Any]:
-    """Prepare shared RCDC macro-cluster lookup tables for downstream plots."""
-    df = df_patent.copy()
+    """Prepare a cohort-verified RCDC partition and its reviewed macro labels."""
+    from utils.shared_analysis_window import filter_analysis_window
+    try:
+        from utils.data_analysis_04_non_academic_patents_rcdc_macro import load_or_build_analysis_partition
+    except ModuleNotFoundError as exc:
+        if exc.name == "community":
+            raise ImportError(
+                "Rebuilding RCDC clusters requires python-louvain==0.16; "
+                "install requirements-analysis.txt in the analysis environment."
+            ) from exc
+        raise
+    df = filter_analysis_window(df_patent, year_col="publication_year", date_col="publication_date")
 
+    use_reviewed_names = macro_cluster_names is None
     if macro_cluster_names is None:
         macro_cluster_names = {
             0: 'Stem Cell & Regenerative Medicine',
@@ -2689,7 +2700,33 @@ def prepare_rcdc_macro_context(
             if isinstance(c, dict) and 'name' in c and 'id' in c:
                 cat_dict[str(c['id'])] = c['name']
 
-    df_rcdc_macro_labels = pd.read_csv(summary_csv)
+    df_rcdc_macro_labels, partition_path = load_or_build_analysis_partition(df, category_col=category_col)
+    if use_reviewed_names:
+        # Community integers have no semantic meaning across fits. Retain the
+        # reviewed names only when the complete cluster memberships are identical.
+        # The legacy file supplies naming definitions, never the fitted partition.
+        legacy_path = Path(summary_csv)
+        if not legacy_path.exists():
+            raise FileNotFoundError(
+                "Missing reviewed RCDC cluster definitions; provide macro_cluster_names "
+                "for the newly fitted cutoff-scoped partition."
+            )
+        reviewed = pd.read_csv(legacy_path)
+        membership_to_reviewed = {
+            frozenset(str(labels).split(';')): int(community)
+            for community, labels in zip(reviewed['community'], reviewed['all_labels'])
+        }
+        mapping = {
+            int(community): membership_to_reviewed.get(frozenset(str(labels).split(';')))
+            for community, labels in zip(df_rcdc_macro_labels['community'], df_rcdc_macro_labels['all_labels'])
+        }
+        if any(value not in macro_cluster_names for value in mapping.values()):
+            raise ValueError(
+                "The eligible-cohort RCDC partition differs from the reviewed clusters. "
+                "Review macro_cluster_names before plotting; old names cannot follow arbitrary community IDs."
+            )
+        df_rcdc_macro_labels['community'] = df_rcdc_macro_labels['community'].map(mapping)
+        df_rcdc_macro_labels = df_rcdc_macro_labels.sort_values('community').reset_index(drop=True)
     df_rcdc_macro_labels['top_label_names'] = df_rcdc_macro_labels['top_labels'].apply(
         lambda x: [cat_dict.get(lab, 'Unknown') for lab in str(x).split(';')]
     )
@@ -2711,6 +2748,7 @@ def prepare_rcdc_macro_context(
         'macro_cluster_names': macro_cluster_names,
         'top_topic_dict': top_topic_dict,
         'code_to_macro': code_to_macro,
+        'partition_path': partition_path,
     }
 
 

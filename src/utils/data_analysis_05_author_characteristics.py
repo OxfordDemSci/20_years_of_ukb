@@ -39,12 +39,13 @@ from . import shared_name_gender as NG
 from . import shared_paths as P
 from .shared_for import add_for_columns
 from .shared_showcase import load_showcase, parse_dictcol, parse_listcol
+from .shared_analysis_window import ANALYSIS_END_DATE, ANALYSIS_END_YEAR, filter_analysis_window
 
 # Analysis window. 2014 is the first year, not the corpus's own first year: it is the
 # window every figure, table, caption and validation check in this notebook is built
 # from, so move it here and nowhere else.
 FIRST_YEAR = 2014
-LAST_COMPLETE_YEAR = 2025
+LAST_COMPLETE_YEAR = ANALYSIS_END_YEAR
 HYPERAUTHOR_THRESHOLD = 100
 LEIDEN_RESOLUTION = 1.0
 LEIDEN_SEED = 48652
@@ -52,7 +53,7 @@ NETWORK_LAYOUT_ITERATIONS = 100
 NETWORK_BACKBONE_REPEAT_LIMIT = 80_000
 AUTHOR_CONCENTRATION_THRESHOLDS = (1, 5, 10, 25, 50)
 IMPACT_FIRST_YEAR = 2015
-IMPACT_LAST_YEAR = 2025
+IMPACT_LAST_YEAR = ANALYSIS_END_YEAR
 PORTFOLIO_MIN_PAPERS = 5
 PORTFOLIO_LABEL_COUNT = 8
 VENUE_FIRST_YEAR = 2014
@@ -191,7 +192,8 @@ def load_author_papers(
     source["authors_count"] = pd.to_numeric(source["authors_count"], errors="coerce")
     source["publication_date"] = pd.to_datetime(source["date"], errors="coerce")
 
-    papers = source[source["year"].between(first_year, last_complete_year)].copy()
+    papers = filter_analysis_window(source, date_col="date")
+    papers = papers[papers["year"].between(first_year, last_complete_year)].copy()
     papers["year"] = papers["year"].astype(int)
     add_for_columns(papers, col="category_for_2020", fold_parents=True)
     return source, papers
@@ -1043,6 +1045,7 @@ def build_entity_time_table(
 
 
 def build_core_tables(papers: pd.DataFrame) -> CoreTables:
+    papers = filter_analysis_window(papers)
     organization_lookup = build_organization_lookup(papers)
     authorships, affiliations, institution_credits, country_credits = (
         build_authorship_tables(papers, organization_lookup)
@@ -1114,7 +1117,7 @@ def _current_author_leadership(core: CoreTables) -> pd.DataFrame:
 def _author_impact_from_paper_cache(core: CoreTables) -> pd.DataFrame:
     """Recompute the promoted author panel from the frozen 03 per-paper cache."""
     paper_impact = AI.paper_impact(
-        P.FOR_COUNTS_API,
+        AI.resolve_counts_dir(P.FOR_COUNTS_API),
         "for",
         level="L4",
         year_min=IMPACT_FIRST_YEAR,
@@ -1172,8 +1175,14 @@ def _author_impact_from_legacy_summary(core: CoreTables) -> pd.DataFrame:
         "mean_impact_metric",
         "median_impact_metric",
         "showcase_h_index",
+        "last_year",
     ]
     legacy = pd.read_csv(LEGACY_AUTHOR_IMPACT, usecols=required)
+    eligible_legacy = filter_analysis_window(legacy, year_col="last_year")
+    if len(eligible_legacy) != len(legacy):
+        raise ValueError(
+            "The retained author-impact summary includes papers outside the publication "
+            "cutoff. Rerun 03_academic_impact_02_citation.ipynb before reusing it.")
     legacy["researcher_id"] = legacy["researcher_id"].astype("string")
     legacy = legacy[
         legacy["researcher_id"].notna()
@@ -1238,10 +1247,11 @@ def build_headline_impact_tables(
     per-paper inputs are available. The retained 03 author summary is an explicit,
     validated fallback for lightweight checkouts that omit those ignored caches.
     """
+    counts_dir = AI.resolve_counts_dir(P.FOR_COUNTS_API)
     cache_paths = [
-        P.FOR_COUNTS_API / "api_ukbb_records.json",
-        P.FOR_COUNTS_API / "api_whole.for.parquet",
-        P.FOR_COUNTS_API / "field_thresholds.for.csv",
+        counts_dir / "api_ukbb_records.json",
+        counts_dir / "api_whole.for.parquet",
+        counts_dir / "field_thresholds.for.csv",
     ]
     if all(path.exists() for path in cache_paths):
         author_summary = _author_impact_from_paper_cache(core)
@@ -1267,7 +1277,8 @@ def build_headline_impact_tables(
         raise ValueError("Author-impact portfolio must contain unique recurrent authors")
     author_labels = _select_portfolio_labels(portfolio)
 
-    venue_rows = papers[papers["year"].ge(VENUE_FIRST_YEAR)].copy()
+    venue_rows = filter_analysis_window(papers)
+    venue_rows = venue_rows[venue_rows["year"].ge(VENUE_FIRST_YEAR)].copy()
     venue_rows["venue"] = venue_rows["source_title"].map(_clean_source_title)
     venue_rows["citation_age_years"] = (
         CITATION_SNAPSHOT_YEAR - venue_rows["year"] + 1
@@ -2086,6 +2097,7 @@ def validation_checks(
     checks = [
         ("unique_source_publication_ids", not source["id"].duplicated().any(), source["id"].nunique(), len(source)),
         ("complete_year_window", papers["year"].between(FIRST_YEAR, LAST_COMPLETE_YEAR).all(), f"{papers['year'].min()}-{papers['year'].max()}", f"{FIRST_YEAR}-{LAST_COMPLETE_YEAR}"),
+        ("publication_date_cutoff", len(filter_analysis_window(papers)) == len(papers), len(papers), ANALYSIS_END_DATE.date().isoformat()),
         ("unique_author_paper_pairs", not authorships.duplicated(["author_id", "paper_id"]).any(), len(authorships), len(authorships)),
         ("authorship_credit_sums_to_one", np.allclose(paper_credit, 1.0), float(np.abs(paper_credit - 1).max()), "<=1e-9"),
         ("country_credit_never_exceeds_one", bool(country_credit.le(1 + 1e-9).all()), float(country_credit.max()), "<=1"),
@@ -2428,6 +2440,7 @@ def analysis_parameters(
         ("primary_records", len(papers)),
         ("first_year", FIRST_YEAR),
         ("last_complete_year", LAST_COMPLETE_YEAR),
+        ("analysis_end_date", ANALYSIS_END_DATE.date().isoformat()),
         ("provisional_years_excluded", ", ".join(map(str, sorted(source.loc[source["year"].gt(LAST_COMPLETE_YEAR), "year"].dropna().unique())))),
         ("author_identity", "Dimensions researcher_id"),
         ("unresolved_identity", "paper-local key; no cross-paper linkage"),
@@ -2493,7 +2506,7 @@ def figure_captions() -> OrderedDict:
             "clipped for display only. (H) The 15 publication venues with the largest Showcase+ "
             f"citation stock among venues contributing at least {VENUE_MIN_PAPERS} papers from "
             f"{VENUE_FIRST_YEAR}-{LAST_COMPLETE_YEAR}; bar colour represents paper count. "
-            "Records from provisional year 2026 were excluded."
+            "Publications after 31 December 2025 were excluded."
         ),
         "supplementary_figure_01_caption.txt": (
             "Supplementary Figure 1 | UK Biobank-specific author productivity and impact. (A) "

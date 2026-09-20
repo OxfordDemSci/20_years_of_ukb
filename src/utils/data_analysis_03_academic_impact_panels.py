@@ -41,6 +41,7 @@ import pandas as pd
 
 from utils import data_analysis_03_academic_impact_analysis as AI
 from utils import shared_paths as P
+from .shared_analysis_window import ANALYSIS_END_YEAR, filter_analysis_window
 
 # =============================================================================
 # 1. Analysis parameters — the FOR notebook's, verbatim
@@ -55,7 +56,7 @@ FOR_LEVEL = "L4"
 RCDC_VIEW = "all"
 
 #: D19 — one window for every UK Biobank measure in analysis 03.
-ANALYSIS_MIN, ANALYSIS_MAX = 2015, 2025
+ANALYSIS_MIN, ANALYSIS_MAX = 2015, ANALYSIS_END_YEAR
 UKBB_YEAR = ANALYSIS_MIN
 
 #: How far back the BACKGROUND arm is carried. Not part of the analysis window: it exists
@@ -193,12 +194,14 @@ def _cuts_table(counts_dir, level: str, say) -> pd.DataFrame | None:
     try:
         thr = pd.read_csv(counts_dir / f"field_thresholds.{COL_TYPE}.csv",
                           dtype={"code": str})
+        thr = filter_analysis_window(thr)
         if "percentile" not in thr.columns:
             thr["percentile"] = 10.0
         thr = thr[thr.level == level]
         med = pd.read_parquet(
             counts_dir / f"api_whole.{COL_TYPE}.parquet",
             columns=["year", "level", "code", "mean_cit", "api_citations_median"])
+        med = filter_analysis_window(med)
         p10 = (thr.loc[thr.percentile == 10, ["year", "code", "threshold"]]
                .rename(columns={"threshold": "thr10"}))
         cols50 = ["year", "code", "threshold"] + (
@@ -241,10 +244,17 @@ def _author_arm(say) -> dict:
             f"module reads rather than rebuilds them (267,571 author slots).")
 
     ap = pd.read_csv(paper_csv, usecols=[
-        "author_key", "entry_cohort", "fractional_paper_credit",
+        "author_key", "year", "entry_cohort", "fractional_paper_credit",
         "fractional_citation_credit", "fractional_top_decile_credit",
         "leadership_author_credit"])
     summary = pd.read_csv(summary_csv)
+    eligible_ap = filter_analysis_window(ap)
+    eligible_summary = filter_analysis_window(summary, year_col="last_year")
+    if len(eligible_ap) != len(ap) or len(eligible_summary) != len(summary):
+        raise ValueError(
+            "The retained author tables include papers outside the publication cutoff. "
+            "Rerun 03_academic_impact_02_citation.ipynb to rebuild author metrics.")
+    ap = eligible_ap[eligible_ap["year"].ge(ANALYSIS_MIN)].copy()
     say(f"  author arm: {len(ap):,} author-paper rows, {len(summary):,} distinct authors")
 
     ap = ap[ap.entry_cohort.isin(COHORT_ORDER)].copy()

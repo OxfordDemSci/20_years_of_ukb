@@ -27,7 +27,8 @@ class OfflineClassificationTests(unittest.TestCase):
             cache = Path(folder) / "cache.jsonl"
             output = Path(folder) / "classified.csv"
             cache.write_text(json.dumps({"key": ["Example University"], "result": result}) + "\n")
-            source = pd.DataFrame({"id": ["pub.1"], "research_orgs": [[{"name": "Example University"}]]})
+            source = pd.DataFrame({"id": ["pub.1"], "year": [2025],
+                                   "research_orgs": [[{"name": "Example University"}]]})
             with patch.object(classifier, "_resolve_api_key", side_effect=AssertionError("credential access")):
                 classified, rebuilt = classifier.load_or_classify(source, output, cache_path=cache)
             self.assertTrue(rebuilt)
@@ -37,7 +38,7 @@ class OfflineClassificationTests(unittest.TestCase):
     def test_saved_labels_are_loaded_without_classification(self):
         with tempfile.TemporaryDirectory() as folder:
             output = Path(folder) / "classified.csv"
-            output.write_text("id,academic_flag\npub.1,True\n")
+            output.write_text("id,year,academic_flag\npub.1,2025,True\n")
             with patch.object(classifier, "classify_institution_lists", side_effect=AssertionError("classification")):
                 frame, rebuilt = classifier.load_or_classify(None, output)
             self.assertFalse(rebuilt)

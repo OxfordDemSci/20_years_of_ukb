@@ -17,15 +17,11 @@ instead draws into an axes belonging to a figure the caller has already sized, u
 one `04_non_academic_99_all` style section, so a panel's type is the panel's type and
 "patents are steel blue" holds from panel A to panel F.
 
-**Two inventories, used deliberately.** How many publications reach a patent is answered
-by the *corpus*: `patents__linked_ids` in the wide export is Dimensions' full reverse
-index (767 patents, 513 papers). What those patents ARE — filing status, assignee country,
-research division — is answered by the *pull*, `patents_detailed.csv`, a filtered query
-that returned 513 patents reaching 372 papers. The reach and growth panels take the first;
-every SI panel takes the second, because the linkage columns carry none of those fields.
-`linked_papers()` is the single place that chooses, and it falls back to the pull when the
-corpus is the narrow 72-column export. Counting the corpus index is also what makes this
-figure agree with `01_growth`'s reach panel, which counts the same way.
+**Two inventories, used deliberately.** Publication reach uses Dimensions' full
+reverse index, restricted to outcomes with known publication/start dates through the
+analysis cutoff. Descriptive patent panels use the existing detailed patent cohort,
+filtered by publication date. Missing endpoint metadata cannot establish date eligibility
+and therefore cannot enter the reach numerator. The raw source inventories are preserved.
 
 **The four sources.** Nothing here re-derives anything the source notebooks derive; it
 reads what they wrote:
@@ -55,22 +51,19 @@ import pandas as pd
 from utils import shared_for as F
 from utils import shared_paths as P
 from utils import shared_rcdc as RCDC
+from utils.shared_analysis_window import ANALYSIS_END_YEAR, filter_analysis_window
+from utils.data_analysis_04_non_academic_sources import filter_endpoint_links
 
 # =============================================================================
 # The analysis window
 # =============================================================================
-# The corpus runs 2013-2026. 2013 holds a handful of papers and 2026 is a partial year
-# (2,670 records, 10.2% of the corpus, all of them incomplete), so every time series here
-# is cut to 2014-2025 and says so. Trials are the exception and are NOT cut: a trial's
-# start_date is legitimately in the future (39 trials start in 2025, 20 in 2026, 1 in
-# 2027) and dropping those would hide the part of the pipeline that has not run yet.
-YEAR_MIN, YEAR_MAX = 2014, 2025
+# Paper and outcome dates are capped at 31 December 2025 before aggregation.
+# Existing lower bounds are retained; trials beginning before 2014 use an opening bin.
+YEAR_MIN, YEAR_MAX = 2014, ANALYSIS_END_YEAR
 YEARS = list(range(YEAR_MIN, YEAR_MAX + 1))
 
-#: The trial start-year axis folds its tails into an opening and a closing bin. The
-#: opening bin closes at YEAR_MIN, so it holds exactly the trials that begin before the
-#: corpus does; the closing bin opens at the last complete year, so it holds every trial
-#: registered but not yet under way.
+#: Trials beginning in or before YEAR_MIN share an opening bin. The final bin
+#: contains only starts in the final analysis year; later starts are excluded.
 EARLY_TRIAL_BIN, LATE_TRIAL_BIN = YEAR_MIN, YEAR_MAX
 
 #: Evidence streams, in the order they are told. Keys match `stream_colors` in
@@ -417,8 +410,10 @@ def load_corpus() -> pd.DataFrame:
 
     available = set(pq.read_schema(P.SHOWCASE_PLUS).names)
     wanted = ["id", "year", "doi", "times_cited", "altmetric"]
+    wanted += ["date"] if "date" in available else []
     wanted += [c for c in LINKED_ID_COLUMNS.values() if c in available]
-    corpus = pd.read_parquet(P.SHOWCASE_PLUS, columns=wanted)
+    corpus = filter_analysis_window(pd.read_parquet(P.SHOWCASE_PLUS, columns=wanted))
+    corpus = filter_endpoint_links(corpus)
     corpus["year"] = pd.to_numeric(corpus["year"], errors="coerce")
     corpus["doi_clean"] = corpus["doi"].astype("string").str.strip().str.lower()
     return corpus
@@ -439,7 +434,8 @@ def load_patents() -> pd.DataFrame:
             f"patent panel reads, and the raw pull ({P.raw_path(P.PATENTS_DETAILED)}) "
             f"has none of them."
         )
-    pat = pd.read_csv(export)
+    pat = filter_analysis_window(pd.read_csv(export), year_col="publication_year",
+                                 date_col="publication_date")
     pat["publication_year"] = pd.to_numeric(pat["publication_year"], errors="coerce")
     pat["priority_year"] = pd.to_numeric(pat["priority_year"], errors="coerce")
     pat["granted_year"] = pd.to_numeric(pat["granted_year"], errors="coerce")
@@ -449,7 +445,8 @@ def load_patents() -> pd.DataFrame:
 def load_trials() -> pd.DataFrame:
     """Clinical trials, with start_year and the parsed list columns the panels need."""
     from utils.data_analysis_04_non_academic_sources import ensure_clinical_trials_csv
-    ct = pd.read_csv(ensure_clinical_trials_csv())
+    ct = filter_analysis_window(pd.read_csv(ensure_clinical_trials_csv()),
+                                year_col="start_year", date_col="start_date")
     ct["start_year"] = pd.to_datetime(ct["start_date"], errors="coerce").dt.year
     ct["study_type"] = ct["study_type"].fillna("Unknown")
     return ct
@@ -458,7 +455,7 @@ def load_trials() -> pd.DataFrame:
 def load_policy() -> pd.DataFrame:
     """Policy documents, with the publisher country flattened out of its dict."""
     from utils.data_analysis_04_non_academic_sources import ensure_policy_csv
-    pol = pd.read_csv(ensure_policy_csv())
+    pol = filter_analysis_window(pd.read_csv(ensure_policy_csv()), year_col="year")
     pol["year"] = pd.to_numeric(pol["year"], errors="coerce")
     country = pol["publisher_org_country"].apply(_dct)
     pol["publisher_country"] = country.apply(lambda d: d.get("name") or "Unknown")
@@ -484,7 +481,8 @@ def load_altmetric(corpus: pd.DataFrame) -> pd.DataFrame:
             f"cannot substitute: its 'News mentions' is 0 for every row because no "
             f"source for it exists, and 0 there means unknown, not zero coverage."
         )
-    alt = pd.read_csv(P.ALTMETRIC_CSV)
+    alt = filter_analysis_window(pd.read_csv(P.ALTMETRIC_CSV), year_col="Year",
+                                 date_col="Publication Date")
     alt["doi_clean"] = alt["DOI"].astype("string").str.strip().str.lower()
     alt["pub_date"] = pd.to_datetime(alt["Publication Date"], errors="coerce")
     alt["alt_year"] = alt["pub_date"].dt.year
@@ -500,11 +498,11 @@ def load_altmetric(corpus: pd.DataFrame) -> pd.DataFrame:
                   .dropna(subset=["doi_clean"])
                   .sort_values("times_cited", ascending=False)
                   .drop_duplicates(subset="doi_clean", keep="first"))
-    joined = alt.merge(corpus_doi, on="doi_clean", how="left")
-    # The Altmetric row's own publication date is the fallback: 19,468 rows all join to a
-    # corpus paper (D18), but the join is on DOI and a null year would drop a real row.
+    joined = alt.merge(corpus_doi, on="doi_clean", how="inner")
+    # Only eligible corpus papers enter the analysis; attention/citation totals remain
+    # snapshot totals because per-event dates are not available.
     joined["year"] = joined["year"].fillna(joined["alt_year"])
-    return joined
+    return filter_analysis_window(joined, year_col="year", date_col="pub_date")
 
 
 def load_collaboration() -> pd.DataFrame:
@@ -528,7 +526,9 @@ def load_collaboration() -> pd.DataFrame:
         "research_org_countries", "academic_indices", "non_academic_indices",
         "company_indices", "uk_company_indices",
     ]
-    collab = pd.read_csv(P.COLLAB_FLAGGED, usecols=cols)
+    available = pd.read_csv(P.COLLAB_FLAGGED, nrows=0).columns
+    cols += ["date"] if "date" in available else []
+    collab = filter_analysis_window(pd.read_csv(P.COLLAB_FLAGGED, usecols=cols))
     collab["year"] = pd.to_numeric(collab["year"], errors="coerce")
     collab = h.add_non_academic_sector_taxonomy(collab)
     return collab
@@ -547,29 +547,17 @@ def _linked_paper_ids(frame: pd.DataFrame, corpus_ids: set[str],
 
 
 def linked_papers(corpus: pd.DataFrame, stream: str, pull: pd.DataFrame) -> tuple[set, str]:
-    """Papers linked to `stream`, preferring the corpus's own index over the pull.
+    """Papers linked to eligible outcomes, preferring the wider publication index.
 
-    Two inventories answer "which papers does a patent cite", and they are not the same
-    size:
-
-    * the **corpus** column `patents__linked_ids` is Dimensions' full reverse index —
-      every patent it knows of that cites the paper (767 patents, 513 papers);
-    * the **pull** at `patents_detailed.csv` is a filtered query that returned 513
-      patents, whose `publication_ids` reach 372 corpus papers.
-
-    The corpus index is the more complete answer to "how far does this research travel",
-    and it is what `01_growth`'s reach panel counts, so the two analyses agree when this
-    module prefers it. The pull stays the source for everything ABOUT the artefacts —
-    their filing status, assignee country, conditions studied — because those fields are
-    parsed there and the linkage columns carry none of them.
-
-    Returns the paper-id set and a short label naming which inventory produced it, so a
-    caption can state its own provenance instead of leaving it to be inferred.
+    ``load_corpus`` has already removed links to outcomes beyond the cutoff or with
+    unknown dates. Descriptive patent panels use the separate detailed pull. For
+    narrow corpus exports without reverse linkage, the filtered artefact pull is
+    the fallback. Return the linked paper IDs and their inventory provenance.
     """
     column = LINKED_ID_COLUMNS.get(stream)
     if column and column in corpus.columns:
         linked = corpus.loc[corpus[column].apply(lambda v: bool(_lst(v))), "id"]
-        return set(linked), "Dimensions publication index"
+        return set(linked), "Dimensions publication index, outcomes through 2025"
     return _linked_paper_ids(pull, set(corpus["id"])), "artefact pull"
 
 
@@ -748,9 +736,8 @@ def build_patent_aggregates(patents: pd.DataFrame, corpus: pd.DataFrame) -> dict
     # cluster x category heatmap: for each cluster, the `top_n` tags carrying the most
     # patents, as a share of the cluster's own tagged patents.
     #
-    # The partition file is an artefact of a job this module does not run. If it is
-    # absent the panel is skipped rather than invented — the clusters cannot be re-derived
-    # from the patents alone.
+    # Reuse only a cohort-verified partition; rebuild it locally from eligible patents
+    # when needed. Reviewed macro names must match the rebuilt memberships exactly.
     out["rcdc_clusters"] = _rcdc_cluster_matrix(patents)
 
     # (f) the most-cited UK Biobank papers, by how many patents reference them.
@@ -766,7 +753,7 @@ def build_patent_aggregates(patents: pd.DataFrame, corpus: pd.DataFrame) -> dict
 
 
 def _rcdc_cluster_matrix(patents: pd.DataFrame, top_n: int = 4) -> pd.DataFrame | None:
-    """Macro-cluster x RCDC-category patent counts, or None if the partition is missing.
+    """Macro-cluster x RCDC-category patent counts using a cohort-verified partition.
 
     Columns are the seven Louvain macro-clusters, rows the RCDC categories that are any
     cluster's top-`top_n`. A patent contributes to a category once, and a category belongs
@@ -779,8 +766,6 @@ def _rcdc_cluster_matrix(patents: pd.DataFrame, top_n: int = 4) -> pd.DataFrame 
     """
     from utils import shared_patent_utils as PU
 
-    if not P.PATENT_RCDC_SUMMARY.exists():
-        return None
     context = PU.prepare_rcdc_macro_context(
         patents, category_col="category_rcdc", summary_csv=P.PATENT_RCDC_SUMMARY)
     cat_name = context["cat_dict"]
@@ -821,21 +806,8 @@ def build_trial_aggregates(trials: pd.DataFrame, corpus: pd.DataFrame) -> dict:
     """Everything the clinical-trial panels draw."""
     out = {}
 
-    # (a) start year by study type, with both tails folded into a bin rather than cut.
-    #
-    # Two problems with the raw year axis. At the old end, seven trials start between 1996
-    # and 2015 — long-running registry records that later cite UK Biobank work — and eight
-    # single-trial bars stretched the axis across twenty years to show almost nothing;
-    # worse, the previous `>= 2014` filter silently DROPPED the five oldest instead of
-    # showing them. At the new end, 2025, 2026 and 2027 are all "registered, not yet under
-    # way": a start_date there is a plan, so splitting them by year reads as a collapse
-    # after 2025 when it is really one forward-looking bin.
-    #
-    # So: everything up to 2015 in an opening bin, everything from 2025 in a closing one,
-    # and the tick labels say so. Every trial with a start date is now on the chart.
-    # The opening bin closes at 2014 rather than 2015 because 2014 is where the corpus
-    # itself begins (YEAR_MIN): a bin that swallowed 2015 as well would be folding away a
-    # year the rest of the figure family draws in its own right.
+    # (a) Starts through 2025 only; preserve the historical opening bin.
+    trials = filter_analysis_window(trials, year_col="start_year", date_col="start_date")
     by_year = (trials.dropna(subset=["start_year"]).astype({"start_year": int})
                .groupby(["start_year", "study_type"]).size().unstack(fill_value=0)
                .sort_index())
@@ -843,12 +815,12 @@ def build_trial_aggregates(trials: pd.DataFrame, corpus: pd.DataFrame) -> dict:
     binned = pd.concat([
         by_year[early].sum().to_frame(f"\u2264{EARLY_TRIAL_BIN}").T,
         by_year[~early & ~late].rename(index=str),
-        by_year[late].sum().to_frame(f"{LATE_TRIAL_BIN}+").T,
+        by_year[late].sum().to_frame(f"{LATE_TRIAL_BIN}").T,
     ]).fillna(0).astype(int)
     out["start_year_by_type"] = binned
     out["start_year_bins"] = {
         f"\u2264{EARLY_TRIAL_BIN}": int(by_year[early].to_numpy().sum()),
-        f"{LATE_TRIAL_BIN}+": int(by_year[late].to_numpy().sum()),
+        f"{LATE_TRIAL_BIN}": int(by_year[late].to_numpy().sum()),
         "no start date": int(trials["start_year"].isna().sum()),
     }
 
@@ -1218,6 +1190,7 @@ def build_panel_data(verbose: bool = True) -> dict:
 
     say("collaboration (sector taxonomy) …")
     collab = load_collaboration()
+    collab = collab.loc[collab["id"].isin(corpus["id"])].copy()
     say(f"  {len(collab):,} publications classified")
 
     data = {
@@ -1738,12 +1711,7 @@ def _trial_type_colors() -> dict:
 
 
 def draw_trials_by_year(ax, D):
-    """Trials by start year, interventional against observational.
-
-    The x axis runs past the present on purpose: 20 trials start in 2026 and one in
-    2027. They are the part of the pipeline that has not run yet, and dropping them
-    would make the series look as though it were falling away.
-    """
+    """Trials beginning by the analysis cutoff, grouped by study type."""
     frame = D["trials"]["start_year_by_type"]
     colors = _trial_type_colors()
     order = [c for c in ["Interventional", "Observational"] if c in frame.columns]
@@ -2468,21 +2436,20 @@ def draw_collab_citations(ax, D):
 MAIN_CAPTION = {
     "A": "UK Biobank publications carrying each non-academic linkage, accumulated over "
          "time and dated by the publication's own year (log scale). Patent, trial and "
-         "policy linkage is Dimensions' publication index, so it counts every artefact "
-         "Dimensions knows of rather than only those in this project's pulls.",
+         "policy linkage uses Dimensions' publication index, restricted to outcomes "
+         "with publication/start dates through 31 December 2025.",
     "B": "Legal status of the patents citing UK Biobank research, by patent publication "
-         "year; the number above each bar is that year's total. These are the 513 patents "
-         "of this project's pull, which is what carries legal status; panel A's patent "
-         "line counts PUBLICATIONS (513 of them, from a fuller index of 767 patents), so "
-         "the two 513s are a coincidence, not the same quantity.",
+         "year; the number above each bar is that year's total. Patent metadata comes "
+         "from the detailed pull, restricted to publication dates through 2025; panel "
+         "A counts linked publications using the wider endpoint inventory.",
     "C": "Clinical trials citing UK Biobank research, by trial start year and study "
-         "type. Both tails are binned: six trials start in or before 2014, and the 60 "
-         "in the closing bin are registered but not yet under way.",
+         "type, for starts through 2025. Trials starting in or before 2014 share "
+         "the opening bin; the final bin contains only 2025 starts.",
     "D": "Share of each year's publications with at least one collaborator in each "
          "non-academic sector.",
     "E": "Altmetric Attention Score against substantive (news + policy) mentions, for "
-         "the 5,601 publications with at least one of each. The two most-mentioned "
-         "publications are named.",
+         "publications through 2025 with at least one of each. Counts are source "
+         "snapshot totals; the two most-mentioned publications are named.",
     "F": "Overlap between the collaborator sectors, row-normalised: of the publications "
          "carrying a collaborator in the row's sector, the percentage also carrying one "
          "in the column's. The matrix is asymmetric by construction and is read across "

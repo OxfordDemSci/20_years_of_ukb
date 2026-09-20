@@ -7,7 +7,7 @@
 # Main design:
 #     - Uses title + abstract as text input.
 #     - Uses fixed scientific document embedding model: allenai-specter.
-#     - Fits one global BERTopic model across all years.
+#     - Fits one global BERTopic model using publications through 2025-12-31.
 #     - Computes dynamic topic counts/shares over publication year.
 
 from __future__ import annotations
@@ -40,6 +40,11 @@ from sklearn.feature_extraction.text import CountVectorizer, ENGLISH_STOP_WORDS
 from umap import UMAP
 
 from utils import shared_paths as P
+from utils.shared_analysis_window import ANALYSIS_END_DATE, ANALYSIS_END_YEAR, filter_analysis_window
+from utils.data_analysis_02_content_window import (
+    require_topic_window_provenance, topic_corpus_hash,
+    validate_training_years, write_topic_window_provenance,
+)
 
 
 config = SimpleNamespace(
@@ -49,7 +54,7 @@ config = SimpleNamespace(
     YEAR_COL=None,
     DATE_COL=None,
     MIN_YEAR=2014,
-    INCOMPLETE_YEARS=[2026],
+    INCOMPLETE_YEARS=[ANALYSIS_END_YEAR + 1],
     RANDOM_STATE=42,
     TOP_N_TOPICS_FOR_FIGURES=14,
     EMBEDDING_MODEL_NAME="allenai-specter",
@@ -153,6 +158,7 @@ def infer_col(
     required: bool = False,
     label: str = "column",
     override: Optional[str] = None,
+    exact: bool = False,
 ) -> Optional[str]:
     if override:
         if override in df.columns:
@@ -166,11 +172,12 @@ def infer_col(
         if key in norm_map:
             return norm_map[key]
 
-    for cand in candidates:
-        key = norm_col(cand)
-        for n, orig in norm_map.items():
-            if key and (key in n or n in key):
-                return orig
+    if not exact:
+        for cand in candidates:
+            key = norm_col(cand)
+            for n, orig in norm_map.items():
+                if key and (key in n or n in key):
+                    return orig
 
     if required:
         raise ValueError(
@@ -259,13 +266,7 @@ def make_showcase_id(df: pd.DataFrame, id_col: Optional[str], title_col: str, ye
 
 
 def corpus_hash(docs: Sequence[str], years: Sequence[int]) -> str:
-    h = hashlib.sha1()
-    for doc, year in zip(docs, years):
-        h.update(str(year).encode("utf-8"))
-        h.update(b"\t")
-        h.update(doc[:1000].encode("utf-8", errors="ignore"))
-        h.update(b"\n")
-    return h.hexdigest()[:12]
+    return topic_corpus_hash(range(len(docs)), docs, years)
 
 
 def save_mpl(fig: plt.Figure, fig_dir: Path, basename: str, dpi: int = 600) -> Tuple[Path, Path, Path]:
@@ -424,7 +425,9 @@ def prepare_input(input_parquet: Path, output_dir: Path) -> pd.DataFrame:
     title_col = infer_col(df_raw, TITLE_CANDIDATES, required=True, label="title", override=config.TITLE_COL)
     abstract_col = infer_col(df_raw, ABSTRACT_CANDIDATES, required=False, label="abstract", override=config.ABSTRACT_COL)
     year_col_raw = infer_col(df_raw, YEAR_CANDIDATES, required=False, label="year", override=config.YEAR_COL)
-    date_col = infer_col(df_raw, DATE_CANDIDATES, required=False, label="date", override=config.DATE_COL)
+    # An ingestion timestamp such as date_inserted is not a publication date.
+    date_col = infer_col(df_raw, DATE_CANDIDATES, required=False, label="date",
+                         override=config.DATE_COL, exact=True)
 
     print("Detected columns:")
     print(f"  id      : {id_col}")
@@ -433,7 +436,8 @@ def prepare_input(input_parquet: Path, output_dir: Path) -> pd.DataFrame:
     print(f"  year    : {year_col_raw}")
     print(f"  date    : {date_col}")
 
-    df = df_raw.copy()
+    # Apply the boundary before text preparation, embeddings, topic fitting or rankings.
+    df = filter_analysis_window(df_raw, year_col=year_col_raw, date_col=date_col)
 
     if abstract_col is None:
         df["_abstract_for_topic"] = ""
@@ -447,6 +451,8 @@ def prepare_input(input_parquet: Path, output_dir: Path) -> pd.DataFrame:
     df = df[df["analysis_year"].notna()].copy()
     df["analysis_year"] = df["analysis_year"].astype(int)
     df = df[df["analysis_year"] >= int(config.MIN_YEAR)].copy()
+    if df.empty:
+        raise ValueError(f"No dated topic inputs remain through {ANALYSIS_END_DATE.date()}.")
 
     df["topic_text"] = df.apply(
         lambda r: clean_topic_text(r.get(title_col, ""), r.get(abstract_col, "")),
@@ -626,6 +632,7 @@ def fit_final_model(
     output_dir: Path,
 ) -> BERTopic:
     print("[4/8] Fitting final BERTopic model")
+    validate_training_years(years)
 
     topic_model = build_topic_model(params, random_state=config.RANDOM_STATE)
     topics, _ = topic_model.fit_transform(docs, embeddings=embeddings)
@@ -647,6 +654,8 @@ def fit_final_model(
 
     metrics = {
         **params,
+        "analysis_end_date": str(ANALYSIS_END_DATE.date()),
+        "training_max_year": int(max(years)),
         "embedding_model": config.EMBEDDING_MODEL_NAME,
         "n_documents": len(docs),
         "embedding_shape": list(embeddings.shape),
@@ -667,7 +676,9 @@ def fit_final_model(
             "topic_text": docs,
         }
     )
-    doc_topics.to_csv(table_dir / "bertopic_document_topic_assignments.csv", index=False)
+    assignment_path = table_dir / "bertopic_document_topic_assignments.csv"
+    doc_topics.to_csv(assignment_path, index=False)
+    write_topic_window_provenance(assignment_path, years)
 
     topic_info = topic_model.get_topic_info()
     topic_info.to_csv(table_dir / "bertopic_topic_info.csv", index=False)
@@ -717,7 +728,10 @@ def make_topic_year_tables_and_figures(
     fig_dir = output_dir / "figures"
     fig_dir.mkdir(parents=True, exist_ok=True)
 
-    doc_topics = pd.read_csv(table_dir / "bertopic_document_topic_assignments.csv")
+    assignment_path = table_dir / "bertopic_document_topic_assignments.csv"
+    require_topic_window_provenance(assignment_path)
+    doc_topics = filter_analysis_window(pd.read_csv(assignment_path), year_col="analysis_year")
+    training_years = doc_topics["analysis_year"].tolist()
     doc_topics = doc_topics[doc_topics["topic"] != -1].copy()
 
     counts = (
@@ -816,6 +830,8 @@ def make_topic_year_tables_and_figures(
 
     count_mat_named.to_csv(table_dir / "bertopic_topic_year_counts_selected.csv")
     share_mat_named.to_csv(table_dir / "bertopic_topic_year_proportions_selected.csv")
+    for name in ("bertopic_topic_year_counts_selected.csv", "bertopic_topic_year_proportions_selected.csv"):
+        write_topic_window_provenance(table_dir / name, training_years)
 
     years = count_mat_named.index.to_numpy()
     y = share_mat_named.to_numpy().T
@@ -929,12 +945,13 @@ def write_manifest(
         "selected_params": params,
         "n_documents": n_docs,
         "min_year": config.MIN_YEAR,
+        "analysis_end_date": str(ANALYSIS_END_DATE.date()),
         "incomplete_years": getattr(config, "INCOMPLETE_YEARS", []),
         "notes": [
             "Topic text is title + abstract.",
             "Embedding input uses light cleaning only.",
             "Corpus-generic words are removed from topic-word representation via CountVectorizer.",
-            "One global BERTopic model is fitted across all years.",
+            f"One global BERTopic model is fitted through {ANALYSIS_END_DATE.date()}.",
         ],
     }
 

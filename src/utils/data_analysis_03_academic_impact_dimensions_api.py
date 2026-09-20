@@ -106,6 +106,11 @@ import time
 from pathlib import Path
 from typing import Dict, Iterable, List, Optional, Sequence, Tuple
 
+if __package__:
+    from .shared_analysis_window import ANALYSIS_END_YEAR, filter_analysis_window
+else:
+    from shared_analysis_window import ANALYSIS_END_YEAR, filter_analysis_window
+
 # The FOR code list shipped with the repo: level, id, code, name, publication_count.
 # The API facets by entity id ("80003"), the corpus and the analysis key on the numeric
 # code ("32"), so this file is the bridge and is loaded for every counts run.
@@ -122,13 +127,9 @@ RECORD_FIELDS = ("id", "year", "type", "times_cited", "field_citation_ratio",
 # `where id in [...]` accepts 512 entries; 1000 is rejected outright.
 ID_BATCH = 512
 
-# The last year every mode carries by default. It has to be the last COMPLETE publication
-# year, never the current one: a part-year has most of its papers and almost none of its
-# citations, so it draws as a collapse. It also has to match ANALYSIS_MAX in the notebooks
-# — a default below it silently rebuilds the tables without the year they analyse, which
-# is exactly how 2025 went missing after the 2024 run. Bump both together when a year
-# closes.
-DEFAULT_YEAR_MAX = 2025
+# Publication counts and field references use the same fixed upper year as the
+# notebooks. Raw per-paper citation snapshots remain independent of that window.
+DEFAULT_YEAR_MAX = ANALYSIS_END_YEAR
 
 # The citation aggregates the facet carries. citations_avg is not decoration: it is the
 # reference mean that turns a paper's citation count into a field-normalised score, and
@@ -366,8 +367,12 @@ def records_to_counts(records: Iterable[dict], codes, category: str, arm: str,
                       f"n_{w}_docs": 0.0, f"n_{w}_docs_frac": 0.0})
         return d
 
-    n_kept = n_out_of_range = 0
-    for rec in records:
+    records = list(records)
+    eligible = filter_analysis_window(pd.DataFrame(records)).index if records else []
+    year_max = min(year_max, ANALYSIS_END_YEAR)
+    n_kept, n_out_of_range = 0, len(records) - len(eligible)
+    for index in eligible:
+        rec = records[index]
         try:
             year = int(rec.get("year"))
         except (TypeError, ValueError):
@@ -1192,10 +1197,12 @@ def cmd_background(args: argparse.Namespace) -> None:
 
     out = Path(args.out)
     whole = pd.read_parquet(out / f"api_whole.{args.category}.parquet")
+    whole = filter_analysis_window(whole)
     ukbb_path = out / f"counts.{args.category}.ukbb.parquet"
     if not ukbb_path.exists():
         sys.exit(f"no {ukbb_path} — run the `ukbb` mode first")
     ukbb = pd.read_parquet(ukbb_path)
+    ukbb = filter_analysis_window(ukbb)
 
     keys = ["year", "level", "code"]
     cols = ["n_papers", "n_cit", "n_cit_docs", "n_mncs", "n_mncs_docs"]
@@ -1274,6 +1281,8 @@ def cmd_background(args: argparse.Namespace) -> None:
 
     ytot = pd.read_csv(out / f"api_year_totals.{args.category}.csv")
     utot = pd.read_parquet(out / f"totals.{args.category}.ukbb.parquet")
+    ytot = filter_analysis_window(ytot)
+    utot = filter_analysis_window(utot)
     t = ytot.merge(utot[["year", "n_papers", "n_cit_total"]], on="year", how="left",
                    suffixes=("", "_ukbb")).fillna(0.0)
     t["n_papers"] = t.n_papers - t.n_papers_ukbb
@@ -1558,6 +1567,8 @@ def main() -> None:
                     default="data/analysis/academic_impact/for_counts_out")
 
     args = p.parse_args()
+    if hasattr(args, "year_max"):
+        args.year_max = min(args.year_max, ANALYSIS_END_YEAR)
     {"check": cmd_check, "codes": cmd_codes, "counts": cmd_counts,
      "calibrate": cmd_calibrate, "percentiles": cmd_percentiles,
      "deciles": cmd_percentiles, "whole": cmd_whole,

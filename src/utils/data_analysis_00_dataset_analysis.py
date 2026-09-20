@@ -9,6 +9,7 @@ import numpy as np
 import pandas as pd
 
 from utils import shared_paths as P
+from utils.shared_analysis_window import filter_analysis_window
 
 
 UKB_PATTERN = re.compile(
@@ -35,7 +36,7 @@ MODEL_NAMES = ("qwen", "llama3_8b", "mistral_7b")
 
 
 def load_publications(path: Path = P.SHOWCASE_PLUS) -> pd.DataFrame:
-    frame = pd.read_parquet(path)
+    frame = filter_analysis_window(pd.read_parquet(path))
     required = {"id", "title"}
     missing = required - set(frame.columns)
     if missing:

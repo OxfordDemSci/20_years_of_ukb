@@ -47,6 +47,23 @@ directly — the nested columns are JSON and hand-rolled parsers fail *silently*
 Notebooks run in slug order; within a slug, in numeric order. Several are currently blocked
 or broken — [`doc/STATE.md`](doc/STATE.md) lists exactly which, and why.
 
+All analyses have a fixed upper date of **31 December 2025**, defined in
+`src/utils/shared_analysis_window.py`. Publication and linked-event inputs are filtered
+before metrics, rankings, model fitting, and plotting; existing lower year limits are
+preserved. A future year or date excludes a record, and records with no usable date or
+year are excluded. Raw source files remain intact, so source-inventory audits can still
+report all 26,109 records, including the excluded 2026 publications.
+
+`load_showcase()` reads the raw source. Analysis code must apply
+`filter_analysis_window()` before using it. BERTopic caches are tied to the eligible
+training corpus; old topic exports require retraining with the cutoff and a matching
+`.analysis_window.json` provenance file before reuse.
+
+The publication/event cutoff is distinct from measurement time: citation totals retain
+the **26 August 2026 snapshot**, and Altmetric totals retain their available source
+snapshot. These sources do not provide the histories needed to reconstruct those
+totals as of December 2025.
+
 `04_non_academic_04_collaboration.ipynb` analyses saved organisation classifications.
 It can rebuild the labelled table from a complete cache without credentials. Missing
 classifications are reported as missing data; paid classification requires explicitly

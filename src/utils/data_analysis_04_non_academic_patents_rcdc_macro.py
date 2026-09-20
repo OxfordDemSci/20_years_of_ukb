@@ -5,6 +5,7 @@ rcdc_macro_for_pipeline.py
 Input: CSV with columns:
  - patent_id
  - rcdc_labels  (either JSON list like '["625","439"]' OR semicolon/comma separated like "625;439" or "625,439")
+ - publication_year or publication_date (required to enforce the analysis cutoff)
 
 Output:
  - rcdc_cooccurrence.csv
@@ -17,9 +18,20 @@ Output:
 import argparse
 import ast
 import json
+from hashlib import sha256
+from importlib.metadata import version
 from collections import Counter, defaultdict
 import math
 import os
+import sys
+from pathlib import Path
+
+_ROOT = Path(__file__).resolve().parents[2]
+if str(_ROOT / "src") not in sys.path:
+    sys.path.insert(0, str(_ROOT / "src"))
+from utils.shared_analysis_window import ANALYSIS_END_DATE, filter_analysis_window
+from utils.shared_showcase import parse_listcol
+from utils import shared_paths as P
 
 import numpy as np
 import pandas as pd
@@ -42,7 +54,83 @@ except Exception:
     HAS_IGRAPH = False
 
 
-result_path = "/Users/valler/Python/RA/20_years_of_ukb/file/paten_rcdc_macro"
+result_path = str(P.PATENT_RCDC_MACRO / "through_2025-12-31")
+
+# The original invocation at the foot of this module used ten repeats and kept
+# the last partition, so seed 9 is its reproducible canonical fit.
+ANALYSIS_PARTITION_METHOD = {
+    "algorithm": "python-louvain",
+    "python_louvain_version": version("python-louvain"),
+    "networkx_version": nx.__version__,
+    "numpy_version": np.__version__,
+    "normalization": "npmi",
+    "threshold": 0.01,
+    "resolution": 1.0,
+    "random_state": 9,
+}
+
+
+def _partition_provenance(frame, patent_labels, method):
+    id_col = "id" if "id" in frame else "patent_id"
+    if frame[id_col].isna().any() or frame[id_col].duplicated().any():
+        raise ValueError("RCDC partition input requires unique, nonmissing patent IDs")
+    cohort = sorted(
+        [[str(pid), sorted(set(labels))] for pid, labels in zip(frame[id_col], patent_labels)]
+    )
+    return {
+        "schema_version": 1,
+        "analysis_end_date": ANALYSIS_END_DATE.date().isoformat(),
+        "cohort_sha256": sha256(json.dumps(cohort, separators=(",", ":")).encode()).hexdigest(),
+        "patents": len(cohort),
+        "labels": len({label for _, labels in cohort for label in labels}),
+        "method": method,
+    }
+
+
+def load_or_build_analysis_partition(frame, *, category_col="category_rcdc", cache_dir=None):
+    """Fit the original Louvain method on eligible patents, or reuse its verified cache.
+
+    Cache identity includes the cutoff, patent IDs, label assignments, algorithm
+    parameters and dependency versions. Legacy summaries without that provenance
+    are never used as fitted partitions and are never overwritten.
+    """
+    eligible = filter_analysis_window(frame, year_col="publication_year", date_col="publication_date")
+    patent_labels = []
+    for cell in eligible[category_col]:
+        labels = [value.get("id") if isinstance(value, dict) else value
+                  for value in parse_listcol(cell)]
+        patent_labels.append(sorted({str(value) for value in labels if value is not None}))
+    expected = _partition_provenance(eligible, patent_labels, dict(ANALYSIS_PARTITION_METHOD))
+    if not expected["labels"]:
+        raise ValueError("No RCDC labels remain in the eligible patent cohort")
+    cache_key = sha256(json.dumps(expected, sort_keys=True).encode()).hexdigest()
+    cache_dir = Path(cache_dir) if cache_dir is not None else Path(result_path)
+    summary = cache_dir / f"cluster_label_summary_louvain.{cache_key}.csv"
+    sidecar = summary.with_suffix(".provenance.json")
+    if summary.exists() and sidecar.exists():
+        try:
+            metadata = json.loads(sidecar.read_text(encoding="utf-8"))
+            signature = metadata.pop("partition_sha256")
+            if metadata == expected and signature == sha256(summary.read_bytes()).hexdigest():
+                return pd.read_csv(summary), summary
+        except (OSError, ValueError, KeyError):
+            pass
+
+    labels, matrix, counts = build_cooccurrence_matrix(patent_labels)
+    weights = compute_pmi_matrix(matrix, counts, len(eligible), normalized=True)
+    weights[weights <= ANALYSIS_PARTITION_METHOD["threshold"]] = 0.0
+    graph = graph_from_matrix(labels, weights, threshold=0.0)
+    partition = run_louvain(
+        graph, random_state=ANALYSIS_PARTITION_METHOD["random_state"],
+        resolution=ANALYSIS_PARTITION_METHOD["resolution"],
+    )
+    result = summarize_communities(partition, counts, top_k=10)
+    cache_dir.mkdir(parents=True, exist_ok=True)
+    result.to_csv(summary, index=False)
+    expected["partition_sha256"] = sha256(summary.read_bytes()).hexdigest()
+    sidecar.write_text(json.dumps(expected, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    print(f"Rebuilt RCDC partition from {len(eligible)} eligible patents ({len(result)} clusters)")
+    return result, summary
 # --------------------------
 # Utilities: parsing input
 # --------------------------
@@ -238,7 +326,11 @@ def plot_network(G, partition, outpath=result_path + "/network_plot.png", figsiz
 # Main pipeline
 # --------------------------
 def main(args):
-    df = pd.read_csv(args.input)
+    global result_path
+    result_path = str(Path(args.output_dir))
+    Path(result_path).mkdir(parents=True, exist_ok=True)
+    df = filter_analysis_window(pd.read_csv(args.input), year_col="publication_year",
+                                date_col="publication_date")
     if 'patent_id' not in df.columns:
         raise ValueError("Input CSV must have a 'patent_id' column")
     if 'rcdc_labels' not in df.columns:
@@ -300,6 +392,18 @@ def main(args):
     # summarize
     sum_louv = summarize_communities(canon_partition, counts, top_k=10)
     sum_louv.to_csv(result_path + "/cluster_label_summary_louvain.csv", index=False)
+    provenance = _partition_provenance(df, patent_labels, {
+        "algorithm": "python-louvain", "python_louvain_version": version("python-louvain"),
+        "networkx_version": nx.__version__, "numpy_version": np.__version__,
+        "normalization": "npmi" if args.npmi else "pmi" if args.pmi else "raw",
+        "threshold": args.threshold, "resolution": args.resolution,
+        "random_state": nreps - 1,
+    })
+    partition_path = Path(result_path) / "cluster_label_summary_louvain.csv"
+    provenance["partition_sha256"] = sha256(partition_path.read_bytes()).hexdigest()
+    partition_path.with_suffix(".provenance.json").write_text(
+        json.dumps(provenance, indent=2, sort_keys=True) + "\n", encoding="utf-8"
+    )
     print("Saved cluster_label_summary_louvain.csv")
 
     # modularity
@@ -373,6 +477,7 @@ def main(args):
 if __name__ == "__main__":
     p = argparse.ArgumentParser()
     p.add_argument("--input", type=str, required=True, help="Input CSV file with patent_id and rcdc_labels")
+    p.add_argument("--output-dir", default=result_path, help="Directory for cutoff-scoped analysis outputs")
     p.add_argument("--pmi", action='store_true', help="Compute PMI matrix (not normalized)")
     p.add_argument("--npmi", action='store_true', help="Compute normalized PMI (NPMI) matrix (preferred)")
     p.add_argument("--threshold", type=float, default=0.0, help="Threshold to zero-out small weights")

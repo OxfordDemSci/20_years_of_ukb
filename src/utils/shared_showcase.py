@@ -21,7 +21,12 @@ downstream notebook, and both are handled here rather than in each notebook:
 Typical use:
 
     from utils.shared_showcase import load_showcase
-    df = load_showcase(columns=["id", "year", "times_cited", "authors"], parse=["authors"])
+    from utils.shared_analysis_window import filter_analysis_window
+    df = filter_analysis_window(load_showcase(
+        columns=["id", "date", "year", "times_cited", "authors"], parse=["authors"]))
+
+This loader preserves the raw source for provenance and collection workflows. Analyses
+must apply the shared date cutoff before computing results or training models.
 """
 
 from __future__ import annotations

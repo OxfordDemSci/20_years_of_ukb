@@ -41,6 +41,7 @@ import pandas as pd
 
 from utils import shared_paths as P
 from utils.shared_showcase import load_showcase, parse_listcol
+from utils.shared_analysis_window import filter_analysis_window
 
 # Emitted for every row; 0 means "no source for this", not "measured as zero".
 NEWS_MENTIONS_UNAVAILABLE = 0
@@ -52,7 +53,7 @@ def policy_citation_counts(policy_csv: Path = None) -> pd.Series:
     Indexed by Dimensions publication id. Only papers cited at least once appear.
     """
     policy_csv = Path(policy_csv or P.POLICY_CSV)
-    pol = pd.read_csv(policy_csv)
+    pol = filter_analysis_window(pd.read_csv(policy_csv))
     counts: dict[str, int] = {}
     for cell in pol["publication_ids"]:
         # One policy document may cite a paper more than once in its reference
@@ -65,7 +66,9 @@ def policy_citation_counts(policy_csv: Path = None) -> pd.Series:
 
 def build_altmetric_table(out_path: Path = None) -> pd.DataFrame:
     """Assemble the Altmetric-shaped table and optionally write it out."""
-    corpus = load_showcase(columns=["id", "doi", "year", "times_cited", "altmetric"])
+    corpus = filter_analysis_window(load_showcase(
+        columns=["id", "doi", "year", "date", "times_cited", "altmetric"]
+    ))
     policy = policy_citation_counts()
 
     out = pd.DataFrame({

@@ -16,6 +16,7 @@ from matplotlib.colors import to_rgb, to_rgba
 from matplotlib.patches import Rectangle
 
 from .shared_showcase import load_showcase
+from .shared_analysis_window import ANALYSIS_END_DATE, ANALYSIS_END_YEAR, filter_analysis_window
 from .shared_style import compact_count as shared_compact_count
 from .shared_style import grid_on as shared_grid_on
 from .shared_style import marker_area as shared_marker_area
@@ -33,7 +34,7 @@ ENDPOINT_SPECS = OrderedDict({
     "patents": {
         "label": "Patents",
         "id_col": "patents__linked_ids",
-        "event_col": "patents__publication_year",
+        "event_col": "patents__publication_date",
         "record_col": "patents__n_records",
         "event_label": "Patent publications",
     },
@@ -73,13 +74,14 @@ def load_growth_papers(endpoint_specs=ENDPOINT_SPECS):
     """Load and normalize only the showcase columns required by this analysis."""
     endpoint_columns = [
         column
-        for spec in endpoint_specs.values()
-        for column in (spec["id_col"], spec["event_col"], spec["record_col"])
+        for key, spec in endpoint_specs.items()
+        for column in (spec["id_col"], spec["event_col"], spec["record_col"], f"{key}__id")
     ]
     parse_columns = [
         "open_access", "research_org_types", "research_org_countries",
         *[spec["id_col"] for spec in endpoint_specs.values()],
         *[spec["event_col"] for spec in endpoint_specs.values()],
+        *[f"{key}__id" for key in endpoint_specs],
     ]
     papers = load_showcase(
         columns=BASE_COLUMNS + endpoint_columns,
@@ -96,7 +98,11 @@ def load_growth_papers(endpoint_specs=ENDPOINT_SPECS):
     papers["authors_count"] = pd.to_numeric(
         papers["authors_count"], errors="coerce"
     )
-    return papers
+    source_count = len(papers)
+    papers = filter_analysis_window(papers, date_col="publication_date")
+    papers.attrs["source_record_count"] = source_count
+    papers.attrs["excluded_publication_records"] = source_count - len(papers)
+    return restrict_endpoint_dates(papers, endpoint_specs)
 
 
 def _normalized_strings(values):
@@ -174,6 +180,35 @@ def _consensus_year(values):
         return np.nan
     counts = valid.value_counts()
     return int(min(counts[counts.eq(counts.max())].index))
+
+
+def restrict_endpoint_dates(papers, endpoint_specs=ENDPOINT_SPECS):
+    """Keep dated endpoint links through 2025, preserving ID/date array alignment."""
+    papers = papers.copy()
+    excluded = {}
+    for key, spec in endpoint_specs.items():
+        ids_out, dates_out = [], []
+        omitted = 0
+        record_ids = papers.get(f"{key}__id", papers[spec["id_col"]])
+        for ids, records, dates in zip(papers[spec["id_col"]], record_ids, papers[spec["event_col"]]):
+            if len(records) != len(dates):
+                raise ValueError(f"Cannot date-filter {key}: record-ID and event-date arrays differ in length.")
+            # linked_ids can contain unresolved IDs absent from the record arrays.
+            # Join by actual record ID rather than shifting dates onto another link.
+            date_by_id = dict(zip(records, dates))
+            keep = [entity_id for entity_id in ids
+                    if 1 <= _to_event_year(date_by_id.get(entity_id)) <= ANALYSIS_END_YEAR]
+            ids_out.append(keep)
+            dates_out.append([date_by_id[entity_id] for entity_id in keep])
+            omitted += len(ids) - len(keep)
+        papers[spec["id_col"]] = ids_out
+        papers[spec["event_col"]] = dates_out
+        if f"{key}__id" in papers:
+            papers[f"{key}__id"] = ids_out
+        papers[spec["record_col"]] = [len(ids) for ids in ids_out]
+        excluded[key] = omitted
+    papers.attrs["endpoint_links_excluded_by_date"] = excluded
+    return papers
 
 
 def reconstruct_endpoint_links(frame, key, spec):
@@ -258,7 +293,9 @@ def build_quality_audit(papers, endpoint_audits, data_cutoff):
         & papers["publication_date"].dt.year.ne(papers["year"])
     )
     rows = [
-        {"check": "input_rows", "value": len(papers), "interpretation": "All parquet records"},
+        {"check": "input_rows", "value": len(papers), "interpretation": "Records within the analysis cutoff"},
+        {"check": "source_rows", "value": papers.attrs.get("source_record_count", len(papers)),
+         "interpretation": "Unfiltered source inventory; not the analytical denominator"},
         {
             "check": "unique_publication_ids",
             "value": papers["id"].nunique(),
@@ -287,12 +324,12 @@ def build_quality_audit(papers, endpoint_audits, data_cutoff):
         {
             "check": "records_after_data_cutoff",
             "value": papers["future_dated"].sum(),
-            "interpretation": f"Future-dated; excluded with {data_cutoff.year}",
+            "interpretation": f"Analytical records after {ANALYSIS_END_DATE.date()} must be absent",
         },
         {
-            "check": f"records_in_incomplete_{data_cutoff.year}",
-            "value": papers["year"].eq(data_cutoff.year).sum(),
-            "interpretation": "Provisional year; excluded from primary analyses",
+            "check": "excluded_publication_records",
+            "value": papers.attrs.get("excluded_publication_records", 0),
+            "interpretation": "Publication dates outside the analysis window or unknown",
         },
     ]
     rows.extend(
@@ -303,10 +340,17 @@ def build_quality_audit(papers, endpoint_audits, data_cutoff):
         }
         for audit in endpoint_audits
     )
+    rows.extend(
+        {"check": f"{key}_links_excluded_by_event_date", "value": value,
+         "interpretation": "Event after 2025-12-31 or event date unknown"}
+        for key, value in papers.attrs.get("endpoint_links_excluded_by_date", {}).items()
+    )
     return pd.DataFrame(rows)
 
 
 def complete_year_corpus(papers, last_complete_year):
+    papers = filter_analysis_window(papers, date_col="publication_date")
+    last_complete_year = min(last_complete_year, ANALYSIS_END_YEAR)
     complete = papers.loc[
         papers["year"].between(int(papers["year"].min()), last_complete_year)
     ].copy()
@@ -529,8 +573,8 @@ def headline_summary(
     rows = [
         {
             "metric": "All source records",
-            "value": f"{len(papers):,}",
-            "definition": f"Includes provisional {data_cutoff.year} records",
+            "value": f"{papers.attrs.get('source_record_count', len(papers)):,}",
+            "definition": "Unfiltered source inventory; excluded records are not analysed",
         },
         {
             "metric": "Papers in complete years",

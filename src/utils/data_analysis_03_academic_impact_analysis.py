@@ -47,6 +47,8 @@ from typing import Dict, Iterable, List, Optional, Sequence
 import numpy as np
 import pandas as pd
 
+from .shared_analysis_window import ANALYSIS_END_YEAR, filter_analysis_window
+
 # The measure columns the count job writes. Everything is derived from these two plus
 # whichever citation weights the partials happen to carry.
 BASE_MEASURES = ("n_papers", "n_frac")
@@ -227,6 +229,7 @@ def load_arm(counts_dir, col_type, arm, level, year_min, year_max, verbose=True)
     whose partials predate --weights still works."""
     files = arm_files(counts_dir, col_type, arm)
     raw = pd.concat([pd.read_parquet(f) for f in files], ignore_index=True)
+    raw = filter_analysis_window(raw)
     raw = raw[(raw.level == level) & raw.year.between(year_min, year_max)].copy()
     raw["code"] = raw.code.fillna("").str.strip()
     blank = raw.code == ""
@@ -253,6 +256,7 @@ def load_side_table(counts_dir, col_type, arm, prefix, keys, year_min, year_max)
     raw = pd.concat([pd.read_parquet(f)
                      for f in arm_files(counts_dir, col_type, arm, prefix)],
                     ignore_index=True)
+    raw = filter_analysis_window(raw)
     raw = raw[raw.year.between(year_min, year_max)]
     return raw.groupby(keys, as_index=False).sum(numeric_only=True)
 
@@ -310,6 +314,7 @@ def paper_impact(counts_dir, col_type: str = "for", *, level: str = "L4",
     to the parquet — a silent fallback is the whole defect this function replaces.
     """
     counts_dir = Path(counts_dir)
+    year_max = min(year_max, ANALYSIS_END_YEAR)
     recs_path = counts_dir / "api_ukbb_records.json"
     required = (recs_path, counts_dir / f"api_whole.{col_type}.parquet",
                 counts_dir / f"field_thresholds.{col_type}.csv")
@@ -341,10 +346,12 @@ def paper_impact(counts_dir, col_type: str = "for", *, level: str = "L4",
     # -- the two reference tables, keyed the way the count job keys them --------------
     whole = pd.read_parquet(counts_dir / f"api_whole.{col_type}.parquet",
                             columns=["year", "level", "code", "mean_cit"])
+    whole = filter_analysis_window(whole)
     mean_cit = (whole[whole.level == level]
                 .set_index(["year", "code"])["mean_cit"].to_dict())
 
     thr = pd.read_csv(counts_dir / f"field_thresholds.{col_type}.csv", dtype={"code": str})
+    thr = filter_analysis_window(thr)
     if "percentile" not in thr.columns:            # a file from before the percentiles mode
         thr["percentile"] = 10.0
     thr = thr[thr.level == level]
@@ -359,7 +366,10 @@ def paper_impact(counts_dir, col_type: str = "for", *, level: str = "L4",
         return float(np.mean(hits)) if hits else np.nan
 
     rows = []
-    for rec in json.loads(recs_path.read_text()):
+    records = json.loads(recs_path.read_text())
+    eligible_records = filter_analysis_window(pd.DataFrame(records)).index
+    for index in eligible_records:
+        rec = records[index]
         year = rec.get("year")
         if not year or not (year_min <= year <= year_max):
             continue
@@ -494,6 +504,7 @@ def build(counts_dir, col_type, *, level, rcdc_view="all", year_min, year_max,
       labels      SYSTEM, UNIT, LEVEL, VIEW_NOTE, FILE_TAG
       helpers     share_at, pct, short, impact_table, rci_timeseries
     """
+    year_max = min(year_max, ANALYSIS_END_YEAR)
     spec = CATEGORY_SPECS[col_type]
     unit = spec["unit"]
     value = weight

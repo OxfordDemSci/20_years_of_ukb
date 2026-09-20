@@ -17,6 +17,51 @@ import pandas as pd
 import pyarrow.parquet as pq
 
 from utils import shared_paths as P
+from utils.shared_analysis_window import filter_analysis_window
+from utils.shared_showcase import parse_listcol
+
+
+ENDPOINT_DATE_COLUMNS = {
+    "patents": ("publication_year", "publication_date"),
+    "clinical_trials": ("start_year", "start_date"),
+    "policy_documents": ("year", None),
+}
+
+
+def filter_endpoint_links(corpus: pd.DataFrame, *, wide: pd.DataFrame | None = None,
+                          source: Path | None = None) -> pd.DataFrame:
+    """Limit reverse links to entities dated within the analysis window.
+
+    Publication dates and outcome dates are separate: an eligible paper can cite
+    or be cited by an outcome beyond the cutoff. Only links with dated endpoint
+    metadata qualify. The source snapshot and its metadata arrays are unchanged.
+    """
+    result = corpus.copy()
+    endpoints = [name for name in ENDPOINT_DATE_COLUMNS if name + "__linked_ids" in result]
+    if not endpoints:
+        return result
+    if wide is None:
+        source = Path(source) if source is not None else P.SHOWCASE_PLUS
+        available = set(pq.read_schema(source).names)
+        columns = []
+        for name in endpoints:
+            year, date = ENDPOINT_DATE_COLUMNS[name]
+            columns.extend(name + "__" + field for field in ("id", "n_records", year, date)
+                           if field and name + "__" + field in available)
+        wide = pd.read_parquet(source, columns=columns)
+    for name in endpoints:
+        year, date = ENDPOINT_DATE_COLUMNS[name]
+        wanted = [name + "__" + field for field in ("id", "n_records", year, date)
+                  if field and name + "__" + field in wide]
+        records = recover_endpoint_records(wide[wanted], name)
+        eligible = set(filter_analysis_window(records, year_col=year, date_col=date)["id"])
+        column = name + "__linked_ids"
+        result[column] = result[column].apply(
+            lambda values: [entity_id for entity_id in parse_listcol(values) if entity_id in eligible]
+        )
+        if name + "__n_links" in result:
+            result[name + "__n_links"] = result[column].map(len)
+    return result
 
 
 def recover_endpoint_records(wide: pd.DataFrame, endpoint: str) -> pd.DataFrame:
