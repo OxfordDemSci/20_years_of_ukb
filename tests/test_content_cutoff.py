@@ -28,6 +28,7 @@ from utils.data_analysis_02_content_window import (
     require_topic_window_provenance, topic_corpus_hash, write_topic_window_provenance,
 )
 from utils import data_analysis_02_content_panels as panels
+from utils import data_analysis_02_content_topics as topics
 
 
 def boundary_corpus():
@@ -85,31 +86,9 @@ class ContentCutoffTests(unittest.TestCase):
         self.assertEqual(actual["showcase_plus_id"].tolist(),
                          ["end", "future_date", "start", "year_only", "past_date"])
 
-    def test_notebook_filters_before_embeddings_and_includes_2013(self):
-        path = ROOT / "src/data_analysis/02_content_1_bert_topic.ipynb"
-        notebook = json.loads(path.read_text())
-        helper_cell = next(notebook_cell_source(c) for c in notebook["cells"]
-                           if "def extract_year(" in "".join(c["source"]))
-        names = {"clean_value", "clean_topic_text", "infer_column", "extract_year"}
-        definitions = ast.Module(
-            body=[node for node in ast.parse(helper_cell).body
-                  if isinstance(node, ast.FunctionDef) and node.name in names],
-            type_ignores=[],
-        )
-        namespace = dict(pd=pd, np=np, re=re, PARQUET_PATH="fixture.parquet",
-                         ANALYSIS_START_DATE=ANALYSIS_START_DATE, ANALYSIS_START_YEAR=ANALYSIS_START_YEAR,
-                         ANALYSIS_END_DATE=ANALYSIS_END_DATE, ANALYSIS_END_YEAR=ANALYSIS_END_YEAR,
-                         filter_analysis_window=filter_analysis_window,
-                         load_showcase=lambda **kwargs: boundary_corpus(), display=lambda *args: None)
-        configuration = next(notebook_cell_source(c) for c in notebook["cells"]
-                             if notebook_cell_source(c).startswith("MIN_YEAR ="))
-        exec(compile(configuration, str(path), "exec"), namespace)
-        exec(compile(definitions, str(path), "exec"), namespace)
-        preparation = next(notebook_cell_source(c) for c in notebook["cells"]
-                           if "raw = load_showcase(" in "".join(c["source"]))
-        with contextlib.redirect_stdout(io.StringIO()):
-            exec(compile(preparation, str(path), "exec"), namespace)
-        self.assertEqual(namespace["publications"]["id"].tolist(),
+    def test_notebook_pipeline_filters_before_embeddings_and_includes_2013(self):
+        actual = topics.prepare_publications(boundary_corpus())
+        self.assertEqual(actual["id"].tolist(),
                          ["end", "start", "year_only", "date_only"])
 
     def test_category_loader_filters_before_rankings(self):
@@ -118,41 +97,33 @@ class ContentCutoffTests(unittest.TestCase):
         self.assertEqual(actual["id"].tolist(), ["end", "start", "year_only", "date_only"])
         self.assertEqual(panels.FLOW_YEARS, list(range(2013, 2026)))
 
-    def test_category_notebook_flow_and_reconciliation_include_2013(self):
-        path = ROOT / "src/data_analysis/02_content_2_other_category_flow.ipynb"
+    def test_consolidated_notebook_uses_shared_2013_2025_window(self):
+        path = ROOT / "src/data_analysis/02_content.ipynb"
         notebook = json.loads(path.read_text())
         configuration = next("".join(c["source"]) for c in notebook["cells"]
                              if "FLOW_MIN, FLOW_MAX =" in "".join(c["source"]))
+        assignments = [node for node in ast.parse(configuration).body
+                       if isinstance(node, ast.Assign)
+                       and any(isinstance(target, (ast.Tuple, ast.Name))
+                               and (isinstance(target, ast.Tuple)
+                                    or target.id == "FLOW_YEARS")
+                               for target in node.targets)
+                       and "FLOW_" in ast.unparse(node)]
         namespace = dict(ANALYSIS_START_YEAR=ANALYSIS_START_YEAR,
                          ANALYSIS_END_YEAR=ANALYSIS_END_YEAR)
-        with contextlib.redirect_stdout(io.StringIO()):
-            exec(compile(configuration, str(path), "exec"), namespace)
+        exec(compile(ast.Module(body=assignments, type_ignores=[]), str(path), "exec"), namespace)
         self.assertEqual(namespace["FLOW_YEARS"], list(range(2013, 2026)))
-        self.assertEqual((namespace["API_MIN"], namespace["API_MAX"]), (2013, 2025))
 
     def test_notebook_does_not_reuse_unscoped_grid_scores(self):
-        path = ROOT / "src/data_analysis/02_content_1_bert_topic.ipynb"
-        notebook = json.loads(path.read_text())
-        source = next(notebook_cell_source(c) for c in notebook["cells"]
-                      if "RUNS_PATH =" in "".join(c["source"]))
-        nodes = []
-        for node in ast.parse(source).body:
-            if isinstance(node, ast.For):
-                break
-            nodes.append(node)
         with tempfile.TemporaryDirectory() as folder:
             folder = Path(folder)
-            (folder / "seed_grid_runs.csv").write_text(
-                "parameter_index,seed,status,weighted_cluster_persistence\n0,42,ok,1\n"
-            )
-            namespace = dict(pd=pd, hashlib=hashlib, json=json, topic_corpus_hash=topic_corpus_hash,
-                             paper_ids=["end"], grid_docs=["eligible document"], grid_indices=[0],
-                             publications=pd.DataFrame({"year": [2025]}), PARAM_GRID=[{"n_neighbors": 15}],
-                             SEEDS=[42], EMBEDDING_MODEL_NAME="allenai-specter", OUTPUT_DIR=folder,
-                             CACHE_DIR=folder / "cache")
-            exec(compile(ast.Module(body=nodes, type_ignores=[]), str(path), "exec"), namespace)
-            self.assertEqual(namespace["completed"], set())
-            self.assertNotEqual(namespace["RUNS_PATH"], folder / "seed_grid_runs.csv")
+            unscoped = folder / "seed_grid_runs.csv"
+            unscoped.write_text("parameter_index,seed,status,weighted_cluster_persistence\n0,42,ok,1\n")
+            corpus = pd.DataFrame({"id": ["end"], "topic_text": ["eligible document"], "year": [2025]})
+            scoped_runs, assignment_dir = topics.grid_cache_paths(corpus, folder)
+            self.assertNotEqual(scoped_runs, unscoped)
+            self.assertFalse(scoped_runs.exists())
+            self.assertNotEqual(assignment_dir, folder / "seed_assignments")
 
     def test_cache_key_rejects_future_inputs_and_tracks_complete_text(self):
         with self.assertRaisesRegex(ValueError, "2025-12-31"):

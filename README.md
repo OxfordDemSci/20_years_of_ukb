@@ -48,11 +48,23 @@ ranking uses 2013–2025 publications and runs immediately after loading the coh
 before the network and field-normalised citation analyses. Word export uses `python-docx`,
 included in `requirements-analysis.txt`.
 
-The BERTopic notebook reuses completed topic-result CSVs in `output/bertopic/` or
-the registered legacy locations, skipping embeddings, grid search and model fitting.
-Existing results must include their matching `.analysis_window.json` provenance for
-2013–2025; invalid caches stop without starting a refit. To deliberately rerun, set
-`FORCE_BERTOPIC = True` in the notebook or pass `--force` to the BERTopic utility.
+The consolidated `src/data_analysis/02_content.ipynb` combines BERTopic and category
+composition. It exports one main figure (FOR L4 and RCDC above the topic waves), two
+classification supplements, a third topic-robustness supplement when verified diagnostics
+are available, source tables, captions and an artifact manifest. The previous
+two content notebooks are preserved under `_archived/` and do not run in the batch.
+
+Completed topic-result CSVs in `output/bertopic/` or registered legacy locations are
+reused before importing any modelling libraries. Matching `.analysis_window.json`
+provenance must verify 2013–2025 training; invalid caches stop without starting a refit.
+If results are missing, the five-configuration, five-seed robustness analysis runs once;
+embeddings and successful parameter/seed runs are cached independently. Set
+`RUN_TOPIC_MODELLING = False` to inspect the classification analyses without fitting,
+or `FORCE_TOPIC_REFIT = True` to deliberately refit. Plotting cells only read results.
+The default grid runs serially. On a machine with enough CPU and memory, optionally set
+`UKB_TOPIC_WORKERS=2` (or call `ensure_topic_results(workers=2)`) to use two independent
+fit processes. Coherence scoring and checkpoint writes remain in the coordinator;
+completed seeds are reused with the same corpus/configuration keys in either mode.
 
 Never hardcode a path. Every notebook opens with the same bootstrap header and takes its
 paths from the registry:
@@ -134,9 +146,11 @@ For `00_dataset_1_general_sanity_cleanliness`, set `UKB_COMBINED_LABELS_CSV` to 
 local full candidate-level three-model combined labels CSV. A uniquely named
 `three_model_combined_labels.csv` (or its original long filename) under `data/`
 is detected automatically. Showcase+ is not a substitute for this input.
-`02_content_1_bert_topic` uses the local Showcase+ parquet, writes results to
+`02_content` uses the local Showcase+ parquet, writes topic results to
 `output/bertopic/`, and caches embeddings under `data/analysis/content/cache/`.
-It checks for dependencies without installing them automatically.
+Figures go to `output/figures/data_analysis/02_content/` and publication tables to
+`output/tables/02_content/`. It does not install dependencies automatically.
+Run it alone with `bash run_analysis_notebooks.sh --only 02_content`.
 `00_dataset_2_validation_analysis` requires `UKB_VALIDATION_POSITIVE_CSV` and
 `UKB_VALIDATION_NEGATIVE_CSV`, or the named labelled files under `data/validation/`.
 Set `UKB_VALIDATION_N_POS` and `UKB_VALIDATION_N_NEG` to the intended evaluation

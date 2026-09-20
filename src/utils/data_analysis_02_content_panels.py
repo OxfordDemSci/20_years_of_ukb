@@ -1,50 +1,16 @@
-"""Assembled panels for analysis 02 — the content / composition figure family.
+"""Publication-ready content figures for the combined content analysis notebook.
 
-`02_content_99_all.ipynb` owns the selection (which chart is main-paper, which is SI);
-this module owns the two halves that selection needs and that a notebook cell is the
-wrong place for, following the shape analyses 03 and 04 already use (D28, D31):
+The main figure places FOR Level 4 composition (A) and RCDC composition (B) above
+BERTopic thematic waves (C). Supplements show annual category shares, vocabulary
+coverage and breadth, and topic-model robustness. Every panel uses the same dated corpus,
+2013–2025 inclusive. Topic results are read from verified, completed caches only;
+this module never imports or fits a topic model.
 
-    build_panel_data()      every aggregate the panels draw, computed once, returned
-                            as a dict of small frames
-    draw_<name>(ax, D)      one chart into one caller-supplied axes, no figure of its own
-    figure_main(D)          the main-paper panel;  figure_si_<name>(D) the SI ones
-
-**What the main panel is.** One page, three stacked rows, one grammar: a 100%-normalised
-composition stream over 2013–2025, drawn once per vocabulary.
-
-    A   BERTopic topics      what the papers are about, learned from the text
-    B   FOR 2020 Level 4     what field the publisher's classifier assigns them to
-    C   RCDC tags            what condition / research area the funder vocabulary names
-
-Reading them stacked is the point: three independent vocabularies describing one corpus
-over one window, so a shift that shows up in all three is a shift in the literature and
-one that shows up in only one is a property of that vocabulary.
-
-**Why re-drawn rather than pasted.** `02_content_1_bert_topic.ipynb` is a Colab notebook
-that carries its own `STREAM_COLOURS` literal, its own rcParams block and a `wiggle`
-baseline; `02_content_2_other_category_flow.ipynb` draws through `shared_style` with a
-zero baseline and a closing remainder. Laid side by side those read as two figures
-stapled together. Every function here draws into an axes belonging to a figure the caller
-has already sized, under the one `02_content_99_all` style section.
-
-**The band threshold is per vocabulary, and it is a rule, not a literal.** D23 fixed
-twelve bands plus a remainder for both flows. That is the wrong constant for both: twelve
-L4 fields already hold ~87.5% of a year, while twelve RCDC tags hold ~52.3%, because a
-paper carries 1.5 L4 codes and 7.4 RCDC tags spread fractionally over many categories. So
-`choose_bands` takes a coverage target and a legibility floor per vocabulary
-(`BAND_RULES`) and the drawn count follows from the data. Where the target cannot be met
-at any readable band count — RCDC, whose tail is irreducible — the panel says so on its
-own face rather than leaving an unexplained grey slab: the remainder band is labelled with
-how many categories are inside it, and each panel prints the coverage it achieved.
-
-**Sources.** The FOR and RCDC arms re-derive from the corpus, exactly as
-`02_content_2_other_category_flow.ipynb` does, through `shared_for.for_long` and a plain
-explode of `category_rcdc` (D2, D22, D24). The topic arm reads what the BERTopic run
-wrote; `load_topic_year_matrix` looks in `output/bertopic/` and the legacy
-`data/analysis/content/` directory, and requires verified training-window provenance.
-It returns `None`
-rather than inventing topics when it is absent — the panel then draws the reason it is
-empty, the way 04's RCDC macro-cluster panel does for its missing partition.
+FOR composition counts paper–field assignments; RCDC divides each classified paper
+fractionally across its tags. Topics count assigned papers. Missing classifications
+are missing composition, not zero-percent observations. Their coverage is shown
+explicitly in the second supplement. Figure exports use shared Helvetica typography,
+the project palette, and PNG (500 dpi) / PDF output only.
 """
 
 from __future__ import annotations
@@ -69,10 +35,8 @@ from utils.data_analysis_02_content_window import require_topic_window_provenanc
 FLOW_MIN, FLOW_MAX = ANALYSIS_START_YEAR, ANALYSIS_END_YEAR
 FLOW_YEARS = list(range(FLOW_MIN, FLOW_MAX + 1))
 
-#: Whole counting for FOR L4 (1.48 codes/paper, so it barely inflates) and fractional for
-#: RCDC (7.4 tags/paper, where whole counting would let a paper tagged with twenty
-#: conditions outvote one tagged with two). D24. BERTopic assigns exactly one topic per
-#: paper after forced reassignment (D6), so the two coincide there.
+#: FOR shares use distinct paper–field assignments. RCDC gives each classified paper
+#: total credit one across its tags. Topic shares count assigned papers once each.
 WEIGHTS = {"topics": "n_papers", "for": "n_papers", "rcdc": "n_frac"}
 
 #: RCDC mixes conditions with research areas, methods and populations. "all" is the whole
@@ -82,35 +46,22 @@ RCDC_VIEW = "all"
 OTHER_LABEL = "All other categories"
 
 # =============================================================================
-# 2. The band rule — one per vocabulary, because the tails differ by 4x
+# 2. Reproducible, bounded band selection
 # =============================================================================
-# `target_other` is the remainder share the panel would like to be left with; `min_band`
-# is the mean share below which a band is a hairline nobody can read or label; `max_bands`
-# is where a stream stops being a composition and becomes a colour chart. The rule takes
-# the SMALLEST band count that meets the coverage target, then trims trailing bands that
-# fall under the legibility floor. When the target is unreachable — RCDC — it stops at
-# `max_bands` and the panel reports the coverage it actually got.
-#
-# Historical calibration over 2014-2025 (the rule is recomputed for the current window):
-#
-#   FOR L4   119 fields   12 bands -> 87.5% mean cover   15 bands -> 90.6%   (rule picks 15)
-#   RCDC     271 tags     12 bands -> 52.3%              18 bands -> 62.3%   (rule picks 18)
-#
-# The RCDC remainder is irreducible, not a tuning failure: 24 bands still leave 31% and 40
-# bands leave 19%. That is what a flat 271-tag vocabulary at 7.4 fractional tags per paper
-# looks like, and the panel states it.
+# Eight leading fields/tags fit the half-width panels. Topic waves show up to twelve
+# leading topics; a small mean-share floor avoids invisible bands. All categories and
+# the exact coverage of each selection remain available in the exported tables.
 BAND_RULES = {
-    "topics": {"target_other": 45.0, "min_band": 0.8, "max_bands": 16, "min_bands": 8},
-    "for":    {"target_other": 10.0, "min_band": 0.7, "max_bands": 16, "min_bands": 8},
-    "rcdc":   {"target_other": 10.0, "min_band": 1.2, "max_bands": 18, "min_bands": 10},
+    "topics": {"target_other": 45.0, "min_band": 0.8, "max_bands": 12, "min_bands": 8},
+    "for":    {"target_other": 10.0, "min_band": 0.7, "max_bands": 8, "min_bands": 8},
+    "rcdc":   {"target_other": 10.0, "min_band": 1.2, "max_bands": 8, "min_bands": 8},
 }
 
 
 def category_weights(long, cat_col, weight, year_col="year", id_col="id"):
     """year x category weight matrix. Whole for `n_papers`, spread for `n_frac`.
 
-    Lifted unchanged from §6 of `02_content_2_other_category_flow.ipynb` so the panels and
-    that notebook cannot disagree about what a share is.
+    Preserves the counting conventions of the archived category-flow notebook.
     """
     pairs = long.drop_duplicates([id_col, cat_col]).copy()
     if weight == "n_papers":
@@ -131,10 +82,10 @@ def flow_shares(long, cat_col, weight, years=None, **kw):
     w = category_weights(long, cat_col, weight, **kw).reindex(years).fillna(0.0)
     w.index.name = "year"
     totals = w.sum(axis=1)
-    if (totals <= 0).any():
-        raise ValueError(f"no weight at all in year(s) {list(totals[totals <= 0].index)}")
-    share = w.div(totals, axis=0) * 100
-    assert np.allclose(share.sum(axis=1), 100), "shares do not sum to 100%"
+    # Missing classifications are not a zero-percent composition. Retain those years
+    # as NaN so the plots show a gap and the coverage supplement reports zero coverage.
+    share = w.div(totals.where(totals > 0), axis=0) * 100
+    assert np.allclose(share.loc[totals > 0].sum(axis=1), 100)
     n_papers = (long[long["year"].isin(years)].drop_duplicates("id")
                 .groupby("year").size().reindex(years).fillna(0).astype(int))
     return w, share, n_papers
@@ -172,8 +123,9 @@ def top_bands(share, w, rule, other_label=OTHER_LABEL):
     band = share[keep].copy()
     rest = share.drop(columns=keep)
     if len(rest.columns):
-        band[other_label] = rest.sum(axis=1)
-    assert np.allclose(band.sum(axis=1), 100), "the drawn bands do not close at 100%"
+        band[other_label] = rest.sum(axis=1, min_count=1)
+    present = share.notna().any(axis=1)
+    assert np.allclose(band.loc[present].sum(axis=1), 100)
     return band, keep, w.sum(axis=0).sort_values(ascending=False)
 
 
@@ -182,7 +134,7 @@ def _flow_block(long, cat_col, key, n_total=None, *, view_note="") -> dict:
     weight = WEIGHTS[key]
     w, share, n_papers = flow_shares(long, cat_col, weight)
     band, keep, order = top_bands(share, w, BAND_RULES[key])
-    covered = band[keep].sum(axis=1)
+    covered = band[keep].sum(axis=1, min_count=1)
     return {
         "weights": w,
         "share": share,
@@ -209,8 +161,8 @@ def start_end_table(share, keep):
     out = pd.DataFrame({
         f"share_{y0}_%": share.loc[y0, keep].round(2),
         f"share_{y1}_%": share.loc[y1, keep].round(2),
-        f"rank_{y0}": ranks.loc[y0, keep].astype(int),
-        f"rank_{y1}": ranks.loc[y1, keep].astype(int),
+        f"rank_{y0}": ranks.loc[y0, keep].astype("Int64"),
+        f"rank_{y1}": ranks.loc[y1, keep].astype("Int64"),
     })
     out["delta_pp"] = (out[f"share_{y1}_%"] - out[f"share_{y0}_%"]).round(2)
     out["rank_change"] = out[f"rank_{y0}"] - out[f"rank_{y1}"]      # +ve = moved up
@@ -223,25 +175,24 @@ def start_end_table(share, keep):
 # =============================================================================
 CORPUS_COLUMNS = ["id", "year", "date", "category_for_2020", "category_rcdc"]
 
-#: Where the BERTopic run's output is looked for, best first. Per-paper assignments
-#: are preferred because they carry EVERY topic rather than the fourteen the notebook
-#: pre-selected for its wave figure — so the same band rule can be applied here as to the
-#: other two rows, remainder and all. `P.TOPIC_ASSIGNMENTS` is the two-column `id, topics`
-#: file §18 of that notebook validates, and it needs a corpus/year join to be usable.
+#: Per-paper assignments carry all topics and retain the correct denominator when
+#: selecting a subset for the waves. A selected-only matrix cannot recover that
+#: denominator and is therefore not accepted as a completed topic result here.
 #: Every source also requires its matching .analysis_window.json sidecar.
 TOPIC_SOURCES = (
     P.OUTPUT / "bertopic" / "bertopic_document_topic_assignments.csv",
     P.OUTPUT / "bertopic" / "showcase_plus_id_topics.csv",
+    P.OUTPUT / "bertopic" / "tables" / "bertopic_document_topic_assignments.csv",
+    P.OUTPUT / "bertopic" / "tables" / "showcase_plus_id_topics.csv",
     P.TOPIC_ASSIGNMENTS,                                        # id, topics
     P.CONTENT / "bertopic_document_topic_assignments.csv",      # id, year, topic, topics
-    P.CONTENT / "bertopic_topic_year_counts_selected.csv",      # year x topic counts
-    P.CONTENT / "bertopic_topic_year_proportions_selected.csv",  # year x topic shares
+    P.ACADEMIC_IMPACT / "bertopic" / "tables" / "bertopic_document_topic_assignments.csv",
 )
 
 #: Missing outputs must not silently trigger a model fit inside a figure builder.
 TOPIC_MISSING_NOTE = (
     "BERTopic assignments not found.\n\n"
-    "Run 02_content_1_bert_topic.ipynb separately to train on publications\n"
+    "Run 02_content.ipynb to train on publications\n"
     f"dated {FLOW_MIN}–{FLOW_MAX}, then use its output/bertopic/ tables with their\n"
     ".analysis_window.json sidecars. Legacy copied outputs require the\n"
     "same provenance; filtering their rows cannot correct a different training window."
@@ -276,30 +227,25 @@ def build_rcdc_pairs(corpus: pd.DataFrame) -> pd.DataFrame:
 
 
 def _topic_label(raw: str) -> str:
-    """`T26: vat / visceral / adipose / adipose tissue` -> `vat / visceral / adipose`.
-
-    The topic id is dropped and the keyword list trimmed to three: the id means nothing to
-    a reader and a four-keyword label does not fit inside a band. The full label stays in
-    the exported table.
-    """
-    text = str(raw)
-    if ":" in text and text.split(":", 1)[0].strip().upper().startswith("T"):
-        text = text.split(":", 1)[1]
-    parts = [p.strip() for p in text.split("/") if p.strip()]
-    return " / ".join(parts[:3]) if parts else text.strip()
+    """Retain complete model labels (including IDs) until the presentation stage."""
+    text = str(raw).strip()
+    if text.replace(".0", "").isdigit():
+        return f"Topic {int(float(text))}"
+    # Keep all terms for aggregation; shorten only the displayed legend. Otherwise
+    # different topics sharing their first three keywords would be silently merged.
+    return text
 
 
-def load_topic_year_matrix(corpus: pd.DataFrame):
+def load_topic_year_matrix(corpus: pd.DataFrame, topic_results=None):
     """The BERTopic (paper, topic, year) table, or `None` when the run's output is absent.
 
-    Returns a long frame with `id`, `year`, `topic_label` so the caller can put it through
-    the same `flow_shares` / `top_bands` path as the other two vocabularies. The two
-    matrix-shaped sources are melted back into that shape; they carry only the fourteen
-    pre-selected wave topics, so `n_total` comes back as the column count and the
-    remainder band is what the selection left behind rather than the true tail.
+    Returns a long frame with `id`, `year`, `topic_label` so the caller can use the same
+    `flow_shares` / `top_bands` path as the other vocabularies. The third return value is
+    reserved for compatibility with the older selected-matrix reader and is always None.
     """
     corpus = filter_analysis_window(corpus)
-    for path in TOPIC_SOURCES:
+    sources = (Path(topic_results),) if topic_results is not None else TOPIC_SOURCES
+    for path in sources:
         if not Path(path).exists():
             continue
         # Filtering exported rows cannot correct a different model training window.
@@ -307,65 +253,46 @@ def load_topic_year_matrix(corpus: pd.DataFrame):
         frame = pd.read_csv(path)
         columns = set(frame.columns)
 
-        if {"id", "topics"} <= columns:
-            if "year" in columns:
-                frame = filter_analysis_window(frame)
-            long = frame[["id", "topics"]].copy()
-            long = long.merge(corpus[["id", "year"]], on="id", how="inner",
+        id_column = next((c for c in ("id", "showcase_plus_id") if c in columns), None)
+        label_column = next((c for c in ("topics", "topic_label", "topic") if c in columns), None)
+        if id_column is not None and label_column is not None:
+            long = frame[[id_column, label_column]].rename(
+                columns={id_column: "id", label_column: "topics"}).copy()
+            if long["id"].isna().any() or long["id"].duplicated().any():
+                raise ValueError(f"Topic results contain missing or duplicate publication IDs: {path}")
+            if long["topics"].isna().any():
+                raise ValueError(f"Topic results contain missing assignments: {path}")
+            # The canonical publication dates control plotting, even where a copied
+            # output carries stale year metadata. Training provenance is checked above.
+            long["id"] = long["id"].astype(str)
+            dated = corpus[["id", "year"]].copy()
+            dated["id"] = dated["id"].astype(str)
+            long = long.merge(dated, on="id", how="inner",
                               validate="one_to_one")
-            long = long[long["topics"].astype(str).str.strip().str.lower() != "outlier"]
+            long = long[~long["topics"].astype(str).str.strip().str.lower().isin(
+                ("outlier", "-1", "-1.0"))]
+            if long.empty:
+                raise ValueError(f"Topic results have no assigned papers in the analysis corpus: {path}")
             long["topic_label"] = long["topics"].map(_topic_label)
             long["year"] = pd.to_numeric(long["year"], errors="coerce")
             long = long.dropna(subset=["year"])
             long["year"] = long["year"].astype(int)
             return long[["id", "year", "topic_label"]], Path(path), None
 
-        # Matrix shaped: first column is the year, every other column a topic.
-        year_col = frame.columns[0]
-        frame = filter_analysis_window(frame, year_col=year_col)
-        matrix = frame.set_index(year_col)
-        matrix.index = pd.to_numeric(matrix.index, errors="coerce")
-        matrix = matrix[matrix.index.notna()]
-        matrix.index = matrix.index.astype(int)
-        matrix = matrix.drop(columns=[c for c in matrix.columns if str(c) == "-1"],
-                             errors="ignore")
-        matrix = matrix.apply(pd.to_numeric, errors="coerce").fillna(0.0)
-        matrix.columns = [_topic_label(c) for c in matrix.columns]
-        return matrix, Path(path), matrix.shape[1]
+        raise ValueError(f"Unrecognised per-paper topic-results columns in {path}: {sorted(columns)}")
 
     return None, None, None
 
 
-def _topics_block(corpus: pd.DataFrame) -> dict:
+def _topics_block(corpus: pd.DataFrame, topic_results=None) -> dict:
     """The topic row's block, or a `available=False` stub carrying why it is empty."""
-    loaded, source, n_total = load_topic_year_matrix(corpus)
+    loaded, source, _ = load_topic_year_matrix(corpus, topic_results=topic_results)
     if loaded is None:
         return {"available": False, "note": TOPIC_MISSING_NOTE, "source": None,
                 "searched": [P.raw_path(p) for p in TOPIC_SOURCES]}
 
-    if isinstance(loaded, pd.DataFrame) and "topic_label" in loaded.columns:
-        block = _flow_block(loaded, "topic_label", "topics")
-        block["from_assignments"] = True
-    else:
-        # A pre-selected matrix: rebuild the share matrix directly, then band it the same
-        # way. Its rows do not close at 100% of the corpus, so they are renormalised and
-        # the panel note says the denominator is the selection, not the corpus.
-        w = loaded.reindex(FLOW_YEARS).fillna(0.0)
-        w.index.name = "year"
-        share = w.div(w.sum(axis=1), axis=0) * 100
-        band, keep, order = top_bands(share, w, BAND_RULES["topics"])
-        covered = band[keep].sum(axis=1)
-        block = {
-            "weights": w, "share": share, "band": band, "keep": keep, "order": order,
-            "n_papers": w.sum(axis=1).round().astype(int),
-            "n_categories": int(n_total), "n_bands": len(keep),
-            "n_other": int(n_total) - len(keep),
-            "coverage_mean": float(covered.mean()),
-            "coverage_min": float(covered.min()),
-            "coverage_max": float(covered.max()),
-            "weight": WEIGHTS["topics"], "view_note": "", "available": True,
-            "from_assignments": False,
-        }
+    block = _flow_block(loaded, "topic_label", "topics")
+    block["from_assignments"] = True
     block["source"] = P.raw_path(source)
     return block
 
@@ -373,7 +300,7 @@ def _topics_block(corpus: pd.DataFrame) -> dict:
 # =============================================================================
 # 4. The one build
 # =============================================================================
-def build_panel_data(verbose: bool = True) -> dict:
+def build_panel_data(verbose: bool = True, *, topic_results=None) -> dict:
     """Every aggregate the panels draw, computed once from the corpus (~25 s).
 
     Everything the figures read comes out of this dict, so two panels on one page cannot
@@ -394,7 +321,7 @@ def build_panel_data(verbose: bool = True) -> dict:
     D = {
         "years": FLOW_YEARS,
         "corpus": corpus,
-        "topics": _topics_block(corpus),
+        "topics": _topics_block(corpus, topic_results=topic_results),
         "for": _flow_block(for_pairs, "l4_label", "for"),
         "rcdc": _flow_block(rcdc_view, "rcdc", "rcdc", view_note=view_note),
         "counts": {
@@ -461,32 +388,25 @@ def band_summary(D) -> pd.DataFrame:
 
 
 # =============================================================================
-# 5. Drawing primitives
+# 5. Drawing and publication pages
 # =============================================================================
-# Every one of these takes an `ax` and returns it. None creates a figure, sets a figure
-# size, or calls savefig: the assembler owns the page, so a panel cannot quietly impose
-# its own geometry on the one it is sharing.
+from collections import Counter
+from textwrap import fill
 
-from contextlib import contextmanager                                   # noqa: E402
+import matplotlib.pyplot as plt
+from matplotlib.colors import Normalize
+from matplotlib.patches import Patch
+from matplotlib.ticker import MaxNLocator, PercentFormatter
 
-import matplotlib.patheffects as pe                                     # noqa: E402
-import matplotlib.pyplot as plt                                         # noqa: E402
-
-from utils.shared_style import (                                        # noqa: E402
-    extended_palette, grid_on, panel_label, savefig, set_title,
+from utils.shared_style import (
+    PALETTE, blue_cream_red_colormap, extended_palette, grid_on,
+    palette, savefig, set_title,
 )
 
-#: The closing remainder is grey in every panel of the family, and it is the only grey.
-#: It is deliberately LIGHT. On the RCDC row the remainder is ~38% of the page — the tail
-#: of a flat 271-tag vocabulary is irreducible, not a threshold that was set badly — and a
-#: mid grey that large stops reading as "everything else" and starts reading as the
-#: subject of the panel. Light enough to recede, dark enough to keep its own white
-#: separator visible against the top of the stack.
 OTHER_COLOR = "#DCDCDC"
-
-#: A dark halo under the white in-band labels, so a name stays readable over the pale
-#: middle of the stream palette as well as over its dark ends.
-_STROKE = [pe.withStroke(linewidth=2.2, foreground="#00000055")]
+VOCABULARY_COLORS = {"for": palette("navy"), "rcdc": palette("red"),
+                     "topics": palette("steel_blue")}
+VOCABULARY_LABELS = {"for": "FOR Level 4", "rcdc": "RCDC", "topics": "BERTopic"}
 
 
 def _style():
@@ -494,422 +414,514 @@ def _style():
     return shared_style._resolve(None)
 
 
-@contextmanager
-def _font_scale(factor):
-    """Draw the enclosed figure with every font size multiplied by `factor` (as in 04)."""
-    from utils import shared_style
-    original = _style()
-    if not factor or factor == 1:
-        yield original
-        return
-    scaled = dict(original)
-    for key in ("title_fs", "label_fs", "tick_fs", "annot_fs", "legend_fs",
-                "body_fs", "panel_label_fs"):
-        if key in scaled:
-            scaled[key] = scaled[key] * factor
-    shared_style.use_style(scaled)
-    shared_style.apply_style(scaled)
-    try:
-        yield scaled
-    finally:
-        shared_style.use_style(original)
-        shared_style.apply_style(original)
+def _colors(count):
+    """Categorical colours anchored in the shared project palette."""
+    return extended_palette(count, style={"colors": PALETTE})
 
 
-def _fs_scale(figure: str) -> float:
-    return float((_style().get("fs_scale") or {}).get(figure, 1.0))
+def _axes(ax, *, grid=True):
+    ax.spines[["top", "right"]].set_visible(False)
+    ax.spines[["left", "bottom"]].set_visible(True)
+    ax.minorticks_off()
+    ax.grid(False, which="both")
+    if grid:
+        grid_on(ax, axis="both", which="major", linestyle="--", alpha=0.35)
+    return ax
 
 
-def _spread(ys, min_gap, lo=0.0, hi=100.0):
-    """Push label positions apart until none overlaps, keeping order and staying in range.
-
-    From §6 of the source notebook. Returns positions in the order given.
-    """
-    order = sorted(range(len(ys)), key=lambda k: ys[k])
-    placed, prev = {}, lo - min_gap
-    for k in order:
-        y = max(ys[k], prev + min_gap)
-        placed[k], prev = y, y
-    over = prev - hi
-    if over > 0:                        # ran off the top: shift down, then re-settle
-        for k in placed:
-            placed[k] -= over
-        for k in reversed(order[:-1]):
-            nxt = order[order.index(k) + 1]
-            placed[k] = min(placed[k], placed[nxt] - min_gap)
-    return [placed[k] for k in range(len(ys))]
+def _years(ax, *, every=3):
+    ticks = sorted(set([FLOW_MIN, *range(FLOW_MIN + every, FLOW_MAX + 1, every), FLOW_MAX]))
+    ax.set_xticks(ticks)
+    ax.set_xlim(FLOW_MIN, FLOW_MAX)
+    ax.set_xlabel("Publication year")
 
 
-def _short_label(text: str, limit: int = 40) -> str:
-    """Trim a category name to something a margin callout can hold, on a word boundary.
+def _heading(ax, letter, title):
+    set_title(ax, f"{letter}  {title}", fontsize=_style()["title_fs"], pad=20)
 
-    RCDC carries names like "Health Disparities and Racial or Ethnic Minority Health
-    Research" — 63 characters, wider than the gutter, so it runs off the page and over its
-    neighbours. Truncating is better than wrapping here: a two-line callout doubles the
-    vertical space every leader line has to be spread by.
-    """
+
+def _short_label(text, limit=46):
     text = str(text)
-    if len(text) <= limit:
-        return text
-    cut = text[:limit].rsplit(" ", 1)[0]
-    return f"{cut.rstrip(',;')}\u2026"
+    return text if len(text) <= limit else text[:limit].rsplit(" ", 1)[0] + "…"
 
 
-def _label_year(band, n_papers, column):
-    """(index, ha) for a band's in-place label: its thickest year that carries weight.
-
-    Two rules, both there because the window opens on very few papers. The label goes at the
-    band's OWN thickest year — a band that peaks early and thins out is the shape this
-    figure exists to show, and a fixed mid-point rule leaves it unnamed — but the first
-    years are excluded from the search, because a band can be at its widest early for the
-    same reason every share there is unstable, and a name pinned to that edge both reads
-    as a claim about a tiny sample and runs off the left of the axes.
-    """
-    values = np.asarray(band[column], dtype=float)
-    counts = np.asarray([n_papers.get(y, 0) for y in band.index], dtype=float)
-    eligible = counts >= 0.02 * max(counts.max(), 1)
-    if not eligible.any():
-        eligible = np.ones_like(values, dtype=bool)
-    masked = np.where(eligible, values, -np.inf)
-    i = int(masked.argmax())
-    if i == 0:
-        return i, "left"
-    if i == len(values) - 1:
-        return i, "right"
-    return i, "center"
+def _legend_label(text, width=29):
+    # Keep the full category names in the exported tables; long keyword lists are
+    # abbreviated here rather than allowing legends to change the page dimensions.
+    text = str(text)
+    if ":" in text and text.split(":", 1)[0].strip().upper().startswith("T"):
+        text = text.split(":", 1)[1].strip()
+    return fill(_short_label(text, width * 2 - 2), width=width)
 
 
-def _weight_note(weight: str) -> str:
-    return {"n_papers": "whole counting",
-            "n_frac": "fractional counting"}.get(weight, f"summed {weight}")
+def _topic_legend_labels(labels, width=36):
+    """Abbreviate keywords without making distinct model topics indistinguishable."""
+    shown = {label: _legend_label(label, width) for label in labels}
+    duplicates = Counter(shown.values())
+    for label, display in shown.items():
+        if duplicates[display] > 1:
+            prefix = str(label).split(":", 1)[0].strip()
+            if ":" in str(label) and prefix.upper().startswith("T"):
+                shown[label] = f"{display} [{prefix}]"
+            else:
+                # Imported labels without model IDs retain their unabridged text.
+                shown[label] = fill(str(label), width=width)
+    return shown
 
 
-def _missing_panel(ax, title: str, note: str):
-    """What a panel draws when its source is not on disk: the reason, not an empty box.
-
-    The axes keeps its frame — dashed, and with the ticks off — so the row still reads as
-    a panel this page has reserved rather than as a hole somebody left in the layout. The
-    geometry is identical to the filled version, so dropping the source file in changes
-    what is in this row and nothing about the shape of the page.
-    """
-    st = _style()
+def _missing_panel(ax, title, note):
+    """A clearly incomplete preview; the notebook reports the absent source."""
+    _axes(ax, grid=False)
     ax.set_xticks([])
     ax.set_yticks([])
-    for spine in ax.spines.values():
-        spine.set_visible(True)
-        spine.set_linestyle((0, (4, 4)))
-        spine.set_edgecolor("#C4C4C4")
-        spine.set_linewidth(0.9)
     ax.set_facecolor("#FAFAFA")
-    set_title(ax, title, pad=26)
-    ax.text(0.0, 1.015, "source not on disk — this row is reserved, not dropped",
-            transform=ax.transAxes, ha="left", va="bottom",
-            fontsize=st["annot_fs"] - 1.5, color="#666666")
-    ax.text(0.5, 0.5, note, transform=ax.transAxes, ha="center", va="center",
-            fontsize=st["annot_fs"], color="#555555", family="Helvetica",
-            linespacing=1.7,
-            bbox=dict(boxstyle="round,pad=1.0", facecolor="white",
-                      edgecolor="#D6D6D6", linewidth=0.8))
+    set_title(ax, title, fontsize=_style()["title_fs"], pad=20)
+    ax.text(.5, .56, "Topic results unavailable", transform=ax.transAxes,
+            ha="center", va="center", fontsize=_style()["label_fs"], fontweight="bold")
+    ax.text(.5, .40, "No verified completed topic assignments were found.\n"
+            "This panel will populate when the saved results are available.",
+            transform=ax.transAxes, ha="center", va="center",
+            fontsize=_style()["annot_fs"], linespacing=1.5, color="#555555")
     return ax
 
 
-def draw_share_stream(ax, block, title, *, label_min=7.0, callout_gap=4.2,
-                      show_year_n=True, xlabel=None):
-    """One 100%-normalised composition stream, with every band named.
-
-    A band thick enough at its own thickest year to hold its name is labelled in place; the
-    rest are called out in the right-hand gutter with a leader line and their final-year
-    share. That is why there is no legend: matching eighteen names against eighteen
-    swatches is work the figure can do for the reader.
-
-    The remainder band is grey, is always labelled in place, and says how many categories
-    are inside it — an unexplained grey slab is the one thing a composition stream must
-    not leave on the page.
-    """
-    st = _style()
+def draw_share_stream(ax, block, title, *, label_min=None, callout_gap=None,
+                      show_year_n=False, xlabel="Publication year"):
+    """A compact 100% stream with a bounded legend, suitable for a half-page panel."""
     band = block["band"]
-    labels = list(band.columns)
-    named = [lab for lab in labels if lab != OTHER_LABEL]
-    colors = list(extended_palette(len(named)))
-    if OTHER_LABEL in labels:
+    named = [label for label in band if label != OTHER_LABEL]
+    colors = _colors(len(named))
+    if OTHER_LABEL in band:
         colors.append(OTHER_COLOR)
-    years = list(band.index)
-    cum = band.cumsum(axis=1)
-
-    ax.stackplot(years, band.T.values, labels=labels, colors=colors,
-                 edgecolor="white", linewidth=0.6)
-
-    thin = []
-    pad = (max(years) - min(years)) * 0.012
-    for j, lab in enumerate(labels):
-        i, ha = _label_year(band, block["n_papers"], lab)
-        thickest = band.iloc[i, j]
-        text = f"{lab} ({block['n_other']})" if lab == OTHER_LABEL else lab
-        if thickest >= label_min:
-            x = years[i] + (pad if ha == "left" else -pad if ha == "right" else 0)
-            ax.text(x, cum.iloc[i, j] - thickest / 2, text,
-                    ha=ha, va="center", fontsize=st["annot_fs"] - 1,
-                    fontweight="bold", color="white", path_effects=_STROKE, zorder=5)
-        else:
-            thin.append(j)
-
-    if thin:
-        anchors = [cum.iloc[-1, j] - band.iloc[-1, j] / 2 for j in thin]
-        targets = _spread(anchors, min_gap=callout_gap)
-        outside = ax.get_yaxis_transform()
-        for j, y_anchor, y_target in zip(thin, anchors, targets):
-            ax.annotate(f"{_short_label(labels[j])}  {band.iloc[-1, j]:.1f}%",
-                        xy=(years[-1], y_anchor), xycoords="data",
-                        xytext=(1.02, y_target), textcoords=outside,
-                        ha="left", va="center", fontsize=st["annot_fs"] - 1.5,
-                        color=colors[j], fontweight="bold", annotation_clip=False,
-                        arrowprops=dict(arrowstyle="-", color=colors[j], lw=0.9,
-                                        shrinkA=0, shrinkB=2))
-        ax.text(1.02, 1.035, f"{years[-1]} share", transform=ax.transAxes,
-                ha="left", va="bottom", fontsize=st["annot_fs"] - 2, color="#777777")
-
-    ax.set_xlim(min(years), max(years))
+    _axes(ax, grid=False)
+    ax.stackplot(band.index, band.T.to_numpy(dtype=float), colors=colors,
+                 edgecolor="white", linewidth=.35)
+    _years(ax)
+    ax.set_xlabel(xlabel)
     ax.set_ylim(0, 100)
-    ax.set_xticks(years)
-    if show_year_n:
-        # The window's first years contain very few papers. Their n belongs under the tick
-        # rather than in a footnote, because it is what says how much a wiggle is worth.
-        counts = block["n_papers"]
-        ax.set_xticklabels([f"{y}\n{counts.get(y, 0):,}" for y in years])
-    else:
-        ax.set_xticklabels([str(y) for y in years])
-    ax.set_yticks(range(0, 101, 25))
-    ax.set_yticklabels([f"{v}%" for v in range(0, 101, 25)])
-    ax.set_ylabel("Share of the year's total")
-    if xlabel:
-        ax.set_xlabel(xlabel, labelpad=6)
-    set_title(ax, title, pad=26)
-
-    # The panel states its own coverage: with a remainder this large on the RCDC row, a
-    # reader who cannot see what the grey is worth cannot read the panel at all.
-    ax.text(0.0, 1.015,
-            f"{block['n_bands']} of {block['n_categories']} drawn · they hold "
-            f"{block['coverage_min']:.0f}–{block['coverage_max']:.0f}% of each year "
-            f"(mean {block['coverage_mean']:.0f}%) · {_weight_note(block['weight'])}"
-            + (f" · {block['view_note']}" if block["view_note"] else ""),
-            transform=ax.transAxes, ha="left", va="bottom",
-            fontsize=st["annot_fs"] - 1.5, color="#666666")
+    ax.set_yticks([0, 25, 50, 75, 100])
+    ax.yaxis.set_major_formatter(PercentFormatter(100, decimals=0))
+    ax.set_ylabel("Share of field assignments" if block["weight"] == "n_papers"
+                  else "Share of fractional paper credit")
+    handles = []
+    for color, label in zip(colors, band.columns):
+        name = f"Other ({block['n_other']} categories)" if label == OTHER_LABEL else label
+        handles.append(Patch(facecolor=color, edgecolor=palette("navy"), linewidth=.4,
+                             label=_legend_label(name)))
+    ax.legend(handles=handles, loc="upper left", bbox_to_anchor=(-.015, -.20),
+              ncol=2, frameon=False, borderaxespad=0, handlelength=1.25,
+              columnspacing=1.4, labelspacing=.40, fontsize=_style()["legend_fs"])
+    set_title(ax, title, fontsize=_style()["title_fs"], pad=20)
     return ax
-
-
-def draw_topic_stream(ax, D):
-    """A — what the papers are about, from the text rather than from a classifier."""
-    block = D["topics"]
-    title = "BERTopic topics"
-    if not block["available"]:
-        return _missing_panel(ax, title, block["note"])
-    return draw_share_stream(ax, block, title, label_min=6.0)
 
 
 def draw_for_stream(ax, D):
-    """B — the publisher-side classification, at the level that names a discipline."""
-    return draw_share_stream(ax, D["for"], "Fields of Research 2020, Level 4",
-                             label_min=7.0)
+    return draw_share_stream(ax, D["for"], "Fields of Research, Level 4")
 
 
 def draw_rcdc_stream(ax, D):
-    """C — the funder vocabulary, where the tail is irreducible and the panel says so."""
-    return draw_share_stream(ax, D["rcdc"], "RCDC categories", label_min=4.4,
-                             callout_gap=3.6,
-                             xlabel="Publication year, and the papers carrying "
-                                    "at least one category that year")
+    return draw_share_stream(ax, D["rcdc"], "RCDC categories")
 
 
-def draw_rank_flow(ax, block, title):
-    """A bump chart of the drawn bands: who overtook whom, with no remainder to draw.
-
-    The share stream answers "how much"; this answers "in what order", which a stack of
-    eighteen bands cannot be read for. Line width is proportional to mean share so the
-    two figures agree about which lines are the heavy ones.
-    """
-    st = _style()
-    share, keep = block["share"], block["keep"]
-    ranks = share[keep].rank(axis=1, ascending=False, method="first")
-    years = list(share.index)
-    colors = dict(zip(keep, extended_palette(len(keep))))
-    heaviest = max(share[keep].mean().max(), 1e-9)
-    outside = ax.get_yaxis_transform()
-
-    for cat in keep:
-        y = ranks[cat].values
-        ax.plot(years, y, color=colors[cat],
-                linewidth=1.0 + 3.2 * (share[cat].mean() / heaviest),
-                marker="o", markersize=st["marker_size"] * 0.45,
-                markeredgecolor="white", markeredgewidth=0.6,
-                solid_capstyle="round", zorder=2)
-        # The row IS the rank, so it is carried in the end labels and the left margin is
-        # left free of a tick column the names would collide with.
-        name = _short_label(cat, 34)
-        ax.text(-0.012, y[0], f"#{int(y[0])}  {name}", transform=outside, ha="right",
-                va="center", fontsize=st["annot_fs"] - 1.5, color=colors[cat],
-                fontweight="bold", clip_on=False)
-        ax.text(1.012, y[-1], f"{name}  #{int(y[-1])}", transform=outside, ha="left",
-                va="center", fontsize=st["annot_fs"] - 1.5, color=colors[cat],
-                fontweight="bold", clip_on=False)
-
-    ax.set_ylim(len(keep) + 0.6, 0.4)
-    ax.set_yticks(range(1, len(keep) + 1))
-    ax.set_yticklabels([])
-    ax.tick_params(axis="y", length=0)
-    ax.set_xlim(years[0] - 0.4, years[-1] + 0.4)
-    ax.set_xticks(years)
-    ax.set_xlabel("Publication year")
-    grid_on(ax, axis="y")
-    ax.set_axisbelow(True)
+def draw_topic_stream(ax, D):
+    """Selected-topic widths are annual shares of all assigned papers, not renormalised."""
+    block = D["topics"]
+    if not block["available"]:
+        return _missing_panel(ax, "Thematic waves", block["note"])
+    keep = block["keep"]
+    selected = block["share"][keep]
+    colors = _colors(len(keep))
+    _axes(ax, grid=False)
+    # A centred streamgraph retains actual share widths. The vertical displacement
+    # conveys no additional quantity; omitting the numerical y scale makes that clear.
+    values = selected.T.to_numpy(dtype=float)
+    ax.stackplot(selected.index, values, baseline="sym", colors=colors,
+                 edgecolor="white", linewidth=.35)
+    _years(ax)
+    ax.set_yticks([])
     ax.spines["left"].set_visible(False)
-    set_title(ax, title, pad=12)
+    ax.set_ylabel("Relative topic prominence")
+    grid_on(ax, axis="x", which="major", linestyle="--", alpha=.3)
+    legend_labels = _topic_legend_labels(block["share"].columns)
+    handles = [Patch(facecolor=color, edgecolor=palette("navy"), linewidth=.4,
+                     label=legend_labels[label])
+               for color, label in zip(colors, keep)]
+    ax.legend(handles=handles, loc="center left", bbox_to_anchor=(1.025, .5),
+              frameon=False, borderaxespad=0, handlelength=1.3,
+              labelspacing=.5, fontsize=_style()["legend_fs"])
+    set_title(ax, "Thematic waves", fontsize=_style()["title_fs"], pad=20)
+    coverage = selected.sum(axis=1, min_count=1)
+    noun = "assigned papers" if block.get("from_assignments") else "cached topic selection"
+    ax.text(0, 1.01, f"{len(keep)} topics; {coverage.mean():.1f}% of {noun} per year on average",
+            transform=ax.transAxes, ha="left", va="bottom",
+            fontsize=_style()["annot_fs"], color="#555555")
     return ax
 
 
-def draw_for_rank_flow(ax, D):
-    return draw_rank_flow(ax, D["for"],
-                          f"FOR Level 4 fields, rank by yearly share "
-                          f"({FLOW_MIN}–{FLOW_MAX})")
-
-
-def draw_rcdc_rank_flow(ax, D):
-    return draw_rank_flow(ax, D["rcdc"],
-                          f"RCDC categories, rank by yearly share "
-                          f"({FLOW_MIN}–{FLOW_MAX})")
-
-
-# =============================================================================
-# 6. The pages
-# =============================================================================
-MAIN_CAPTION = {
-    "A": f"Composition of UK Biobank publications by BERTopic topic, {FLOW_MIN}–{FLOW_MAX}. Topics "
-         "are learned from title and abstract text (SPECTER embeddings, UMAP + HDBSCAN, "
-         "outliers force-reassigned so every paper carries exactly one topic — D5, D6). "
-         "Each year is normalised independently, so a narrowing band means a topic "
-         "growing more slowly than the corpus, not shrinking.",
-    "B": "The same window in the publisher's own vocabulary: FOR 2020 Level 4 fields, "
-         "whole counting (a paper counts once in each of the ~1.5 fields it carries). "
-         "The drawn bands hold roughly 90% of each year; the grey band is every "
-         "remaining field.",
-    "C": "The same window in the funder vocabulary: RCDC categories, fractional counting "
-         "(each paper spreads a weight of 1 across the ~7.4 tags it carries, so a paper "
-         "tagged with twenty conditions does not outvote one tagged with two). The grey "
-         "remainder contains the categories outside the selected bands and is labelled "
-         "with its category count; coverage is reported on the panel.",
-}
-
-SI_CAPTIONS = {
-    "rank_flow": {
-        "A": f"Rank of each drawn FOR Level 4 field by its share of the year, {FLOW_MIN}–{FLOW_MAX}. "
-             "Line width is proportional to mean share, so the heavy lines here are the "
-             "thick bands of the main panel's B.",
-        "B": "The same for RCDC categories. Rank answers the question a stack of eighteen "
-             "bands cannot be read for — which categories crossed, and when.",
-    },
-}
-
-def thin_years_note(D) -> str:
-    """The window's weakest years, derived rather than written down.
-
-    Printed on the page rather than left to a caption that may not travel with it: the
-    flow opens on very few papers, where a single paper moves a share by several
-    percentage points, and every panel's left-hand edge has to be read with that in hand.
-    """
-    counts = D["for"]["n_papers"]
-    years = list(counts.index)
-    first, second, last = counts.iloc[0], counts.iloc[1], counts.iloc[-1]
-    fields = D["for"]["n_categories"]
-    return (
-        f"The window opens thin: {int(first):,} papers in {years[0]} and {int(second):,} "
-        f"in {years[1]}, against {int(last):,} in {years[-1]}. A share across {fields} "
-        f"fields computed on {int(first):,} papers is sensitive to individual papers, "
-        f"so read the left-hand edge of every panel as indicative "
-        f"only — each year's population is printed under its own tick, per panel, because "
-        f"the three vocabularies do not cover the same papers."
-    )
-
-
-def _assemble(spec, nrows, ncols, figsize, D, name, save=True, slots=None,
-              hspace=0.42, wspace=0.26, height_ratios=None, width_ratios=None,
-              right=0.72, left=0.075, top=0.955, bottom=0.075, label_panels=True,
-              letter_x=-0.058, letter_y=1.045, footer=None):
-    """Draw `spec` (an ordered list of draw functions) into a letter-labelled grid.
-
-    Same contract as the 03 and 04 assemblers, with one addition these pages need: the
-    grid stops at `right`, because every stream panel calls its thin bands out into the
-    margin beyond it. Leaving that gutter in the gridspec rather than in each draw
-    function is what keeps the three rows' callout columns aligned with each other.
-    """
-    letters = "ABCDEFGHIJKL"
-    kw = {}
-    if height_ratios is not None:
-        kw["height_ratios"] = list(height_ratios)
-    if width_ratios is not None:
-        kw["width_ratios"] = list(width_ratios)
-
-    fig = plt.figure(figsize=figsize)
-    gs = fig.add_gridspec(nrows, ncols, hspace=hspace, wspace=wspace,
-                          left=left, right=right, top=top, bottom=bottom, **kw)
-    if slots is None:
-        cells = [(row, col) for row in range(nrows) for col in range(ncols)]
-        slots = cells[:len(spec)]
-    elif len(slots) != len(spec):
-        raise ValueError(f"{len(spec)} draw functions but {len(slots)} slots")
-    axes = [fig.add_subplot(gs[rows, cols]) for rows, cols in slots]
-
-    for ax, letter, draw in zip(axes, letters, spec):
-        draw(ax, D)
-        if label_panels:
-            # Free text, NOT the default placement: `panel_label(ax, "B")` with no
-            # position sets the axes TITLE, which would silently replace the descriptive
-            # title each of these panels carries.
-            panel_label(ax, letter, x=letter_x, y=letter_y)
-    if footer:
-        fig.text(left, bottom * 0.30, footer, ha="left", va="bottom",
-                 fontsize=_style()["annot_fs"] - 1.5, color="#666666", wrap=True)
-    if save:
-        savefig(fig, name)
-    return fig
+def thin_years_note(D):
+    counts = D["corpus"].groupby("year").size().reindex(FLOW_YEARS, fill_value=0)
+    return (f"Publication window: {FLOW_MIN}–{FLOW_MAX}; n = {len(D['corpus']):,}. "
+            f"Early-year estimates use {int(counts.iloc[0]):,} papers in {FLOW_MIN} "
+            f"and {int(counts.iloc[1]):,} in {FLOW_MIN + 1}. "
+            "Missing classifications are excluded from composition denominators.")
 
 
 def figure_main(D, save=True):
-    """The main-paper page: three composition streams over one window, stacked.
+    """FOR and RCDC side by side, with thematic waves across the lower row."""
+    figsize = _style().get("figsize_main", (16, 12))
+    fig = plt.figure(figsize=figsize)
+    ax_for = fig.add_axes([.075, .64, .39, .29])
+    ax_rcdc = fig.add_axes([.575, .64, .39, .29])
+    ax_topic = fig.add_axes([.075, .095, .65, .31])
+    draw_for_stream(ax_for, D)
+    draw_rcdc_stream(ax_rcdc, D)
+    draw_topic_stream(ax_topic, D)
+    for ax, letter, title in ((ax_for, "A", "Fields of Research, Level 4"),
+                              (ax_rcdc, "B", "RCDC categories"),
+                              (ax_topic, "C", "Thematic waves")):
+        _heading(ax, letter, title)
+    fig.text(.075, .018, thin_years_note(D), ha="left", va="bottom",
+             fontsize=_style()["annot_fs"], color="#555555")
+    if save:
+        savefig(fig, "02_01_figure_01_content_composition", formats=("pdf", "png"))
+    return fig
 
-    One column, not two. These are time series over twelve years with eighteen bands and a
-    margin of callouts — side by side they would each be half as wide as they need and
-    their callout columns would collide down the middle of the page. Stacked, the years
-    line up vertically, which is what makes "did all three vocabularies move at once"
-    answerable by eye.
 
-    Panel letters are carried in the titles as well as stamped in the corner, because this
-    page is read at full width and the corner letter is a long way from the panel it names
-    by the time the page is three rows tall.
-    """
-    st = _style()
-    with _font_scale(_fs_scale("main")):
-        return _assemble(
-            [draw_topic_stream,     # A
-             draw_for_stream,       # B
-             draw_rcdc_stream],     # C
-            3, 1, st["figsize_main"], D, "02_01_figure_01_content_composition",
-            save=save, hspace=0.34, right=0.76, top=0.965, bottom=0.085,
-            footer=thin_years_note(D),
-        )
+def annual_vocabulary_metrics(D):
+    """Annual denominators, assignment density and exp(Shannon) diversity for export."""
+    paper_n = D["corpus"].groupby("year").size().reindex(FLOW_YEARS, fill_value=0)
+    rows = []
+    for key in ("for", "rcdc", "topics"):
+        block = D[key]
+        if not block["available"]:
+            continue
+        probabilities = block["share"] / 100.0
+        entropy = -(probabilities * np.log(probabilities.where(probabilities > 0))).sum(
+            axis=1, min_count=1)
+        present = block["weights"].sum(axis=1) > 0
+        effective = np.exp(entropy).where(present)
+        cumulative = (block["weights"].cumsum(axis=0) > 0).sum(axis=1)
+        for year in FLOW_YEARS:
+            n = block["n_papers"].get(year, 0)
+            paper_denominator_known = key != "topics" or block.get("from_assignments", False)
+            rows.append({
+                "year": year, "vocabulary": key, "corpus_papers": int(paper_n.loc[year]),
+                "classified_papers": int(n) if paper_denominator_known else np.nan,
+                "coverage_pct": 100 * n / paper_n.loc[year]
+                    if paper_denominator_known and paper_n.loc[year] else np.nan,
+                "effective_categories": effective.loc[year],
+                "active_categories": int((block["weights"].loc[year] > 0).sum()),
+                "cumulative_categories": int(cumulative.loc[year]),
+            })
+    return pd.DataFrame(rows)
+
+
+def category_share_table(D):
+    """Full annual distributions underlying the main page and category heatmaps."""
+    frames = []
+    for key in ("for", "rcdc", "topics"):
+        block = D[key]
+        if not block["available"]:
+            continue
+        share = block["share"].rename_axis(columns="category").stack(
+            future_stack=True).rename("share_pct")
+        weight = block["weights"].rename_axis(columns="category").stack(
+            future_stack=True).rename("weight")
+        frames.append(pd.concat([share, weight], axis=1).reset_index().assign(
+            vocabulary=key, counting=block["weight"]))
+    return pd.concat(frames, ignore_index=True) if frames else pd.DataFrame()
+
+
+def category_change_table(D):
+    """Start/end shares for every category, preserving missing starting-year data."""
+    frames = []
+    for key in ("for", "rcdc", "topics"):
+        block = D[key]
+        if block["available"]:
+            frames.append(start_end_table(block["share"], list(block["share"].columns))
+                          .reset_index().assign(vocabulary=key))
+    return pd.concat(frames, ignore_index=True) if frames else pd.DataFrame()
+
+
+def topic_label_table(D):
+    """Model labels, displayed abbreviations, counts and main-panel selection."""
+    block = D["topics"]
+    columns = ["topic_label", "display_label", "papers", "selected_main_figure"]
+    if not block["available"]:
+        return pd.DataFrame(columns=columns)
+    legend_labels = _topic_legend_labels(block["order"].index)
+    return pd.DataFrame([
+        {"topic_label": label, "display_label": legend_labels[label].replace("\n", " "),
+         "papers": count, "selected_main_figure": label in block["keep"]}
+        for label, count in block["order"].items()
+    ], columns=columns)
+
+
+def draw_category_heatmap(ax, block, title, *, n_categories=12):
+    """Leading categories across all years, on an explicit shared percentage scale."""
+    keep = list(block["order"].index[:n_categories])
+    values = block["share"][keep].T
+    cmap = blue_cream_red_colormap().with_extremes(bad="#EEEEEE")
+    vmax = max(1.0, float(np.nanmax(values.to_numpy())))
+    norm = Normalize(vmin=0, vmax=vmax)
+    mesh = ax.pcolormesh(np.ma.masked_invalid(values.to_numpy(dtype=float)),
+                        cmap=cmap, norm=norm, edgecolors=palette("navy"), linewidth=.45)
+    _axes(ax, grid=False)
+    ax.set_xlim(0, len(values.columns))
+    ax.set_ylim(len(keep), 0)
+    ax.set_xticks(np.arange(len(values.columns)) + .5, labels=values.columns,
+                  rotation=45, ha="right")
+    ax.set_yticks(np.arange(len(keep)) + .5,
+                  labels=[_legend_label(label, 34) for label in keep])
+    ax.set_xlabel("Publication year")
+    ax.tick_params(axis="y", length=0, labelsize=_style()["tick_fs"])
+    for row in range(len(keep)):
+        for col in range(len(values.columns)):
+            value = values.iloc[row, col]
+            if not np.isfinite(value):
+                continue
+            red, green, blue, _ = cmap(norm(value))
+            text_color = "white" if .2126 * red + .7152 * green + .0722 * blue < .52 else "#222222"
+            ax.text(col + .5, row + .5, f"{value:.1f}", ha="center", va="center",
+                    fontsize=max(7.0, _style()["annot_fs"] - .5), color=text_color)
+    cax = ax.inset_axes([1.025, .07, .028, .86])
+    cb = ax.figure.colorbar(mesh, cax=cax)
+    cb.set_label("Annual share (%)")
+    cb.set_ticks(np.linspace(0, vmax, 5))
+    cb.ax.set_yticklabels([f"{v:.1f}" for v in np.linspace(0, vmax, 5)])
+    cb.outline.set_edgecolor(palette("navy"))
+    set_title(ax, title, fontsize=_style()["title_fs"], pad=18)
+    return ax
+
+
+def figure_si_category_detail(D, save=True):
+    """Supplement 1: the leading twelve fields and tags without stacked-band occlusion."""
+    figsize = _style().get("figsize_si", (15, 10))
+    fig, axes = plt.subplots(2, 1, figsize=figsize)
+    fig.subplots_adjust(left=.27, right=.88, top=.95, bottom=.115, hspace=.48)
+    draw_category_heatmap(axes[0], D["for"], "A  Fields of Research, Level 4")
+    draw_category_heatmap(axes[1], D["rcdc"], "B  RCDC categories")
+    fig.text(.27, .018, "Numbers give percentages. Grey cells indicate no classified publications. "
+             "The complete category distributions are supplied as CSV.",
+             fontsize=_style()["annot_fs"], color="#555555")
+    if save:
+        savefig(fig, "02_02_supplementary_figure_01_category_composition", formats=("pdf", "png"))
+    return fig
+
+
+def _metric_lines(ax, metrics, column, ylabel, *, keys=("for", "rcdc", "topics")):
+    _axes(ax)
+    for key in keys:
+        frame = metrics.loc[metrics["vocabulary"].eq(key)]
+        if frame.empty or not frame[column].notna().any():
+            continue
+        ax.plot(frame["year"], frame[column], label=VOCABULARY_LABELS[key],
+                color=VOCABULARY_COLORS[key], marker="o", linewidth=1.8,
+                markersize=4.5, markeredgecolor=palette("navy"), markeredgewidth=.5)
+    _years(ax)
+    ax.set_ylabel(ylabel)
+    ax.yaxis.set_major_locator(MaxNLocator(5))
+    return ax
+
+
+def figure_si_coverage(D, save=True):
+    """Supplement 2: coverage, diversity, active categories and cumulative breadth."""
+    metrics = annual_vocabulary_metrics(D)
+    fig, axes = plt.subplots(2, 2, figsize=_style().get("figsize_si", (15, 10)))
+    fig.subplots_adjust(left=.085, right=.975, top=.94, bottom=.11, hspace=.40, wspace=.32)
+    panels = (
+        ("coverage_pct", "Publications classified (%)", "A  Classification coverage"),
+        ("effective_categories", "Effective number of categories", "B  Category diversity"),
+        ("active_categories", "Categories represented", "C  Annual category breadth"),
+        ("cumulative_categories", "Cumulative categories represented", "D  Cumulative category breadth"),
+    )
+    for ax, (metric, label, title) in zip(axes.flat, panels):
+        _metric_lines(ax, metrics, metric, label)
+        set_title(ax, title, fontsize=_style()["title_fs"], pad=16)
+        if metric == "coverage_pct":
+            ax.set_ylim(0, 105)
+            ax.set_yticks([0, 25, 50, 75, 100])
+            ax.yaxis.set_major_formatter(PercentFormatter(100, decimals=0))
+        else:
+            ax.set_ylim(bottom=0)
+    handles, labels = axes[0, 0].get_legend_handles_labels()
+    fig.legend(handles, labels, loc="lower center", bbox_to_anchor=(.53, .01),
+               ncol=len(handles), frameon=False, fontsize=_style()["legend_fs"])
+    if save:
+        savefig(fig, "02_03_supplementary_figure_02_coverage_and_breadth", formats=("pdf", "png"))
+    return fig
 
 
 def figure_si_rank_flow(D, save=True):
-    """SI 1 — the two bump charts the source notebook drew as 06b and 07b.
+    """Compatibility entry point: category heatmaps replace the crowded rank-flow page."""
+    return figure_si_category_detail(D, save=save)
 
-    They are not on the main page because rank and share answer different questions and
-    the main page is already three panels of share. Nothing is discarded: the bands are
-    the same bands, drawn from the same `D`.
+
+def load_topic_diagnostics(D):
+    """Optional diagnostics from the same directory as the completed topic result.
+
+    Historic, unscoped diagnostics are not evidence for the current model. Partial
+    diagnostic sets are omitted; invalid sidecars raise rather than being ignored.
     """
-    st = _style()
-    with _font_scale(_fs_scale("si1_rank_flow")):
-        return _assemble(
-            [draw_for_rank_flow,    # A
-             draw_rcdc_rank_flow],  # B
-            2, 1, st["figsize_si"], D,
-            "02_02_supplementary_figure_01_category_rank_flow",
-            save=save, hspace=0.22, left=0.24, right=0.78, top=0.95, bottom=0.06,
-        )
+    if not D["topics"]["available"] or not D["topics"].get("source"):
+        return None
+    source = Path(D["topics"]["source"])
+    if not source.is_absolute():
+        source = P.ROOT / source
+    files = {
+        "runs": "seed_grid_runs.csv",
+        "summary": "bertopic_seed_robustness_summary.csv",
+        "pairs": "bertopic_seed_pair_stability.csv",
+        "persistence": "bertopic_final_cluster_persistence.csv",
+    }
+    paths = {key: source.parent / name for key, name in files.items()}
+    if not all(path.is_file() and path.with_suffix(".analysis_window.json").is_file()
+               for path in paths.values()):
+        return None
+    for path in paths.values():
+        require_topic_window_provenance(path)
+    return {key: pd.read_csv(path) for key, path in paths.items()}
+
+
+def figure_si_topic_robustness(D, save=True):
+    """Supplement 3, when verified diagnostics exist: seeds, stability and persistence."""
+    diagnostics = D.get("topic_diagnostics") or load_topic_diagnostics(D)
+    if diagnostics is None:
+        return None
+    runs = diagnostics["runs"].query('status == "ok"').copy()
+    summary, pairs = diagnostics["summary"], diagnostics["pairs"]
+    persistence = diagnostics["persistence"]
+    parameters = sorted(runs["parameter_index"].unique())
+    positions = {parameter: i for i, parameter in enumerate(parameters)}
+    # The summary is ordered by the exact configured selection score by the model
+    # pipeline. Its first row identifies the selected parameter setting.
+    selected = int(summary.iloc[0]["parameter_index"])
+    labels = []
+    for parameter in parameters:
+        row = runs.loc[runs["parameter_index"].eq(parameter)].iloc[0]
+        labels.append(f"{int(row.n_neighbors)}/{int(row.min_cluster_size)}/{int(row.min_samples)}")
+    fig, axes = plt.subplots(2, 2, figsize=_style().get("figsize_si", (15, 10)))
+    fig.subplots_adjust(left=.085, right=.975, top=.94, bottom=.115, hspace=.47, wspace=.33)
+
+    def configuration_axis(ax):
+        _axes(ax)
+        ax.axvspan(positions[selected] - .38, positions[selected] + .38,
+                   color=palette("cream"), alpha=.6, zorder=0)
+        ax.set_xticks(range(len(parameters)), labels=labels)
+        ax.set_xlim(-.55, len(parameters) - .45)
+        ax.set_xlabel("Neighbours / minimum cluster size / minimum samples")
+        ax.tick_params(axis="x", labelsize=_style()["tick_fs"] - .5)
+
+    for ax, metric, title, ylabel in (
+        (axes[0, 0], "coherence_cv", "A  Topic coherence across seeds", r"Topic coherence ($c_v$)"),
+        (axes[0, 1], "n_topics", "B  Topic count across seeds", "Number of topics"),
+    ):
+        configuration_axis(ax)
+        for parameter, group in runs.groupby("parameter_index"):
+            group = group.sort_values("seed")
+            x = positions[parameter]
+            offsets = np.linspace(-.18, .18, len(group)) if len(group) > 1 else [0]
+            ax.scatter(x + np.asarray(offsets), group[metric], s=30,
+                       color=palette("steel_blue"), edgecolor=palette("navy"),
+                       linewidth=.5, alpha=.8, zorder=3)
+            ax.plot([x - .26, x + .26], [group[metric].mean()] * 2,
+                    color=palette("red"), linewidth=2.4, zorder=4)
+        ax.set_ylabel(ylabel)
+        ax.yaxis.set_major_locator(MaxNLocator(5))
+        set_title(ax, title, fontsize=_style()["title_fs"], pad=16)
+
+    ax = axes[1, 0]
+    configuration_axis(ax)
+    for metric, offset, color, label in (("ari", -.12, palette("red"), "Adjusted Rand index"),
+                                         ("nmi", .12, palette("steel_blue"), "Normalised mutual information")):
+        for parameter, group in pairs.groupby("parameter_index"):
+            x = positions[parameter] + offset
+            jitter = np.linspace(-.055, .055, len(group))
+            ax.scatter(x + jitter, group[metric], s=15, color=color, alpha=.40,
+                       edgecolor="none", zorder=2)
+        means = pairs.groupby("parameter_index")[metric].mean().reindex(parameters)
+        ax.plot(np.arange(len(parameters)) + offset, means, color=color, marker="o",
+                markersize=4.5, linewidth=1.5, label=label, zorder=4)
+    ax.set_ylabel("Agreement between seed pairs")
+    ax.set_ylim(min(0, float(pairs[["ari", "nmi"]].min().min()) - .03), 1.03)
+    ax.legend(loc="lower left", frameon=True, facecolor="white",
+              edgecolor=palette("navy"), fontsize=_style()["legend_fs"] - 1)
+    set_title(ax, "C  Assignment stability", fontsize=_style()["title_fs"], pad=16)
+
+    ax = axes[1, 1]
+    _axes(ax)
+    ax.scatter(persistence["raw_cluster_size"], persistence["cluster_persistence"],
+               s=42, color=palette("steel_blue"), alpha=.75,
+               edgecolor=palette("navy"), linewidth=.6, zorder=3)
+    median = float(persistence["cluster_persistence"].median())
+    ax.axhline(median, color=palette("red"), linestyle="--", linewidth=1.4,
+               label=f"Median persistence: {median:.2f}")
+    ax.set_xscale("log")
+    ax.minorticks_off()
+    grid_on(ax, axis="both", which="major", log=True, alpha=.35)
+    ax.set_ylim(bottom=0)
+    ax.yaxis.set_major_locator(MaxNLocator(5))
+    ax.set_xlabel("HDBSCAN cluster size before outlier reassignment")
+    ax.set_ylabel("Cluster persistence")
+    ax.legend(loc="upper right", frameon=False, fontsize=_style()["legend_fs"] - 1)
+    set_title(ax, "D  Final-model cluster persistence", fontsize=_style()["title_fs"], pad=16)
+    fig.text(.085, .018, "Points in A–B: individual seeds; red bars: means. "
+             "Cream shading: selected parameter setting. C includes all seed pairs.",
+             fontsize=_style()["annot_fs"], color="#555555")
+    if save:
+        savefig(fig, "02_04_supplementary_figure_03_topic_robustness", formats=("pdf", "png"))
+    return fig
+
+
+# Descriptive aliases used by the combined notebook/export orchestrator.
+figure_si_category_changes = figure_si_category_detail
+figure_si_breadth_coverage = figure_si_coverage
+breadth_coverage_time_series = annual_vocabulary_metrics
+
+
+MAIN_CAPTION = {
+    "A": f"Annual composition of UK Biobank research by Fields of Research 2020 Level 4, "
+         f"{FLOW_MIN}–{FLOW_MAX}. Papers count once in each assigned field; percentages "
+         "use all paper–field assignments in each year as the denominator. The eight "
+         "leading fields by total assignment count are shown separately; grey pools the remainder.",
+    "B": "Annual Research, Condition and Disease Categorisation (RCDC) composition. "
+         "Each classified paper contributes a total weight of one, "
+         "divided equally across its distinct tags. Shares are fractions of classified papers, "
+         "with the eight leading tags displayed separately and remaining tags pooled in grey.",
+    "C": "Thematic waves from cached BERTopic assignments. Band thickness shows the annual shares of "
+         "all topic-assigned publications attributable to the selected leading topics; the "
+         "stream is centred for display, so vertical position carries no meaning. Topics "
+         "are selected using total publication counts across the analysis window, with "
+         "up to twelve shown.",
+}
+
+SI_CAPTIONS = {
+    "category_detail": {
+        "A": "Annual shares of the twelve leading FOR Level 4 fields, ranked by total "
+             "paper–field assignments across the analysis window. Each paper counts once "
+             "per assigned field; yearly shares sum to 100% across the full vocabulary.",
+        "B": "Annual shares of the twelve leading RCDC tags, using fractional assignment "
+             "across each paper's tags. Cells are annotated as percentages; grey denotes "
+             "years with no classified publications. Colour scales span each panel's observed range.",
+    },
+    "coverage": {
+        "A": "Percentage of dated publications carrying at least one classification or "
+             "a non-outlier topic assignment. Coverage uses the full yearly corpus as denominator.",
+        "B": "Effective number of categories, calculated as the exponential of Shannon "
+             "entropy from each vocabulary's annual composition shares.",
+        "C": "Number of distinct categories represented among each year's publications.",
+        "D": "Cumulative number of distinct categories observed. Vocabularies differ in "
+             "granularity and are presented separately; their category counts are not equivalent units.",
+    },
+    "topic_robustness": {
+        "A": "Topic coherence (c_v) for every successful random-seed fit within each "
+             "parameter setting. Points show seeds and red bars their means.",
+        "B": "Topic counts from the same fits. Cream shading in A–C identifies the "
+             "selected parameter setting, chosen using the recorded quality and stability score.",
+        "C": "Adjusted Rand index and normalised mutual information for every pair of "
+             "seed-specific assignment vectors; solid lines show the corresponding means.",
+        "D": "Cluster persistence against cluster size for the final selected HDBSCAN model. "
+             "Sizes and persistence are matched using original HDBSCAN cluster IDs before "
+             "outlier reassignment; the dashed line denotes median persistence.",
+    },
+}

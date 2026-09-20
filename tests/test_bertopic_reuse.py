@@ -69,18 +69,17 @@ class TopicResultsReuseTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "duplicate assignments"):
             find_existing_topic_results(self.output)
 
-    def test_entire_notebook_skips_dependencies_and_modelling_with_results(self):
+    def test_notebook_model_stage_skips_dependencies_and_modelling_with_results(self):
         path = self.results()
         before = {p: p.read_bytes() for p in self.output.iterdir()}
-        notebook = json.loads((ROOT / "src/data_analysis/02_content_1_bert_topic.ipynb").read_text())
+        notebook = json.loads((ROOT / "src/data_analysis/02_content.ipynb").read_text())
         namespace = {}
         with patch("importlib.util.find_spec", side_effect=AssertionError("Dependency checks must be skipped")):
             with contextlib.redirect_stdout(io.StringIO()) as log:
                 for cell in notebook["cells"]:
-                    if cell["cell_type"] == "code":
+                    if cell["cell_type"] == "code" and set(cell.get("metadata", {}).get("tags", [])) & {"bootstrap", "topic-models"}:
                         exec(compile("".join(cell["source"]), "BERTopic notebook", "exec"), namespace)
-        self.assertTrue(namespace["REUSE_TOPIC_RESULTS"])
-        self.assertEqual(namespace["CACHED_TOPIC_RESULTS"], path)
+        self.assertEqual(namespace["TOPIC_RESULTS"], path)
         self.assertIn("[SKIP]", log.getvalue())
         self.assertNotIn("final_model", namespace)
         self.assertNotIn("embeddings", namespace)

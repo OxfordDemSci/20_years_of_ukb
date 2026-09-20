@@ -192,49 +192,20 @@ style:
         c_gold: 1                 # cream
         c_green: 6                # green
 
-    02_content:
-      # Topic-modelling and category-flow figures: streamgraphs, ridge waves and bump
-      # charts over many categories, so the four base colours are not enough — this
-      # section carries its own 12-colour palette instead.
-      #
-      # These twelve are the STREAM_COLOURS literal that 02_content_1_bert_topic.ipynb
-      # defines inline (its PRODUCTION_STREAM_CMAP anchors). They are lifted here so the
-      # category-flow notebook draws the same figure family in the same colours; twelve
-      # anchors is exactly TOP_N_FLOW, so extended_palette(12) returns them unchanged
-      # rather than interpolating, and the closing "All other categories" band keeps its
-      # grey. When 02_content_1 gains its load_style call it should drop the literal and
-      # read these.
-      colors: ["#264653", "#2A6F83", "#2A9D8F", "#55A868",
-               "#86B94E", "#C7C94A", "#E9C46A", "#F4A261",
-               "#E76F51", "#B65C7A", "#7B4EA3", "#4C4E9D"]
-      save: true
-      formats: [pdf, png]
-      savedir: output/figures/data_analysis/02_content
-
-    02_content_99_all:
-      # The assembled main + SI panels for analysis 02. It keeps 02_content's TWELVE
-      # stream colours rather than the seven-colour project palette the 03/04 families
-      # use, because these pages are stacked composition streams: fifteen to eighteen
-      # adjacent bands need a ramp with enough anchors that neighbours separate, and
-      # extended_palette() interpolating seven colours over eighteen bands puts three
-      # near-identical blues next to each other. The closing remainder is always grey
-      # (#BBBBBB, in the panel module) and is the only grey on the page.
-      colors: ["#264653", "#2A6F83", "#2A9D8F", "#55A868",
-               "#86B94E", "#C7C94A", "#E9C46A", "#F4A261",
-               "#E76F51", "#B65C7A", "#7B4EA3", "#4C4E9D"]
+    02_content: &content_style
+      # One content-analysis notebook; shared project palette and publication exports.
+      colors: ["#E66859", "#FEE7BA", "#75BBD4", "#74ADD1",
+               "#416FA0", "#274668", "#74D1AF"]
       title_fs: 15
       label_fs: 12
       tick_fs: 10
       annot_fs: 9
       legend_fs: 10
       body_fs: 11
-      panel_label_fs: 15          # the bold A / B / C stamped on each sub-panel
-      # Per-figure type scale, as in the 03 and 04 families: every font size above is
-      # multiplied by the entry for the figure being drawn. The main page is three full
-      # rows tall and read at page width, so it carries the larger scale.
+      panel_label_fs: 18
       fs_scale:
-        main: 1.22
-        si1_rank_flow: 1.05
+        main: 1.0
+        si1_rank_flow: 1.0
       axes_linewidth: 1.0
       tick_length: 4
       tick_width: 1.0
@@ -244,11 +215,15 @@ style:
       edgecolor: black
       marker_size: 8.5
       dot_marker_area: 76
-      figsize_main: [17, 20]      # three stacked streams, with a callout gutter at right
-      figsize_si:   [16, 15]      # two stacked bump charts, names in both margins
+      figsize_main: [16, 12]
+      figsize_si: [15, 10]
       save: true
       formats: [pdf, png]
       savedir: output/figures/data_analysis/02_content
+
+    # Backwards-compatible style name for existing panel callers.
+    02_content_99_all:
+      <<: *content_style
 
     04_non_academic_03_altmetric:
       # Was `plt.rcParams['font.family'] = 'Helvetica'` inline, the only notebook that
