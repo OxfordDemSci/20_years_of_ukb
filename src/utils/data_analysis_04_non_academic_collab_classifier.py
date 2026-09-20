@@ -438,11 +438,13 @@ def classify_institution_lists(
     batch_size: int = DEFAULT_BATCH_SIZE,
     max_concurrency: int = DEFAULT_MAX_CONCURRENCY,
     progress: Callable[[int, int], None] | None = None,
+    allow_api: bool = False,
 ) -> list[dict[str, list[int]]]:
     """Classify every row, de-duplicated and cached.
 
     Rows with identical institution tuples are classified once. Anything already
-    in `cache_path` costs nothing. Returns one result per input row, in order.
+    in `cache_path` costs nothing. Missing labels require explicit `allow_api=True`.
+    Returns one result per input row, in order.
     """
     keys = [tuple(row) for row in institution_lists]
     cache = _read_cache(cache_path) if cache_path else {}
@@ -456,6 +458,12 @@ def classify_institution_lists(
     first_error: str | None = None
 
     if todo:
+        if not allow_api:
+            raise FileNotFoundError(
+                f"Collaborator classification cache is missing {len(todo):,} institution sets. "
+                "Restore the saved labels/cache; API classification is disabled "
+                "unless explicitly enabled with UKB_ALLOW_CLASSIFICATION=1."
+            )
         if client is None:
             import anthropic
             client = anthropic.Anthropic(api_key=_resolve_api_key())
@@ -592,12 +600,12 @@ def load_or_classify(
     force: bool = False,
     **kwargs: Any,
 ):
-    """Return the classified frame, running the LLM pass only if it has to.
+    """Load saved labels or reconstruct them from the classification cache.
 
     If `out_path` already exists it is read and returned unchanged — the classified
     file is the expensive artefact and re-deriving it must never be accidental.
-    Pass `force=True` to reclassify anyway (the per-row cache still applies, so
-    this is cheap unless the cache is also gone).
+    Pass `force=True` to rebuild the output from the cache. Uncached institution
+    sets also require `allow_api=True` before any provider or credentials are used.
     """
     import pandas as pd
 

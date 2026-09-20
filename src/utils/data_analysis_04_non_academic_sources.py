@@ -1,0 +1,119 @@
+"""Recover complete endpoint records embedded in the local Showcase+ snapshot.
+
+The acquisition pipeline's ``endpoint_wide`` stores each endpoint field as a
+parallel JSON array. These are complete fetched records, unlike ``linked_ids``,
+which can also include entities whose metadata were never fetched. Recovery
+checks array alignment and repeated records before writing a deduplicated CSV.
+It never reconstructs metadata from links or overwrites an existing source CSV.
+"""
+
+from __future__ import annotations
+
+import json
+from datetime import datetime, timezone
+from pathlib import Path
+
+import pandas as pd
+import pyarrow.parquet as pq
+
+from utils import shared_paths as P
+
+
+def recover_endpoint_records(wide: pd.DataFrame, endpoint: str) -> pd.DataFrame:
+    """Invert aligned endpoint arrays, rejecting incomplete or conflicting data."""
+    prefix = endpoint + "__"
+    count_col = prefix + "n_records"
+    id_col = prefix + "id"
+    fields = [c for c in wide.columns if c.startswith(prefix)
+              and c[len(prefix):] not in {"linked_ids", "n_links", "n_records"}]
+    if id_col not in fields or count_col not in wide:
+        raise ValueError(f"{endpoint}: complete endpoint records are absent; linkage IDs are insufficient")
+    counts = pd.to_numeric(wide[count_col], errors="coerce")
+    invalid = ((wide[count_col].notna() & counts.isna()) | counts.lt(0)
+               | (counts.notna() & counts.mod(1).ne(0)))
+    if invalid.any():
+        raise ValueError(f"{endpoint}: invalid record count {wide.loc[invalid, count_col].iloc[0]!r}")
+    # A zero/missing count must not hide populated arrays from a malformed export.
+    for row in wide.loc[counts.fillna(0).eq(0), fields].to_dict("records"):
+        for column, value in row.items():
+            if isinstance(value, str):
+                if not value.strip():
+                    continue  # The wide export uses blank strings for absent endpoint fields.
+                try:
+                    value = json.loads(value)
+                except ValueError as exc:
+                    raise ValueError(f"{column}: invalid endpoint JSON array") from exc
+            if value is None or value is pd.NA or (isinstance(value, float) and pd.isna(value)):
+                continue
+            if not isinstance(value, list) or value:
+                raise ValueError(f"{column}: populated or invalid array with zero/missing n_records")
+    records = {}
+    for row in wide.loc[counts.gt(0), fields + [count_col]].to_dict("records"):
+        count = row[count_col]
+        if int(count) != count or count < 0:
+            raise ValueError(f"{endpoint}: invalid record count {count!r}")
+        arrays = {}
+        for column in fields:
+            value = row[column]
+            try:
+                values = json.loads(value) if isinstance(value, str) else value
+            except (TypeError, ValueError) as exc:
+                raise ValueError(f"{column}: invalid endpoint JSON array") from exc
+            if not isinstance(values, list) or len(values) != count:
+                raise ValueError(f"{column}: array length does not match n_records={count}")
+            arrays[column[len(prefix):]] = values
+        for index in range(int(count)):
+            record = {field: values[index] for field, values in arrays.items()}
+            entity_id = record["id"]
+            if not isinstance(entity_id, str) or not entity_id.strip():
+                raise ValueError(f"{endpoint}: endpoint record has no valid ID")
+            if entity_id in records and records[entity_id] != record:
+                raise ValueError(f"{endpoint}: conflicting copies of {entity_id}")
+            records[entity_id] = record
+    if not records:
+        raise ValueError(f"{endpoint}: no full endpoint records found in the snapshot")
+    return pd.DataFrame([records[key] for key in sorted(records)])
+
+
+def ensure_endpoint_csv(endpoint: str, destination: Path, source: Path | None = None) -> Path:
+    """Use the existing CSV, otherwise unpack full records with source provenance."""
+    destination = Path(destination)
+    if destination.exists():
+        return destination
+    source = Path(source) if source is not None else P.SHOWCASE_PLUS
+    if not source.exists():
+        raise FileNotFoundError(f"Missing {P.raw_path(destination)} and the full Showcase+ snapshot")
+    prefix = endpoint + "__"
+    columns = [name for name in pq.read_schema(source).names if name.startswith(prefix)]
+    records = recover_endpoint_records(pd.read_parquet(source, columns=columns), endpoint)
+    # Keep the source snapshot's nested lists/dicts intact in CSV-readable form.
+    serialized = records.map(
+        lambda value: json.dumps(value, ensure_ascii=False)
+        if isinstance(value, (list, dict)) else value
+    )
+    destination.parent.mkdir(parents=True, exist_ok=True)
+    serialized.to_csv(destination, index=False)
+    stat = source.stat()
+    provenance = {
+        "source": P.raw_path(source),
+        "source_size_bytes": stat.st_size,
+        "source_modified_utc": datetime.fromtimestamp(stat.st_mtime, timezone.utc).isoformat(),
+        "recovered_utc": datetime.now(timezone.utc).isoformat(),
+        "endpoint": endpoint,
+        "records": len(records),
+        "method": "Unpack complete parallel endpoint arrays; deduplicate identical records by ID",
+        "scope": "Fetched entity records in this snapshot; linked IDs without records are excluded",
+    }
+    destination.with_suffix(".provenance.json").write_text(
+        json.dumps(provenance, indent=2) + "\n", encoding="utf-8"
+    )
+    print(f"Recovered {len(records):,} {endpoint} records from the local Showcase+ snapshot")
+    return destination
+
+
+def ensure_clinical_trials_csv() -> Path:
+    return ensure_endpoint_csv("clinical_trials", P.CT_CSV)
+
+
+def ensure_policy_csv() -> Path:
+    return ensure_endpoint_csv("policy_documents", P.POLICY_CSV)

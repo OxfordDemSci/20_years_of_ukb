@@ -448,7 +448,8 @@ def load_patents() -> pd.DataFrame:
 
 def load_trials() -> pd.DataFrame:
     """Clinical trials, with start_year and the parsed list columns the panels need."""
-    ct = pd.read_csv(P.CT_CSV)
+    from utils.data_analysis_04_non_academic_sources import ensure_clinical_trials_csv
+    ct = pd.read_csv(ensure_clinical_trials_csv())
     ct["start_year"] = pd.to_datetime(ct["start_date"], errors="coerce").dt.year
     ct["study_type"] = ct["study_type"].fillna("Unknown")
     return ct
@@ -456,7 +457,8 @@ def load_trials() -> pd.DataFrame:
 
 def load_policy() -> pd.DataFrame:
     """Policy documents, with the publisher country flattened out of its dict."""
-    pol = pd.read_csv(P.POLICY_CSV)
+    from utils.data_analysis_04_non_academic_sources import ensure_policy_csv
+    pol = pd.read_csv(ensure_policy_csv())
     pol["year"] = pd.to_numeric(pol["year"], errors="coerce")
     country = pol["publisher_org_country"].apply(_dct)
     pol["publisher_country"] = country.apply(lambda d: d.get("name") or "Unknown")
@@ -515,6 +517,12 @@ def load_collaboration() -> pd.DataFrame:
     """
     from utils import data_analysis_04_non_academic_collab_helpers as h
 
+    if not P.COLLAB_FLAGGED.exists():
+        raise FileNotFoundError(
+            "Missing saved organisation classifications: "
+            f"{P.raw_path(P.COLLAB_FLAGGED)}. Restore the labelled dataset before "
+            "assembling collaboration panels."
+        )
     cols = [
         "id", "year", "times_cited", "category_for_2020", "research_orgs",
         "research_org_countries", "academic_indices", "non_academic_indices",

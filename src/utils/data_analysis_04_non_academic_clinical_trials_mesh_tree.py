@@ -152,12 +152,17 @@ def _sparql_mapped_to(scrs: List[str], timeout: int = 40) -> Dict[str, List[str]
 
 def fetch_tree_numbers(dids: Iterable[str], cache: Path = CACHE,
                        batch: int = 40, pause: float = 0.3,
-                       refresh: bool = False) -> Dict[str, List[str]]:
+                       refresh: bool = False, allow_network: bool = True) -> Dict[str, List[str]]:
     """{descriptor id -> [tree numbers]} from NLM's MeSH SPARQL endpoint, cached to disk."""
     known: Dict[str, List[str]] = {}
     if cache.exists() and not refresh:
         known = pd.read_pickle(cache)
     todo = sorted({d for d in dids if d and d not in known})
+    if todo and not allow_network:
+        raise FileNotFoundError(
+            f"MeSH tree cache is missing {len(todo)} descriptors: {cache}. "
+            "Restore the complete cache or run the MeSH enrichment step separately."
+        )
     if todo:
         print(f"MeSH tree: fetching {len(todo)} descriptors from NLM ...")
         for i in range(0, len(todo), batch):

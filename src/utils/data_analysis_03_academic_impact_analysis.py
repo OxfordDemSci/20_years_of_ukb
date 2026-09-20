@@ -40,6 +40,7 @@ this module hands over frames and the guards that say what those frames can supp
 from __future__ import annotations
 
 import json
+import os
 from pathlib import Path
 from typing import Dict, Iterable, List, Optional, Sequence
 
@@ -185,6 +186,11 @@ CATEGORY_SPECS = {
 }
 
 
+def resolve_counts_dir(default) -> Path:
+    """Use an explicitly supplied cache directory, otherwise the repository default."""
+    return Path(os.environ.get("UKB_FOR_COUNTS_DIR", default)).expanduser()
+
+
 def arm_files(counts_dir, col_type: str, arm: str, prefix: str = "counts") -> List:
     """Partials for one arm: the first filename pattern that matches anything."""
     patterns = [p.format(p=prefix) for p in CATEGORY_SPECS[col_type]["patterns"][arm]]
@@ -192,8 +198,10 @@ def arm_files(counts_dir, col_type: str, arm: str, prefix: str = "counts") -> Li
         hits = sorted(counts_dir.glob(pattern))
         if hits:
             return hits
-    raise FileNotFoundError(f"no {col_type} '{arm}' {prefix} partials in {counts_dir} "
-                            f"(looked for {', '.join(patterns)})")
+    raise FileNotFoundError(
+        f"Missing {col_type} {arm} {prefix} cache in {counts_dir} "
+        f"(expected {', '.join(patterns)}). Restore the original counts cache or set "
+        "UKB_FOR_COUNTS_DIR to it; Showcase+ alone lacks the whole-database reference.")
 
 
 def short(label: str, n: int = 42) -> str:
@@ -298,16 +306,19 @@ def paper_impact(counts_dir, col_type: str = "for", *, level: str = "L4",
     with columns: id, year, type, times_cited, field_citation_ratio, recent_citations,
     codes, n_codes, n_mncs, n_top10f, n_top50f.
 
-    Raises FileNotFoundError if the record cache is absent, rather than falling back to
-    the parquet — a silent fallback there is the whole defect this function replaces.
+    Raises FileNotFoundError if any required cache is absent, rather than falling back
+    to the parquet — a silent fallback is the whole defect this function replaces.
     """
     counts_dir = Path(counts_dir)
     recs_path = counts_dir / "api_ukbb_records.json"
-    if not recs_path.exists():
+    required = (recs_path, counts_dir / f"api_whole.{col_type}.parquet",
+                counts_dir / f"field_thresholds.{col_type}.csv")
+    missing = [path.name for path in required if not path.is_file()]
+    if missing:
         raise FileNotFoundError(
-            f"no per-paper record cache at {recs_path}. paper_impact() is API-pathway "
-            f"only: the VM pathway counts off the corpus and keeps no per-paper rows. "
-            f"Build it with `dimensions_api.py ukbb`.")
+            f"Missing citation cache in {counts_dir}: {', '.join(missing)}. "
+            "Restore the original API cache or set UKB_FOR_COUNTS_DIR to it; "
+            "Showcase+ cannot replace its citation snapshot and field-year references.")
 
     cat_col = f"category_{'for_2020' if col_type == 'for' else col_type}"
     width = {"L2": 2, "L4": 4, "L1": None}.get(level)

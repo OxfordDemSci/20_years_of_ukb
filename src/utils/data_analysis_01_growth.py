@@ -1432,6 +1432,7 @@ def plot_growth_and_reach(
     ax_annual.yaxis.set_major_formatter(mticker.EngFormatter(sep=""))
     ax_annual.set_ylim(0, annual["annual_papers"].max() * 1.20)
     plotter.format_year_axis(ax_annual)
+    ax_annual.set_xlabel("")
     ax_annual.set_xticks([2013, 2018, 2021, 2025])
     plotter.panel_label(ax_annual, "B", y=1.13, in_layout=False)
     ax_annual.text(

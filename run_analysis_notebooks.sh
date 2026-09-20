@@ -22,7 +22,10 @@ parser = argparse.ArgumentParser(
            "installs packages, or calls APIs where specified in the notebook.",
 )
 parser.add_argument("--list", action="store_true", help="show execution order without running")
-parser.add_argument("--from", dest="start", metavar="FILENAME", help="start at this exact notebook filename")
+selection = parser.add_mutually_exclusive_group()
+selection.add_argument("--from", dest="start", metavar="FILENAME", help="start at this exact notebook filename")
+selection.add_argument("--only", nargs="+", metavar="NOTEBOOK",
+                       help="run selected notebooks, in filename order (extension optional)")
 parser.add_argument("--timeout", type=int, default=-1, metavar="SECONDS",
                     help="per-cell timeout; default -1 means unlimited")
 parser.add_argument("--notebook-dir", type=Path, default=root / "src/data_analysis",
@@ -36,6 +39,12 @@ if args.start:
     if args.start not in names:
         parser.error(f"unknown notebook: {args.start}")
     notebooks = notebooks[names.index(args.start):]
+if args.only:
+    requested = {name if name.endswith(".ipynb") else name + ".ipynb" for name in args.only}
+    missing = requested - {path.name for path in notebooks}
+    if missing:
+        parser.error("unknown notebooks: " + ", ".join(sorted(missing)))
+    notebooks = [path for path in notebooks if path.name in requested]
 if args.timeout != -1 and args.timeout <= 0:
     parser.error("--timeout must be -1 or a positive number")
 if args.list:

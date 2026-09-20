@@ -312,7 +312,7 @@ def build_panel_data(verbose: bool = True) -> dict:
         if verbose:
             print(msg)
 
-    counts_dir = P.FOR_COUNTS_API
+    counts_dir = AI.resolve_counts_dir(P.FOR_COUNTS_API)
     say(f"loading both arms from {P.raw_path(counts_dir)} (API pathway) …")
     ctx = AI.build(
         counts_dir, COL_TYPE,
