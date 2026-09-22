@@ -23,14 +23,23 @@ reverse index, restricted to outcomes with known publication/start dates in the
 filtered to the same publication window. Missing endpoint metadata cannot establish date eligibility
 and therefore cannot enter the reach numerator. The raw source inventories are preserved.
 
-**The four sources.** Nothing here re-derives anything the source notebooks derive; it
-reads what they wrote:
+**The sources, and which of them is the corpus.** Three of the five arms now read the WIDE
+corpus export directly — one extraction, one index date — rather than a side CSV written by
+a separate pull:
 
-    patents          data/analysis/non_academic/patent/patents_modularized_export.csv
-    clinical trials  data/analysis/non_academic/clinical_trials/clinical_trials.csv
-    policy           data/analysis/non_academic/policy/policy_documents.csv
-    altmetric        data/altmetric/altmetric.csv          (the real Explorer pull, D18)
+    publications     data/showcase/showcase+/showcase_plus_all_endpoints_wide.parquet
+    patents          …the same file's `patents__*` block            (767 records, D43)
+    clinical trials  …the same file's `clinical_trials__*` block    (195 records, 2026-09-22)
+    policy           …the same file's `policy_documents__*` block   (449 records, 2026-09-22)
+    altmetric        data/altmetric/altmetric.csv          (the real Explorer pull, D18 —
+                     news mentions exist in NO other source, so this one stays a CSV)
     collaboration    data/analysis/non_academic/collaboration/…full_company.csv
+                     (the LLM sector labels, keyed to corpus ids — an analysis output,
+                     not a second retrieval)
+
+The side CSVs at `data/analysis/non_academic/{clinical_trials,policy}/` are no longer read
+for their records; `mesh_leaf_ids` is merged out of the trials one because the corpus block
+does not carry it (see `LOCAL_ONLY_FIELDS` in the sources module).
 
 The collaboration file is 339 MB, nearly all of it the `authors` column. The sector
 taxonomy needs `research_orgs` and the classifier's index lists and *not* `authors`, so
@@ -486,9 +495,17 @@ def load_patents() -> pd.DataFrame:
 
 
 def load_trials() -> pd.DataFrame:
-    """Clinical trials, with start_year and the parsed list columns the panels need."""
-    from utils.data_analysis_04_non_academic_sources import ensure_clinical_trials_csv
-    ct = filter_analysis_window(pd.read_csv(ensure_clinical_trials_csv()),
+    """Clinical trials, with start_year and the parsed list columns the panels need.
+
+    **Source repointed 2026-09-22**, the same move D43 made for patents: the records come
+    out of the corpus's `clinical_trials__*` block rather than whatever CSV happens to sit
+    in `data/analysis/non_academic/clinical_trials/`. Both hold the same 195 trials, so no
+    number on any panel moves — what changes is that the arm can no longer silently fall
+    onto an older extraction. `mesh_leaf_ids` is merged back from the CSV; see
+    `LOCAL_ONLY_FIELDS` for why it is the one field the corpus cannot supply.
+    """
+    from utils.data_analysis_04_non_academic_sources import clinical_trials_records
+    ct = filter_analysis_window(clinical_trials_records(),
                                 year_col="start_year", date_col="start_date")
     ct["start_year"] = pd.to_datetime(ct["start_date"], errors="coerce").dt.year
     ct["study_type"] = ct["study_type"].fillna("Unknown")
@@ -496,9 +513,13 @@ def load_trials() -> pd.DataFrame:
 
 
 def load_policy() -> pd.DataFrame:
-    """Policy documents, with the publisher country flattened out of its dict."""
-    from utils.data_analysis_04_non_academic_sources import ensure_policy_csv
-    pol = filter_analysis_window(pd.read_csv(ensure_policy_csv()), year_col="year")
+    """Policy documents, with the publisher country flattened out of its dict.
+
+    **Source repointed 2026-09-22**, with `load_trials`: the corpus's
+    `policy_documents__*` block instead of the side CSV. Same 449 documents either way.
+    """
+    from utils.data_analysis_04_non_academic_sources import policy_records
+    pol = filter_analysis_window(policy_records(), year_col="year")
     pol["year"] = pd.to_numeric(pol["year"], errors="coerce")
     country = pol["publisher_org_country"].apply(_dct)
     pol["publisher_country"] = country.apply(lambda d: d.get("name") or "Unknown")

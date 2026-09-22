@@ -17,6 +17,25 @@ from utils import data_analysis_04_non_academic_collab_helpers as collaboration
 from utils.data_analysis_04_non_academic_sources import filter_endpoint_links
 
 
+def _write_wide(path: Path, endpoint: str, fields: dict) -> Path:
+    """A one-row stand-in for the wide corpus export, carrying one endpoint block.
+
+    The real file stores each endpoint as parallel JSON arrays hanging off a publication
+    row, with nested values double-encoded — a list or dict cell is itself a JSON string
+    inside the array. The loaders read through `shared_showcase.endpoint_records`, so a
+    fixture has to have that shape rather than be a flat table of records.
+    """
+    row = {}
+    for name, values in fields.items():
+        row[f"{endpoint}__{name}"] = [json.dumps([
+            json.dumps(v, ensure_ascii=False) if isinstance(v, (list, dict)) else v
+            for v in values
+        ])]
+    row[f"{endpoint}__n_records"] = [len(next(iter(fields.values())))]
+    pd.DataFrame(row).to_parquet(path, index=False)
+    return path
+
+
 class NonAcademicCutoffTests(unittest.TestCase):
     def test_default_collaboration_metrics_include_2013(self):
         frame = pd.DataFrame({"year": [2012, 2013, 2025, 2026],
@@ -61,17 +80,42 @@ class NonAcademicCutoffTests(unittest.TestCase):
             self.assertEqual(result.loc[0, column], ["old"])
 
     def test_trial_loader_excludes_future_starts_without_changing_source(self):
+        # The trials arm reads the corpus's own `clinical_trials__*` block, not the side
+        # CSV (repointed 2026-09-22, as D43 repointed patents), so the fixture is a wide
+        # export rather than a CSV. `CT_CSV` is pointed at a path that does not exist so
+        # the `mesh_leaf_ids` merge stays out of the window assertion.
         with tempfile.TemporaryDirectory() as tmp:
-            path = Path(tmp) / "trials.csv"
-            pd.DataFrame({"id": ["old", "new", "unknown", "first", "before"],
-                          "start_date": ["2025-12-31", "2026-01-01", None,
-                                         "2013-01-01", "2012-12-31"],
-                          "study_type": ["Interventional"] * 5}).to_csv(path, index=False)
+            path = _write_wide(Path(tmp) / "corpus.parquet", "clinical_trials", {
+                "id": ["old", "new", "unknown", "first", "before"],
+                "start_date": ["2025-12-31", "2026-01-01", None,
+                               "2013-01-01", "2012-12-31"],
+                "study_type": ["Interventional"] * 5,
+            })
             original = path.read_bytes()
-            with patch.object(P, "CT_CSV", path):
+            with patch.object(P, "SHOWCASE_PLUS", path), \
+                    patch.object(P, "CT_CSV", Path(tmp) / "absent.csv"):
                 result = panels.load_trials()
             self.assertEqual(result.id.tolist(), ["old", "first"])
             self.assertEqual(path.read_bytes(), original)
+
+    def test_policy_loader_flattens_publisher_dicts_out_of_the_corpus_block(self):
+        # `publisher_org_country` is DICT-valued. The endpoint reader parsed every nested
+        # cell as a list, which returns [] for an object and silently emptied all four
+        # publisher columns; this is the regression test for that.
+        with tempfile.TemporaryDirectory() as tmp:
+            path = _write_wide(Path(tmp) / "corpus.parquet", "policy_documents", {
+                "id": ["old", "new"],
+                "year": [2025, 2026],
+                "publisher_org": [{"id": "grid.1", "name": "WHO"}, {"id": "grid.2"}],
+                "publisher_org_country": [{"id": "CH", "name": "Switzerland"}, {}],
+            })
+            with patch.object(P, "SHOWCASE_PLUS", path), \
+                    patch.object(P, "POLICY_CSV", Path(tmp) / "absent.csv"):
+                result = panels.load_policy()
+            self.assertEqual(result.id.tolist(), ["old"])
+            self.assertEqual(result.loc[0, "publisher_name"], "WHO")
+            self.assertEqual(result.loc[0, "publisher_country"], "Switzerland")
+            self.assertEqual(result.loc[0, "publisher_country_code"], "CH")
 
     def test_reverse_links_exclude_pre2013_outcomes_and_keep_first_day(self):
         corpus = pd.DataFrame({
@@ -96,13 +140,17 @@ class NonAcademicCutoffTests(unittest.TestCase):
             self.assertEqual(result.loc[0, column], ["first"])
 
     def test_patent_loader_uses_publication_date_not_earlier_priority_date(self):
+        # Fixture repointed to the corpus block to match D43 (2026-09-20), which moved the
+        # loader off `patents_modularized_export.csv`. The test had kept patching `P.PATENT`
+        # and so had been asserting against the real 767-patent block since that decision.
         with tempfile.TemporaryDirectory() as tmp:
-            path = Path(tmp) / "patents_modularized_export.csv"
-            pd.DataFrame({"id": ["old", "new"], "publication_year": [2025, 2025],
-                          "publication_date": ["2025-12-31", "2026-01-01"],
-                          "priority_year": [2020, 2020], "granted_year": [2025, 2026]}
-                         ).to_csv(path, index=False)
-            with patch.object(P, "PATENT", Path(tmp)):
+            fields = {name: [None, None] for name in panels.PATENT_ENDPOINT_FIELDS}
+            fields.update({"id": ["old", "new"], "publication_year": [2025, 2025],
+                           "publication_date": ["2025-12-31", "2026-01-01"],
+                           "priority_year": [2020, 2020], "granted_year": [2025, 2026],
+                           "assignee_countries": [[], []]})
+            path = _write_wide(Path(tmp) / "corpus.parquet", "patents", fields)
+            with patch.object(P, "SHOWCASE_PLUS", path):
                 result = panels.load_patents()
             self.assertEqual(result.id.tolist(), ["old"])
 

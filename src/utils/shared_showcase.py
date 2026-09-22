@@ -256,9 +256,14 @@ def endpoint_records(prefix: str,
             for column in columns:
                 block = parsed.get(column)
                 cell = block[k] if isinstance(block, list) and len(block) == len(ids) else None
-                # List-valued fields arrive as a JSON string inside the array.
+                # Nested fields arrive as a JSON string inside the array. A field can be
+                # list-valued (`assignee_countries`) or DICT-valued (`publisher_org`), and
+                # `parse_listcol` returns [] for an object — which silently emptied every
+                # `policy_documents__publisher_org*` column until 2026-09-22. Branch on the
+                # opening brace so each shape is parsed by the reader that handles it.
                 if isinstance(cell, str) and cell.lstrip()[:1] in "[{":
-                    cell = parse_listcol(cell)
+                    cell = (parse_listcol(cell) if cell.lstrip()[0] == "["
+                            else parse_dictcol(cell))
                 record[column[len(prefix) + 2:]] = cell
             out[record_id] = record
     return pd.DataFrame.from_dict(out, orient="index").reset_index(drop=True)
