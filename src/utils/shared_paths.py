@@ -35,6 +35,9 @@ DATA_CREATION = SRC / "data_creation"
 UTILS = SRC / "utils"
 
 DATA = ROOT / "data"
+VALIDATION = DATA / "validation"
+VALIDATION_POSITIVE = VALIDATION / "ukb_ground_truth_positive_labelled.csv"
+VALIDATION_NEGATIVE = VALIDATION / "ukb_negative_pre2013_labelled_final.csv"
 
 # -- the UK Biobank publication corpus (Dimensions records joined to the showcase) --
 SHOWCASE = DATA / "showcase"
@@ -167,6 +170,11 @@ ANTHROPIC_INI = ROOT / "config" / "anthropic.ini"
 # The notebooks' savedirs are configured in universal_settings.yml; these constants are
 # for code that writes a file directly.
 OUTPUT = ROOT / "output"
+VALIDATION_OUTPUT = OUTPUT / "validation"
+VALIDATION_HELDOUT = VALIDATION_OUTPUT / "ukb_prompt_validation_heldout_v3"
+VALIDATION_HELDOUT_INTERMEDIATE = VALIDATION_HELDOUT / "intermediate"
+VALIDATION_HELDOUT_TABLES = VALIDATION_HELDOUT / "tables"
+VALIDATION_HELDOUT_FIGURES = VALIDATION_HELDOUT / "figures"
 OUTPUT_FIGURES = OUTPUT / "figures"
 FIG_DATA_ANALYSIS = OUTPUT_FIGURES / "data_analysis"
 FIG_DATA_CREATION = OUTPUT_FIGURES / "data_creation"
@@ -221,9 +229,11 @@ def raw_path(path: Path) -> str:
 
 def ensure_dirs() -> None:
     """Create the output directories that notebooks write into, if missing."""
-    for d in (AUTHOR_ANALYSIS, ACADEMIC_IMPACT, FOR_COUNTS, FOR_COUNTS_API,
+    for d in (VALIDATION, AUTHOR_ANALYSIS, ACADEMIC_IMPACT, FOR_COUNTS, FOR_COUNTS_API,
               CONTENT, BERTOPIC_CACHE, CLINICAL_TRIALS, PATENT,
               POLICY, COLLABORATION, DIMENSION_CACHE, DIMENSION_FLAT, OUTPUT_TABLES,
+              VALIDATION_HELDOUT_INTERMEDIATE, VALIDATION_HELDOUT_TABLES,
+              VALIDATION_HELDOUT_FIGURES,
               FIG_GROWTH, TABLE_GROWTH, TABLE_CONTENT,
               FIG_AUTHORS, FIG_AUTHOR_CHARACTERISTICS,
               TABLE_ACADEMIC_IMPACT, TABLE_AUTHOR_CHARACTERISTICS,

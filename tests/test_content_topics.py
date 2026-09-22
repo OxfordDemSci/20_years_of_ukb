@@ -78,6 +78,30 @@ class ContentTopicWorkflowTests(unittest.TestCase):
         fit.assert_not_called()
         self.assertEqual({p: p.read_bytes() for p in self.output.iterdir()}, before)
 
+    def test_verified_detailed_results_take_precedence_over_stale_compact_copy(self):
+        self.output.mkdir(parents=True)
+        detailed = self.output / "bertopic_document_topic_assignments.csv"
+        pd.DataFrame({
+            "id": ["first", "last"],
+            "year": [2013, 2025],
+            "topic": [0, 1],
+            "topics": ["T0: genetics", "T1: cognition"],
+        }).to_csv(detailed, index=False)
+        write_topic_window_provenance(detailed, [2013, 2025])
+
+        compact = self.output / "showcase_plus_id_topics.csv"
+        pd.DataFrame({
+            "id": ["first", "last"],
+            "topics": ["stale topic", "stale topic"],
+        }).to_csv(compact, index=False)
+
+        with self.block_ml_imports(), patch.object(topics, "_fit_topic_results") as fit:
+            with contextlib.redirect_stdout(io.StringIO()):
+                result = topics.ensure_topic_results(input_parquet=self.folder / "absent.parquet")
+
+        self.assertEqual(result, detailed)
+        fit.assert_not_called()
+
     def test_missing_results_can_skip_training_without_imports(self):
         with self.block_ml_imports(), patch.object(topics, "load_publications") as load:
             with contextlib.redirect_stdout(io.StringIO()):

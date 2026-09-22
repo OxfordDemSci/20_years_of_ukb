@@ -1183,7 +1183,7 @@ def _author_impact_from_legacy_summary(core: CoreTables) -> pd.DataFrame:
     if len(eligible_legacy) != len(legacy):
         raise ValueError(
             "The retained author-impact summary includes papers outside the publication "
-            "cutoff. Rerun 03_academic_impact_02_citation.ipynb before reusing it.")
+            "cutoff. Rerun 03_academic_impact.ipynb (Part II) before reusing it.")
     AI.require_author_impact_window(LEGACY_AUTHOR_IMPACT.parent, IMPACT_FIRST_YEAR, IMPACT_LAST_YEAR)
     legacy["researcher_id"] = legacy["researcher_id"].astype("string")
     legacy = legacy[
@@ -2466,8 +2466,8 @@ def legacy_artifact_crosswalk() -> pd.DataFrame:
         ("05_network_over_time", "full community L2/L4/institution count and summary tables", "network_community_*_counts.csv + network_community_*_summary.csv", "retained and expanded with country and name-category intersections"),
         ("05_network_over_time", "collapsed community L2/L4/institution tables", "Supplementary Figure 6A + network_collapsed_*_counts.csv + network_collapsed_*_summary.csv", "retained for the 12-community composition display"),
         ("05_authors_1_metrics", "author productivity distribution", "Supplementary Figure 1A + author_productivity_bands.csv", "complete survival curve and mutually exclusive band table retained in the author supplement"),
-        ("03_academic_impact_02_citation", "author impact portfolio map", "Figure 1G + headline_author_impact_portfolio.csv", "promoted into the author-characteristics headline and removed as a standalone 03 figure"),
-        ("03_academic_impact_02_citation_extra", "leading publication venues by citation impact", "Figure 1H + headline_venue_impact.csv", "promoted into the author-characteristics headline and removed as a standalone 03 figure"),
+        ("03_academic_impact (Part II)", "author impact portfolio map", "Figure 1G + headline_author_impact_portfolio.csv", "promoted into the author-characteristics headline and removed as a standalone 03 figure"),
+        ("03_academic_impact (Part III)", "leading publication venues by citation impact", "Figure 1H + headline_venue_impact.csv", "promoted into the author-characteristics headline and removed as a standalone 03 figure"),
         ("05_authors_2 / 3_CHECK", "paper_combined", "Figure 1", "replaced by an eight-panel synthesis across author, network, gender, geography, institution and citation domains"),
     ]
     return pd.DataFrame(rows, columns=["legacy_source", "legacy_artifact", "successor", "status"])

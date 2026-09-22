@@ -1,10 +1,10 @@
 """Publication-ready content figures for the combined content analysis notebook.
 
 The main figure places FOR Level 4 composition (A) and RCDC composition (B) above
-BERTopic thematic waves (C). Supplements show annual category shares, vocabulary
-coverage and breadth, and topic-model robustness. Every panel uses the same dated corpus,
-2013–2025 inclusive. Topic results are read from verified, completed caches only;
-this module never imports or fits a topic model.
+BERTopic thematic waves (C). Supplements show annual category shares, rank flows,
+vocabulary coverage and breadth, and topic-model robustness. Every panel uses the same
+dated corpus, 2013–2025 inclusive. Topic results are read from verified, completed
+caches only; this module never imports or fits a topic model.
 
 FOR composition counts paper–field assignments; RCDC divides each classified paper
 fractionally across its tags. Topics count assigned papers. Missing classifications
@@ -780,9 +780,100 @@ def figure_si_coverage(D, save=True):
     return fig
 
 
+def draw_rank_flow(ax, block, title):
+    """Draw annual ranks for the same leading categories used in the main figure."""
+    share, keep = block["share"], list(block["keep"])
+    ranks = share[keep].rank(axis=1, ascending=False, method="first")
+    colors = dict(zip(keep, _colors(len(keep))))
+    mean_share = share[keep].mean()
+    scale = max(float(mean_share.max()), 1e-9)
+    outside = ax.get_yaxis_transform()
+
+    _axes(ax, grid=False)
+    for category in keep:
+        values = ranks[category].dropna()
+        if values.empty:
+            continue
+        color = colors[category]
+        width = 1.2 + 2.2 * float(mean_share[category]) / scale
+        marker_size = max(4.0, _style()["marker_size"] * 0.55)
+        ax.plot(
+            values.index,
+            values,
+            color=color,
+            linewidth=width,
+            marker="o",
+            markersize=marker_size,
+            markeredgecolor="black",
+            markeredgewidth=0.45,
+            solid_capstyle="round",
+            zorder=3,
+        )
+        label = _short_label(category, 30)
+        first_rank, last_rank = int(values.iloc[0]), int(values.iloc[-1])
+        ax.text(
+            -0.015,
+            first_rank,
+            f"#{first_rank}  {label}",
+            transform=outside,
+            ha="right",
+            va="center",
+            fontsize=_style()["annot_fs"] - 0.5,
+            color=color,
+            fontweight="bold",
+            clip_on=False,
+        )
+        ax.text(
+            1.015,
+            last_rank,
+            f"{label}  #{last_rank}",
+            transform=outside,
+            ha="left",
+            va="center",
+            fontsize=_style()["annot_fs"] - 0.5,
+            color=color,
+            fontweight="bold",
+            clip_on=False,
+        )
+
+    ax.set_ylim(len(keep) + 0.55, 0.45)
+    ax.set_yticks(range(1, len(keep) + 1), labels=[])
+    ax.tick_params(axis="y", length=0)
+    _years(ax)
+    grid_on(ax, axis="y", which="major", linestyle="--", alpha=0.4)
+    ax.set_axisbelow(True)
+    ax.spines["left"].set_visible(False)
+    set_title(ax, title, fontsize=_style()["title_fs"], pad=16)
+    return ax
+
+
 def figure_si_rank_flow(D, save=True):
-    """Compatibility entry point: category heatmaps replace the crowded rank-flow page."""
-    return figure_si_category_detail(D, save=save)
+    """Supplement: rank trajectories for leading FOR and RCDC categories."""
+    fig, axes = plt.subplots(2, 1, figsize=_style().get("figsize_si", (15, 10)))
+    fig.subplots_adjust(left=.24, right=.76, top=.95, bottom=.08, hspace=.40)
+    draw_rank_flow(
+        axes[0], D["for"],
+        f"A  FOR Level 4 fields, rank by annual share ({FLOW_MIN}–{FLOW_MAX})",
+    )
+    draw_rank_flow(
+        axes[1], D["rcdc"],
+        f"B  RCDC categories, rank by annual share ({FLOW_MIN}–{FLOW_MAX})",
+    )
+    fig.text(
+        .24,
+        .018,
+        "Lines cover the leading categories selected for the main composition figure; "
+        "line width is proportional to mean annual share.",
+        fontsize=_style()["annot_fs"],
+        color="#555555",
+    )
+    if save:
+        savefig(
+            fig,
+            "02_02_supplementary_figure_01_category_rank_flow",
+            formats=("pdf", "png"),
+        )
+    return fig
 
 
 def load_topic_diagnostics(D):
@@ -931,6 +1022,12 @@ SI_CAPTIONS = {
         "B": "Annual shares of the twelve leading RCDC tags, using fractional assignment "
              "across each paper's tags. Cells are annotated as percentages; grey denotes "
              "years with no classified publications. Colour scales span each panel's observed range.",
+    },
+    "rank_flow": {
+        "A": "Annual rank trajectories for the leading FOR Level 4 fields shown in "
+             "the main composition figure. Line width is proportional to mean annual share.",
+        "B": "Annual rank trajectories for the leading fractionally weighted RCDC "
+             "categories shown in the main composition figure.",
     },
     "coverage": {
         "A": "Percentage of dated publications carrying at least one classification or "

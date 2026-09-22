@@ -2,7 +2,7 @@
 
 WHY THIS EXISTS
 ---------------
-`04_non_academic_03_altmetric.ipynb` was written against an Altmetric export,
+Part III of `04_non_academic.ipynb` was written against an Altmetric export,
 `altmetric.csv`, that is **not in the repository** and has no provenance record —
 nobody wrote down where it came from or when. The notebook has been unrunnable
 ever since. This module rebuilds as much of that table as the corpus and the

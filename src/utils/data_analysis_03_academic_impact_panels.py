@@ -1,8 +1,8 @@
 """Assembled panels for analysis 03 — the academic impact figure family.
 
-`03_academic_impact_99_all.ipynb` owns the selection (which chart is main-paper, which is
-SI); this module owns the two halves that selection needs and that a notebook cell is the
-wrong place for:
+Part IV of `03_academic_impact.ipynb` owns the selection (which chart is main-paper,
+which is SI); this module owns the two halves that selection needs and that a notebook
+cell is the wrong place for:
 
     build_panel_data()      every aggregate the panels draw, computed once from the two
                             arms and the author tables, returned as a dict
@@ -14,7 +14,7 @@ wrong place for:
 notebooks draw at their own figure sizes and, in the author arm's case, build a bespoke
 `UKB_SEQ` blue ramp of their own; laid side by side those differences read as figures
 stapled together. Every function here draws into an axes belonging to a figure the caller
-has already sized, under the one `03_academic_impact_99_all` style section.
+has already sized, under the one `03_academic_impact_panels` style section.
 
 **The palette.** Everything is drawn from `shared_style.PALETTE_COLORS` — the same seven
 named colours analysis 04 is drawn in (D29), so the two figure families belong to one
@@ -30,7 +30,7 @@ here reads `STYLE["colors"]` by integer index.
 
 The author tables are read rather than rebuilt on purpose: rebuilding them means
 re-exploding 267,571 author slots out of the 26,109-row corpus parquet, which is minutes
-of work to reproduce a file `03_academic_impact_02_citation.ipynb` has already written
+of work to reproduce a file Part II of `03_academic_impact.ipynb` has already written
 and which is itself the artefact that notebook is responsible for.
 """
 
@@ -46,7 +46,7 @@ from .shared_analysis_window import ANALYSIS_START_YEAR, ANALYSIS_END_YEAR, filt
 # =============================================================================
 # 1. Analysis parameters — the FOR notebook's, verbatim
 # =============================================================================
-# These are copied from §2 of 03_academic_impact_01_for_analysis.ipynb rather than
+# These are copied from Part I, §2 of 03_academic_impact.ipynb rather than
 # imported, because a notebook cannot be imported. THEY MUST NOT DRIFT: every one of them
 # is argued in that notebook's §2, and `assert_parameters_match()` below is the tripwire.
 # The window itself is D19 and is shared with the author arm.
@@ -113,7 +113,7 @@ COHORT_BINS = [
 COHORT_ORDER = [label for _, _, label in COHORT_BINS]
 
 #: How many categories each panel ranks. The main figure's numbers are LOWER than the
-#: source notebooks': a lollipop of 20 fields and a scatter of 25 labelled points are
+#: source analyses': a lollipop of 20 fields and a scatter of 25 labelled points are
 #: legible at full figure width and are not at a third or two thirds of it, which is what
 #: a panel of the main page gets. The activity lollipop takes the narrowest slot on the
 #: page — one column of three — so it is cut hardest.
@@ -248,7 +248,7 @@ def _cuts_table(counts_dir, level: str, say) -> pd.DataFrame | None:
 
 
 def _author_arm(say) -> dict:
-    """The author arm, read from the tables `…_02_citation.ipynb` wrote.
+    """The author arm, read from the tables Part II of the consolidated notebook wrote.
 
     Two files, both under `output/tables/03_academic_impact/`. The paper-level one is
     62 MB and 266k rows; six columns of it answer everything the cohort panel asks, so it
@@ -261,7 +261,7 @@ def _author_arm(say) -> dict:
     if missing:
         raise FileNotFoundError(
             f"the author arm needs {', '.join(missing)} under {P.raw_path(table_dir)}. "
-            f"Run 03_academic_impact_02_citation.ipynb first — it writes them, and this "
+            f"Run 03_academic_impact.ipynb (Part II) first — it writes them, and this "
             f"module reads rather than rebuilds them (267,571 author slots).")
 
     AI.require_author_impact_window(table_dir, ANALYSIS_MIN, ANALYSIS_MAX)
@@ -275,7 +275,7 @@ def _author_arm(say) -> dict:
     if len(eligible_ap) != len(ap) or len(eligible_summary) != len(summary):
         raise ValueError(
             "The retained author tables include papers outside the publication cutoff. "
-            "Rerun 03_academic_impact_02_citation.ipynb to rebuild author metrics.")
+            "Rerun 03_academic_impact.ipynb (Part II) to rebuild author metrics.")
     ap = eligible_ap[eligible_ap["year"].ge(ANALYSIS_MIN)].copy()
     say(f"  author arm: {len(ap):,} author-paper rows, {len(summary):,} distinct authors")
 

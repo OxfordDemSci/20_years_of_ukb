@@ -1,6 +1,6 @@
 """Assembled panels for analysis 04 — the non-academic impact figure family.
 
-`04_non_academic_99_all.ipynb` owns the selection (which chart is main-paper, which is
+Part V of `04_non_academic.ipynb` owns the selection (which chart is main-paper, which is
 SI); this module owns the two halves that selection needs and that a notebook cell is the
 wrong place for:
 
@@ -9,12 +9,12 @@ wrong place for:
     draw_<name>(ax, D)      one chart into one caller-supplied axes, no figure of its own
     figure_main(D)          the main-paper panel;      figure_si_<section>(D) the SI ones
 
-**Why re-drawn rather than pasted.** The four source notebooks each draw their charts with
-their own figure size, type scale and palette — 04_non_academic_01 uses the LCDS colours at
-dpi 400, 02_patents carries a `colors_scheme` literal, 03_altmetric sets its own font. Laid
+**Why re-drawn rather than pasted.** Parts I-IV each draw their charts with their own
+figure size, type scale and palette — Part I uses the LCDS colours at dpi 400, Part II
+carries a `colors_scheme` literal, and Part III has its own source style. Laid
 side by side those differences read as four figures stapled together. Every function here
 instead draws into an axes belonging to a figure the caller has already sized, under the
-one `04_non_academic_99_all` style section, so a panel's type is the panel's type and
+one `04_non_academic_panels` style section, so a panel's type is the panel's type and
 "patents are steel blue" holds from panel A to panel F.
 
 **Two inventories, used deliberately.** Publication reach uses Dimensions' full
@@ -136,8 +136,8 @@ POLICY_MAP_RAMP = ["#FFFFFF", "blue", "steel_blue", "navy"]
 # =============================================================================
 # Organisation sector, for the clinical-trials "who runs them" panel
 # =============================================================================
-# Verbatim from §2 of 04_non_academic_01_clinical_trials, so the panel and the source
-# notebook place the same organisation in the same sector. Two steps, because ~5% of orgs
+# Verbatim from Part I, §2, so the panel and the source part place the same organisation
+# in the same sector. Two steps, because ~5% of orgs
 # arrive with a non-committal GRID type ('Facility', 'Other') or none at all, and those
 # were nearly all universities, companies and hospitals GRID had simply not classified.
 ORG_TYPE_TO_SECTOR = {
@@ -183,7 +183,7 @@ def org_sector(org: dict) -> str:
 
 
 #: Keyword -> ICD-10 chapter, checked in order, first hit wins. Lifted verbatim from
-#: 04_non_academic_01_clinical_trials §3.3 so the body map and the source notebook's own
+#: Part I, §3.3, so the body map and the source part's own
 #: ICD figures agree term for term. Circulatory is listed before nervous so "stroke"
 #: (I60-I69) lands in circulatory rather than under a "sclerosis"-style nervous match.
 ICD_CHAPTERS = [
@@ -277,7 +277,7 @@ SILHOUETTE_EXTENT = (2.897, 7.118, 1.682, 13.993)
 #: Condition-leaf MeSH terms that are not diseases. CTgov maps condition text like
 #: "physical activity" or "healthy" onto behavioural or descriptive MeSH descriptors, so
 #: they arrive in `mesh_leaf` looking exactly like a diagnosis. Same list, same reason, as
-#: `MESH_LEAF_STOP` in 04_non_academic_01_clinical_trials §3.5 — kept identical so the
+#: `MESH_LEAF_STOP` in Part I, §3.5 — kept identical so the
 #: panel and the source notebook rank the same terms.
 MESH_LEAF_STOP = {
     "Motor Activity", "Health Behavior", "Genetic Risk Score", "Psychological Well-Being",
@@ -463,7 +463,7 @@ def load_patents() -> pd.DataFrame:
                 f"The corpus at {P.raw_path(P.SHOWCASE_PLUS)} carries no `patents__*` "
                 f"endpoint columns, and the fallback export {P.raw_path(export)} is missing "
                 f"too. Either point P.SHOWCASE_PLUS at the wide export, or run "
-                f"04_non_academic_02_patents.ipynb through §5."
+                f"Part II of 04_non_academic.ipynb through §5."
             )
         print(f"  ! corpus has no patents__* block — falling back to {P.raw_path(export)} "
               f"(the 513-patent pull, an older and smaller set)")
@@ -1034,7 +1034,7 @@ def build_altmetric_aggregates(altmetric: pd.DataFrame) -> dict:
          "Altmetric Attention Score", "times_cited", "year", "DOI"]
     ]
     # The two most-mentioned publications, with enough bibliographic detail to name them
-    # on the panel. `04_non_academic_03_altmetric` annotated these and the annotation is
+    # on the panel. Part III annotated these and the annotation is
     # what turns an anonymous cloud into a claim a reader can check — the top-right point
     # is a specific paper, and saying which one costs two labels.
     out["scatter_top"] = _annotate_rows(scatter.nlargest(2, "substantive"))
@@ -1250,7 +1250,7 @@ def _font_scale(factor):
     The main panel and the SI panels want different type: the main figure is read at
     single-column or full width in a paper, the SI panels on a screen at full page. Rather
     than a second style section — which would be one more thing to keep in step with this
-    one — the scale is a single number in `04_non_academic_99_all` and this multiplies the
+    one — the scale is a single number in `04_non_academic_panels` and this multiplies the
     `*_fs` keys through it, pushing the result into rcParams so axis labels and ticks move
     with the annotations a draw function sizes by hand.
 

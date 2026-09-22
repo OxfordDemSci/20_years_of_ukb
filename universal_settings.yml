@@ -245,9 +245,10 @@ style:
       legend_fs: 10
       savedir: output/figures/data_analysis/03_academic_impact
 
-    03_academic_impact_99_all:
-      # The assembled main + SI panels for analysis 03. Same seven named colours as
-      # 04_non_academic_99_all, listed in the same order as shared_style.PALETTE, so the
+    03_academic_impact_panels:
+      # The assembled main + SI panels in Part IV of the consolidated analysis 03
+      # notebook. Same seven named colours as
+      # 04_non_academic_panels, listed in the same order as shared_style.PALETTE, so the
       # two figure families belong to one paper (D29).
       #
       #   0 red  1 cream  2 light_blue  3 blue  4 steel_blue  5 navy  6 green
@@ -286,7 +287,7 @@ style:
       formats: [pdf, png]
       savedir: output/figures/data_analysis/03_academic_impact
 
-    04_non_academic_99_all:
+    04_non_academic_panels:
       # The assembled main + SI panels for analysis 04. This section owns the palette the
       # whole non-academic story is drawn in: seven named colours, listed here in the same
       # order as shared_style.PALETTE, so an integer role below and a `palette("navy")`

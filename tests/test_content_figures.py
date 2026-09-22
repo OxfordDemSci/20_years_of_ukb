@@ -130,7 +130,8 @@ class ContentFigureTests(unittest.TestCase):
         valid = table.query('year == 2024').groupby('vocabulary').share_pct.sum()
         self.assertTrue(np.allclose(valid, 100))
         for figure in (panels.figure_si_category_changes(D, save=False),
-                       panels.figure_si_breadth_coverage(D, save=False)):
+                       panels.figure_si_breadth_coverage(D, save=False),
+                       panels.figure_si_rank_flow(D, save=False)):
             figure.canvas.draw()
 
     def test_unverified_diagnostics_are_omitted_and_verified_metrics_render(self):

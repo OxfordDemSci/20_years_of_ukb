@@ -841,8 +841,9 @@ def find_ukbb_papers(ids: Any, df_all_ukbb: Any) -> List[str]:
     else:
         ukbb_ids = set(df_all_ukbb) if df_all_ukbb is not None else set()
 
-    ukbb_papers = [id for id in ids_set if id in ukbb_ids]
-    return ukbb_papers
+    # Set iteration follows the process hash seed. Sort the intersection so exported
+    # list-valued columns are byte-stable across notebook kernels.
+    return sorted(ids_set.intersection(ukbb_ids), key=str)
 
 
 def plot_bar_matplotlib(

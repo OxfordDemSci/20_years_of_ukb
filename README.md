@@ -123,8 +123,8 @@ the **26 August 2026 snapshot**, and Altmetric totals retain their available sou
 snapshot. These sources do not provide the histories needed to reconstruct those
 totals as of December 2025.
 
-`04_non_academic_04_collaboration.ipynb` analyses saved organisation classifications.
-It can rebuild the labelled table from a complete cache without credentials. Missing
+Part IV of `04_non_academic.ipynb` analyses saved organisation classifications. It can
+rebuild the labelled table from a complete cache without credentials. Missing
 classifications are reported as missing data; paid classification requires explicitly
 setting `UKB_ALLOW_CLASSIFICATION=1` and configuring Anthropic separately.
 
@@ -147,15 +147,33 @@ notebook, with a brief error when needed, followed by totals. Error messages app
 failing cell and executed notebook copies. Tracebacks are omitted, and notebook
 outputs are kept in the copies rather than repeated in logs. Original notebooks are
 preserved; their code still writes the usual analysis outputs. The script exits nonzero if any notebook fails.
-Use `--from 03_academic_impact_01_for_analysis.ipynb` to start later in the list,
-`--only 04_non_academic_02_patents 04_non_academic_03_altmetric` to run selected
-notebooks in their usual order, or `--timeout 3600` to limit each cell to one hour
+Use `--from 03_academic_impact.ipynb` to start later in the list,
+`--only 04_non_academic` to run the complete non-academic-impact analysis, or
+`--timeout 3600` to limit each cell to one hour
 (the default is unlimited).
 
-The consolidated `00_dataset.ipynb` runs saved three-model agreement analyses and
-labelled validation in separate sections. The two previous `00_` notebooks are
-preserved in `_archived/` and excluded from the batch. Run the combined notebook with
-`bash run_analysis_notebooks.sh --only 00_dataset`.
+The consolidated `00_dataset.ipynb` runs the corpus-agreement workflow, the original
+optional six-prompt validation, and the locked development/held-out classifier
+validation as two namespace-isolated parts. Exact pre-consolidation copies of both
+source notebooks are preserved in `_archived/` and excluded from the batch. Run the
+complete analysis with `bash run_analysis_notebooks.sh --only 00_dataset`.
+
+The consolidated `02_content.ipynb` runs the topic/category analysis and the
+publication-panel workflow as two namespace-isolated parts. Exact pre-consolidation
+copies of both source notebooks are preserved in `_archived/` and excluded from the
+batch. Run the complete content analysis with
+`bash run_analysis_notebooks.sh --only 02_content`.
+
+The consolidated `03_academic_impact.ipynb` runs the field, author, Showcase+ citation,
+and publication-panel workflows in four isolated parts. The four previous active `03_`
+notebooks are preserved in `_archived/` and excluded from the batch. Run the complete
+academic-impact analysis with `bash run_analysis_notebooks.sh --only 03_academic_impact`.
+
+The consolidated `04_non_academic.ipynb` runs the clinical-trial, patent,
+policy/Altmetric, collaboration, and publication-panel workflows in five isolated parts.
+The five previous active `04_` notebooks are preserved in `_archived/` and excluded from
+the batch. Run the complete non-academic-impact analysis with
+`bash run_analysis_notebooks.sh --only 04_non_academic`.
 
 The candidate-label input is detected automatically at
 `data/analysis/dataset/matched_ukb_full_final_2013_2025_three_model_labels.csv`.
@@ -179,6 +197,21 @@ or downloads; there is no interactive login or automatic package installation.
 The historical pre-2014 negative filename does not bypass the shared 2013–2025
 window. Encoder baselines retain their original in-sample threshold calibration.
 
+The separate locked held-out workflow reads its labelled source datasets from
+`data/validation/` and its frozen split, prediction, metric, prompt and revision tables
+from `output/validation/ukb_prompt_validation_heldout_v3/tables/`. Its default mode
+verifies source hashes, split identity, labels, locked thresholds, prompt selection and
+pairwise-agreement tables before regenerating figures; it does not import model stacks,
+contact an API or require a GPU. Set `UKB_RERUN_HELDOUT_MODELS=1` only for an explicit
+full rerun with CUDA, `HF_TOKEN`, the analysis requirements and `bitsandbytes` available.
+The locked benchmark contains 4,000 Showcase-positive and 4,000 pre-2013 negative
+papers selected with seed 42. Five few-shot demonstrations are reserved before sampling
+and excluded from both the 80% development and 20% held-out splits. Development-set
+mean F1 across the four LLMs selects prompt 2 (`p2_balanced`), which is also the prompt
+used for production tagging. Precision, recall, F1, confusion matrices and pairwise
+agreement are calculated on the held-out set; regeneration recomputes and checks these
+statistics from the six supplied held-out prediction files before plotting.
+
 Missing data/results are reported as skipped sections; malformed inputs fail after
 both sections have been attempted. The status table is saved to
 `output/tables/data_analysis/00_dataset/00_dataset_status.csv`. Agreement tables
@@ -196,21 +229,27 @@ keyword profiles and the semantic map with its recomputed silhouette index.
 have explicit notebook display cells. Each figure has a matching `_caption.txt`.
 If the semantic panel is unavailable, `00_06` is explicitly marked `_incomplete`;
 missing validation inputs are listed alongside separate 2×3 agreement and 2×2
-performance sections. Old screenshots are not substituted for missing current data. No standalone per-prompt figures, SVGs or JSON
-figure sidecars are produced.
+performance sections. Old screenshots are not substituted for missing current data.
+The locked held-out workflow additionally writes 16 figure designs in PNG and PDF:
+six individual and one combined agreement figure, two performance figures, and six
+individual plus one combined confusion-matrix figure. These remain under
+`output/validation/ukb_prompt_validation_heldout_v3/figures/`; no SVG or JSON figure
+sidecars are produced.
 
 `02_content` uses the local Showcase+ parquet, writes topic results to
 `output/bertopic/`, and caches embeddings under `data/analysis/content/cache/`.
 Figures go to `output/figures/data_analysis/02_content/` and publication tables to
 `output/tables/02_content/`. It does not install dependencies automatically.
-Run it alone with `bash run_analysis_notebooks.sh --only 02_content`.
 The content notebook also exports fastest-growing FoR, RCDC and BERTopic categories
 as CSV, Excel and editable Word tables under `output/tables/02_content/`. Defaults
 compare distinct paper counts in 2018 and 2025, ranked by compound annual growth
 rate with at least 10 baseline papers; recent annual growth and composition-share
 changes are shown alongside. Separate share-gain rankings retain categories with
 small or zero baselines. Configure the comparison years and cutoff in notebook
-section 3. Existing topic assignments are reused.
+section 3. Existing topic assignments are reused only after their provenance hash is
+verified; the authoritative detailed assignment table takes precedence over a stale
+compact convenience export. The merged workflow retains the composition, category,
+coverage/breadth, topic-robustness and category-rank-flow figure designs.
 Academic field/citation analyses require the original
 `data/analysis/academic_impact/for_counts_api/` cache. Set `UKB_FOR_COUNTS_DIR` if
 it is stored elsewhere. This contains both UK Biobank and whole-database counts,

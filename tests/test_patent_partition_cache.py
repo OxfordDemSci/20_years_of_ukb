@@ -27,6 +27,13 @@ def cohort():
 
 
 class PartitionCacheTests(unittest.TestCase):
+    def test_linked_ukbb_paper_ids_have_deterministic_order(self):
+        linked = patents.find_ukbb_papers(
+            "['pub.3', 'pub.1', 'pub.2']",
+            ["pub.2", "pub.3", "pub.1"],
+        )
+        self.assertEqual(linked, ["pub.1", "pub.2", "pub.3"])
+
     def test_boundary_and_changed_cohort_control_cache_reuse(self):
         with tempfile.TemporaryDirectory() as tmp:
             legacy = Path(tmp) / "cluster_label_summary_louvain.csv"

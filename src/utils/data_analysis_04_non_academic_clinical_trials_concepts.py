@@ -2,7 +2,7 @@
 Trial -> cited-paper concept linkage (+ the concept stop-list)
 =============================================================
 
-Shared by TWO sections of `src/data_analysis/04_non_academic_01_clinical_trials.ipynb`:
+Shared by TWO sections of Part I in `src/data_analysis/04_non_academic.ipynb`:
 
   * §3.6  mesh-leaf x concept heatmap  (needs the link early, before §8 exists)
   * §8.1  concept ranking of the cited UKB papers

@@ -121,7 +121,11 @@ def count_items(series, dedup_within_row=True, top=None):
         if dedup_within_row:
             items = set(items)
         c.update(items)
-    s = pd.Series(c, dtype="int64").sort_values(ascending=False)
+    # Alphabetical insertion order plus a stable value sort gives tied counts a
+    # deterministic order instead of inheriting Python's process-randomised set order.
+    s = pd.Series(dict(sorted(c.items())), dtype="int64").sort_values(
+        ascending=False, kind="stable"
+    )
     return s.head(top) if top else s
 
 
@@ -137,7 +141,9 @@ def count_items_frac(series):
         f = 1.0 / len(items)
         for it in items:
             w[it] += f
-    return pd.Series(w, dtype="float64").sort_values(ascending=False)
+    return pd.Series(dict(sorted(w.items())), dtype="float64").sort_values(
+        ascending=False, kind="stable"
+    )
 
 
 def load_showcase(columns: Optional[Sequence[str]] = None,

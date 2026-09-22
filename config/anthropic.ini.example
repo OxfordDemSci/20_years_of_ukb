@@ -1,5 +1,5 @@
 # Anthropic API credential for the collaborator-tagging step of
-# src/data_analysis/04_non_academic_04_collaboration.ipynb.
+# Part IV of src/data_analysis/04_non_academic.ipynb.
 #
 # Copy this file to config/anthropic.ini and paste your key in. The real file is
 # gitignored by the same `config/*.ini` rule that protects the Dimensions key in

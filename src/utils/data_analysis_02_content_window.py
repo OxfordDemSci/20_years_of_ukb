@@ -104,10 +104,13 @@ def find_existing_topic_results(output_dir=None):
     """
     output_dir = Path(output_dir) if output_dir is not None else P.OUTPUT / "bertopic"
     candidates = [
-        output_dir / "showcase_plus_id_topics.csv",
+        # Prefer the richer canonical assignment table. A compact convenience export
+        # can be replaced independently for presentation and must not mask a valid,
+        # hash-bound model result carrying the complete assignment metadata.
         output_dir / "bertopic_document_topic_assignments.csv",
-        output_dir / "tables" / "showcase_plus_id_topics.csv",
+        output_dir / "showcase_plus_id_topics.csv",
         output_dir / "tables" / "bertopic_document_topic_assignments.csv",
+        output_dir / "tables" / "showcase_plus_id_topics.csv",
         P.TOPIC_ASSIGNMENTS,
         P.CONTENT / "bertopic_document_topic_assignments.csv",
         P.ACADEMIC_IMPACT / "bertopic" / "tables" / "bertopic_document_topic_assignments.csv",

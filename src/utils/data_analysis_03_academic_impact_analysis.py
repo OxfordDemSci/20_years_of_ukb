@@ -1,12 +1,15 @@
-"""Data layer for the 03_academic_impact_* notebooks.
+"""Data layer for the consolidated 03_academic_impact notebook.
 
 WHY THIS MODULE EXISTS
 ----------------------
 The academic-impact analysis is run over the same count tables once per classification
-system:
+system. The active workflow lives in:
 
-    src/data_analysis/03_academic_impact_01_for_analysis.ipynb   ANZSRC Fields of Research
-    doc/archive/03_academic_impact_02_rcdc_analysis.ipynb        NIH Research/Condition/Disease
+    src/data_analysis/03_academic_impact.ipynb, Part I   ANZSRC Fields of Research
+
+The archived RCDC workflow remains supported by this data layer:
+
+    archived 03_academic_impact_02_rcdc_analysis.ipynb   NIH Research/Condition/Disease
 
 The RCDC notebook was archived on 2026-08-26 and is no longer run, but the RCDC arm is
 still fully supported here (see CATEGORY_SPECS) — which is the point: everything below is
@@ -201,7 +204,7 @@ def require_author_impact_window(table_dir, year_min=ANALYSIS_START_YEAR,
     if not manifest_path.is_file():
         raise FileNotFoundError(
             "The retained author-impact tables have no analysis-window manifest. "
-            "Rerun 03_academic_impact_02_citation.ipynb to rebuild them.")
+            "Rerun 03_academic_impact.ipynb (Part II) to rebuild them.")
     manifest = pd.read_csv(manifest_path)
     windows = manifest.loc[manifest["role"].eq("analysis window"), "value"].astype(str)
     expected = f"{year_min}-{year_max}"
@@ -209,7 +212,7 @@ def require_author_impact_window(table_dir, year_min=ANALYSIS_START_YEAR,
         actual = ", ".join(windows) or "unknown"
         raise ValueError(
             f"Retained author-impact tables cover {actual}; {expected} is required. "
-            "Rerun 03_academic_impact_02_citation.ipynb with the original citation cache.")
+            "Rerun 03_academic_impact.ipynb (Part II) with the original citation cache.")
 
 
 def arm_files(counts_dir, col_type: str, arm: str, prefix: str = "counts") -> List:

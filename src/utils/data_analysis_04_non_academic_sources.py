@@ -170,7 +170,7 @@ def ensure_policy_csv() -> Path:
 #: Fields this project adds to an endpoint AFTER the extraction that wrote the corpus.
 #: They exist only in the side CSV, so a corpus-first loader merges them back rather than
 #: dropping them. `mesh_leaf_ids` carries the MeSH descriptor D-numbers that §3.5.2 of
-#: `04_non_academic_01_clinical_trials.ipynb` turns into ICD chapters through
+#: Part I of `04_non_academic.ipynb` turns into ICD chapters through
 #: `data_analysis_04_non_academic_clinical_trials_mesh_tree.py`; the corpus block carries
 #: `mesh_leaf` / `mesh_ancestors` / `mesh_intervention` but not the ids, and no other file
 #: can supply them.
