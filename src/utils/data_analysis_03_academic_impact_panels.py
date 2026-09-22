@@ -56,11 +56,29 @@ FOR_LEVEL = "L4"
 RCDC_VIEW = "all"
 
 #: D19 — one window for every UK Biobank measure in analysis 03.
-ANALYSIS_MIN, ANALYSIS_MAX = ANALYSIS_START_YEAR, ANALYSIS_END_YEAR
+#:
+#: 2015, NOT the project-wide `ANALYSIS_START_YEAR` of 2013. The shared constant is the
+#: floor the corpus is cut at; D19's floor is the one this analysis can MEASURE at, and
+#: three independent limits put it two years higher: UK Biobank published 27 papers in
+#: 2014 against 63 in 2015, `percentiles --min-ukbb 10` measured no 2014 cell in any
+#: field so `field_thresholds.csv` has no 2014 row at all, and `CITE_MIN_DOCS` would
+#: drop 2014 regardless. D19 considered and rejected 2014 for a rounder window. Taking
+#: the shared constant here silently widened the window to 2013 and put this module out
+#: of step with the retained author tables, which are built on 2015–2025.
+ANALYSIS_MIN, ANALYSIS_MAX = 2015, ANALYSIS_END_YEAR
 UKBB_YEAR = ANALYSIS_MIN
 
-#: Background and UK Biobank publications use the same inclusive study window.
-YEAR_MIN, YEAR_MAX = ANALYSIS_START_YEAR, ANALYSIS_MAX
+#: How far back the BACKGROUND arm is carried. Not part of the analysis window: it exists
+#: so a field's twenty-year trend has something to be a trend against.
+#:
+#: CURRENTLY INERT, and left at D19's value rather than rewritten to what it delivers.
+#: `AI.load_arm` puts every partial through `filter_analysis_window` before applying
+#: `year_min`, and that filter floors at the project-wide 2013 — so the 1,737 pre-2013
+#: rows that `api_whole.for.parquet` really holds are dropped and a build at 2004 is
+#: byte-identical to one at 2013. Nothing on the assembled pages reads them: the two
+#: charts that wanted the twenty-year run were cut from the reporting set by D31. Relax
+#: the shared filter for the background arm before relying on this number again.
+YEAR_MIN, YEAR_MAX = 2004, ANALYSIS_MAX
 
 TOP_N = 8                      # UK Biobank's own top fields, followed through both arms
 WEIGHT = "n_papers"
@@ -82,8 +100,12 @@ GROW_TOP_M = 12
 GROW_MIN_BASE, GROW_MIN_LAST = 5, 20
 
 #: Author entry cohorts, cut on the analysis window — the author notebook's `COHORT_BINS`.
+#: The first bin opens at ANALYSIS_MIN, and its LABEL is built from the same number: the
+#: retained author tables carry `entry_cohort` as a string, so a label written out by hand
+#: here is a join key, and one that says 2013 while the tables say 2015 fails as a missing
+#: column rather than as a wrong window.
 COHORT_BINS = [
-    (ANALYSIS_START_YEAR, 2017, "2013–2017\nfoundational entrants"),
+    (ANALYSIS_MIN, 2017, f"{ANALYSIS_MIN}–2017\nfoundational entrants"),
     (2018, 2020, "2018–2020\nexpansion entrants"),
     (2021, 2023, "2021–2023\nconsolidation entrants"),
     (2024, 2025, "2024–2025\nrecent entrants"),
@@ -642,7 +664,9 @@ def draw_top_decile_share(ax, D, label_chars: int = 22, pad_years: int = 6,
     **Direct labels or a legend, not both.** Direct labels are the better encoding and are
     what the SI panel uses, but they are paid for in axis: eight of them need `pad_years`
     of empty x to sit in, which at one column of three squeezes the decade the panel is
-    about into two thirds of its width. `legend=True` gives that width back.
+    about into two thirds of its width. `legend=True` gives that width back. The legend
+    is stretched to the panel's full width, so `legend_loc` now chooses only the top or
+    bottom edge; the "left"/"right" half of the name has nothing left to decide.
 
     `label_chars` / `pad_years` / `label_gap` / `floor_ratio` exist because this panel is
     drawn at two very different widths: full width in the SI, and one column of three on
@@ -693,10 +717,11 @@ def draw_top_decile_share(ax, D, label_chars: int = 22, pad_years: int = 6,
         entries = [(AI.short(lab, label_chars), col, len(lab))
                    for _, lab, col, _ in series]
         # THE LONGEST NAMES GO IN THE RIGHT-HAND COLUMN. matplotlib fills a legend column
-        # by column, so which name lands where is ours to choose, and the left column's
-        # width is set by its own longest entry and pushes the right one over: a long name
-        # on the left costs the panel twice. Rank order is kept inside each column, and the
-        # overall rule stays last, at the foot of the right column.
+        # by column, so which name lands where is ours to choose, and a column is only as
+        # wide as its own longest entry: spreading the two long names across both columns
+        # makes BOTH wide, where keeping them together leaves one narrow. Rank order is
+        # kept inside each column, and the overall rule stays last, at the foot of the
+        # right column.
         rows = -(-(len(entries) + 1) // 2)
         # Ranked on the FULL name, not the drawn one: two names cut to `label_chars` are
         # the same length as each other and the tie would be decided by nothing.
@@ -708,10 +733,19 @@ def draw_top_decile_share(ax, D, label_chars: int = 22, pad_years: int = 6,
                    for i in order]
         handles.append(Line2D([], [], color=C_INK, lw=1, ls="--",
                               label="UK Biobank overall"))
+        # THE BLOCK IS STRETCHED TO THE PANEL'S FULL WIDTH rather than shrink-wrapped
+        # around its text. Left to itself the legend sizes to its contents and then hangs
+        # off whichever corner `legend_loc` names — at `label_chars` wide enough to be
+        # worth reading that box was wider than the axes and overhung the y-spine, while
+        # the panel's own left edge sat empty. `mode="expand"` against an axes-fraction
+        # bbox pins the left column to the left spine and the right column to the right
+        # one, so the width the panel already has is the width the names get to use, and
+        # `label_chars` can be set from that rather than from what a floating box allows.
         ax.legend(handles=handles, loc=legend_loc, ncol=2,
+                  bbox_to_anchor=(0.0, 0.0, 1.0, 1.0), mode="expand",
                   fontsize=st["legend_fs"] * 0.95, handlelength=1.6,
                   handletextpad=0.5, labelspacing=0.3, columnspacing=1.2,
-                  borderaxespad=0.4, frameon=True, facecolor="white",
+                  borderaxespad=0.0, frameon=True, facecolor="white",
                   edgecolor=C_INK, framealpha=0.95, fancybox=False,
                   borderpad=0.5).get_frame().set_linewidth(0.8)
     else:
@@ -1186,8 +1220,15 @@ def figure_main(D, save=True):
         # A third of the page width: eight direct labels and the empty years they need to
         # sit in would leave the decade this panel is about squeezed into two thirds of
         # its own axis, so here the fields go into a legend and the panel is cut to the
-        # six that reach furthest. SI 1B carries all 25, direct-labelled, at full width.
-        draw_top_decile_share(ax_c, D, label_chars=20, pad_years=1, top_m=DEC_M_MAIN,
+        # five that reach furthest. SI 1B carries all 25, direct-labelled, at full width.
+        #
+        # `label_chars` is set from the width the STRETCHED legend has (see the block in
+        # `draw_top_decile_share`), not from what a shrink-wrapped box would allow. The
+        # two columns still touch at 31, so the ceiling is legibility, not fit: 25 buys
+        # back "Biological Psychology" whole and breaks "Cardiovascular Medicine and
+        # Haematology" — the one name no width on this page can carry — after a word
+        # instead of inside one, while leaving a gutter a reader can see.
+        draw_top_decile_share(ax_c, D, label_chars=25, pad_years=1, top_m=DEC_M_MAIN,
                               legend=True, legend_loc="lower right")
         block_footprint_quality(fig, gs[2:4, 0:3], D, letters="DEFGHIJK")
 

@@ -11,6 +11,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 from utils import data_analysis_03_academic_impact_analysis as academic
 from utils import data_analysis_03_academic_impact_dimensions_api as api
 from utils import data_analysis_03_academic_impact_field_counts as counts
+from utils import data_analysis_03_academic_impact_panels as panels
 from utils import data_analysis_05_author_characteristics as authors
 
 
@@ -122,17 +123,28 @@ class AcademicCutoffTests(unittest.TestCase):
         self.assertEqual(years["n_top10f"], [2015, 2025])
 
     def test_retained_author_metrics_require_matching_window_provenance(self):
+        # Asserted against the window analysis 03 ACTUALLY runs on, read from the panels
+        # module rather than written out here. The guard's own defaults are the shared
+        # corpus floor of 2013, which no caller wants: the only caller is analysis 03 and
+        # D19 puts its floor at 2015, because 2014 has no measured cut-off in any field.
+        # A literal year in this test is what let the two drift apart once already.
+        expected = f"{panels.ANALYSIS_MIN}-{panels.ANALYSIS_MAX}"
+        wrong = f"{panels.ANALYSIS_MIN - 2}-{panels.ANALYSIS_MAX}"
+        self.assertEqual(expected, "2015-2025")
         with tempfile.TemporaryDirectory() as directory:
             manifest = Path(directory) / "input_manifest_author_impact_notebook.csv"
             with self.assertRaisesRegex(FileNotFoundError, "Rerun"):
-                academic.require_author_impact_window(directory)
-            pd.DataFrame({"role": ["analysis window"], "value": ["2015-2025"]}).to_csv(
+                academic.require_author_impact_window(
+                    directory, panels.ANALYSIS_MIN, panels.ANALYSIS_MAX)
+            pd.DataFrame({"role": ["analysis window"], "value": [wrong]}).to_csv(
                 manifest, index=False)
-            with self.assertRaisesRegex(ValueError, "2013-2025"):
-                academic.require_author_impact_window(directory)
-            pd.DataFrame({"role": ["analysis window"], "value": ["2013-2025"]}).to_csv(
+            with self.assertRaisesRegex(ValueError, expected):
+                academic.require_author_impact_window(
+                    directory, panels.ANALYSIS_MIN, panels.ANALYSIS_MAX)
+            pd.DataFrame({"role": ["analysis window"], "value": [expected]}).to_csv(
                 manifest, index=False)
-            academic.require_author_impact_window(directory)
+            academic.require_author_impact_window(
+                directory, panels.ANALYSIS_MIN, panels.ANALYSIS_MAX)
 
     def test_contaminated_aggregate_author_metrics_are_not_reused(self):
         with tempfile.TemporaryDirectory() as directory:

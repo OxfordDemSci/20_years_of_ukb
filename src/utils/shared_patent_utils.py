@@ -1038,6 +1038,26 @@ def map_plotting(country_df, column_to_show_counts,figsize=(12, 8),savefigure=Tr
 
 
 
+#: Display labels for Dimensions' `legal_status`, used wherever the seven-way outcome is
+#: drawn or tabulated. Dimensions mixes two different objects in one field - the state of an
+#: APPLICATION and the state of a granted RIGHT - so the labels disambiguate them: five
+#: prefixed "Application ..." describe a prosecution outcome, "Granted Patent Expired"
+#: describes a right that existed and lapsed, and "Active" a right currently in force.
+#: A value absent from this map (notably "Active") is passed through unchanged.
+#:
+#: This was an inline dict inside `plot_filing_status_over_time` until 2026-09-20, when the
+#: 04 panel module began deriving the same column from the corpus's own patent records and
+#: needed the identical mapping. Two copies of a relabelling rule is one too many.
+LEGAL_STATUS_DISPLAY = {
+    'Ceased': 'Application Ceased',
+    'Granted': 'Application Granted',
+    'Pending': 'Application Pending',
+    'Withdrawn': 'Application Withdrawn',
+    'Abandoned': 'Application Abandoned',
+    'Expired - Fee Related': 'Granted Patent Expired',
+}
+
+
 def plot_filing_status_over_time(df_patent,col,figsize=(10, 6),savefigure=True, ax=None, title: Optional[str] = None):
     """
     Plot stacked bar chart of patent counts by filing status over publication years.
@@ -1062,13 +1082,7 @@ def plot_filing_status_over_time(df_patent,col,figsize=(10, 6),savefigure=True, 
     }
 
     if col =='legal_status_replaced':
-        replace_dict = {'Ceased':'Application Ceased', 
-                        'Granted':'Application Granted', 
-                        'Pending':'Application Pending', 
-                        'Withdrawn':'Application Withdrawn',
-                        'Abandoned':'Application Abandoned',
-                        'Expired - Fee Related':'Granted Patent Expired'}
-        df_patent['legal_status_replaced'] = df_patent['legal_status'].replace(replace_dict)
+        df_patent['legal_status_replaced'] = df_patent['legal_status'].replace(LEGAL_STATUS_DISPLAY)
 
     # ensure datetime
     df_patent['publication_date'] = pd.to_datetime(

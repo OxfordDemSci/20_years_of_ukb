@@ -186,3 +186,79 @@ def load_showcase(columns: Optional[Sequence[str]] = None,
         cache.parent.mkdir(parents=True, exist_ok=True)
         df.to_pickle(cache)
     return df
+
+
+def endpoint_records(prefix: str,
+                     fields: Optional[Sequence[str]] = None,
+                     path=None) -> pd.DataFrame:
+    """One row per distinct linked ENDPOINT record, out of the corpus's `<prefix>__*` block.
+
+    The wide export stores each endpoint as a parallel block on the publication row:
+    `<prefix>__id` is a JSON array of the endpoint ids linked to that publication, and every
+    other `<prefix>__<field>` is an array of the same length whose k-th element belongs to the
+    k-th id. List-valued fields are stored DOUBLE-encoded — the element is itself a JSON
+    string — so they are parsed twice on the way out.
+
+    One endpoint record can hang off many publications (a patent citing forty papers appears
+    on forty rows), so records are de-duplicated on their own id, **first occurrence winning**.
+    An array whose length does not match the id array is treated as absent rather than being
+    positionally guessed at.
+
+    `prefix` is one of `patents`, `clinical_trials`, `policy_documents`, `grants`, `datasets`,
+    `source_titles`. `fields` defaults to every `<prefix>__*` column that is an endpoint FIELD;
+    pass a subset to read less.
+
+    The three LINKAGE columns the wide export adds — `__linked_ids`, `__n_links`,
+    `__n_records` — are excluded from that default, because they describe the publication row's
+    relationship to the endpoint and mean nothing on a per-record frame: `linked_ids` merely
+    repeats `id`, and the two counts are publication-level scalars that this function's
+    length check correctly reads as absent. Ask for them by name if you want them.
+
+    WHY THIS EXISTS. These records come from the SAME extraction as the publication records
+    (one run of the endpoint pipeline), so reading them here keeps artefact metadata and
+    publication metadata on one index date. A separate artefact pull is a second retrieval and
+    will drift — for patents it already had, by 254 records and 24 legal statuses (D43).
+    """
+    import pyarrow.parquet as pq
+
+    path = path or P.SHOWCASE_PLUS
+    available = [c for c in pq.read_schema(path).names if c.startswith(f"{prefix}__")]
+    if not available:
+        raise KeyError(
+            f"{P.raw_path(path)} carries no `{prefix}__*` columns. This is the NARROW "
+            f"export; endpoint records exist only in the all-endpoints-wide one."
+        )
+    LINK_META = {f"{prefix}__linked_ids", f"{prefix}__n_links", f"{prefix}__n_records"}
+    if fields is None:
+        columns = [c for c in available if c not in LINK_META]
+    else:
+        columns = [f"{prefix}__{f}" for f in fields]
+        missing = [c for c in columns if c not in available]
+        if missing:
+            raise KeyError(f"{prefix}: no such endpoint column(s): {missing}")
+
+    id_col = f"{prefix}__id"
+    if id_col not in columns:
+        columns = [id_col] + columns
+
+    frame = pd.read_parquet(path, columns=columns)
+    out: dict[str, dict] = {}
+    for row in frame.itertuples(index=False):
+        values = dict(zip(columns, row))
+        ids = parse_listcol(values[id_col])
+        if not ids:
+            continue
+        parsed = {c: parse_listcol(values[c]) for c in columns}
+        for k, record_id in enumerate(ids):
+            if record_id in out:
+                continue
+            record = {}
+            for column in columns:
+                block = parsed.get(column)
+                cell = block[k] if isinstance(block, list) and len(block) == len(ids) else None
+                # List-valued fields arrive as a JSON string inside the array.
+                if isinstance(cell, str) and cell.lstrip()[:1] in "[{":
+                    cell = parse_listcol(cell)
+                record[column[len(prefix) + 2:]] = cell
+            out[record_id] = record
+    return pd.DataFrame.from_dict(out, orient="index").reset_index(drop=True)

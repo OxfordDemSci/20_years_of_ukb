@@ -314,7 +314,6 @@ style:
       fs_scale:
         main: 1.32
         si1_patents: 1.15
-        si1b_patent_clusters: 1.20
         si2_clinical_trials: 1.25
       axes_linewidth: 1.0
       tick_length: 4

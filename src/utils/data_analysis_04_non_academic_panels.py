@@ -53,6 +53,8 @@ from utils import shared_paths as P
 from utils import shared_rcdc as RCDC
 from utils.shared_analysis_window import ANALYSIS_START_YEAR, ANALYSIS_END_YEAR, filter_analysis_window
 from utils.data_analysis_04_non_academic_sources import filter_endpoint_links
+from utils import shared_patent_utils as U
+from utils.shared_showcase import endpoint_records
 
 # =============================================================================
 # The analysis window
@@ -414,26 +416,72 @@ def load_corpus() -> pd.DataFrame:
     return corpus
 
 
-def load_patents() -> pd.DataFrame:
-    """The patents notebook's own export: country, topics and filing status resolved.
+#: The patent fields the panels read, as they are named inside the corpus's `patents__*`
+#: endpoint block. Everything the retired CSV export carried beyond these (cleaned abstracts,
+#: topic lists, a primary-country pick) is derived and unused here — the panels read divisions
+#: off the FOR column and countries off `assignee_countries`.
+PATENT_ENDPOINT_FIELDS = (
+    "id", "legal_status", "filing_status", "publication_year", "publication_date",
+    "priority_year", "granted_year", "assignee_countries", "category_for_2020",
+    "category_rcdc", "publication_ids",
+)
 
-    Falls back to the raw pull if the export is absent, so this module is not silently
-    empty on a machine where 04_non_academic_02_patents has not been re-run — but the
-    fallback carries none of the derived columns, so it raises rather than half-drawing.
+
+def load_patents() -> pd.DataFrame:
+    """Every patent citing a UK Biobank publication, from the corpus's own endpoint block.
+
+    **Source repointed 2026-09-20 (D43); window filter kept from the 2026-09-21 pass.** This
+    used to read `patents_modularized_export.csv`, derived from a separate, earlier patent
+    query returning 513 records. The corpus — one run of the endpoint pipeline, which collects
+    publications and all six endpoints together — carries **767**, a strict superset, at a
+    single index date; 24 of the shared 513 had already drifted on `legal_status`. Reading the
+    corpus closes a coverage gap and a date gap at once and needs no new extraction.
+
+    The fixed analysis window is then applied exactly as it is to every other arm, on both the
+    publication year and the publication date, so patents carry no special-cased window.
+
+    Falls back to the CSV export when the corpus has no `patents__*` block (the narrow export),
+    with a printed notice — the two give different counts, and a silent switch would be worse
+    than either.
     """
-    export = P.PATENT / "patents_modularized_export.csv"
-    if not export.exists():
-        raise FileNotFoundError(
-            f"{P.raw_path(export)} is missing. Run 04_non_academic_02_patents.ipynb "
-            f"through §5 — it writes the country, topic and filing-status columns every "
-            f"patent panel reads, and the raw pull ({P.raw_path(P.PATENTS_DETAILED)}) "
-            f"has none of them."
+    import pyarrow.parquet as pq
+
+    available = set(pq.read_schema(P.SHOWCASE_PLUS).names)
+    if f"patents__{PATENT_ENDPOINT_FIELDS[0]}" not in available:
+        export = P.PATENT / "patents_modularized_export.csv"
+        if not export.exists():
+            raise FileNotFoundError(
+                f"The corpus at {P.raw_path(P.SHOWCASE_PLUS)} carries no `patents__*` "
+                f"endpoint columns, and the fallback export {P.raw_path(export)} is missing "
+                f"too. Either point P.SHOWCASE_PLUS at the wide export, or run "
+                f"04_non_academic_02_patents.ipynb through §5."
+            )
+        print(f"  ! corpus has no patents__* block — falling back to {P.raw_path(export)} "
+              f"(the 513-patent pull, an older and smaller set)")
+        pat = pd.read_csv(export)
+    else:
+        pat = endpoint_records("patents", PATENT_ENDPOINT_FIELDS)
+        # Dimensions writes "N/A" where a status is unknown; the panels drop missing rows
+        # rather than drawing a category for them.
+        for column in ("legal_status", "filing_status"):
+            pat[column] = pat[column].replace({"N/A": None})
+        pat["legal_status_replaced"] = pat["legal_status"].replace(U.LEGAL_STATUS_DISPLAY)
+        # `assignee_countries` arrives as {id, name} dicts here and as bare ISO-2 codes in the
+        # retired CSV export. The panels count bare codes, so flatten to the id.
+        pat["assignee_countries"] = pat["assignee_countries"].apply(
+            lambda cell: [e.get("id") for e in _lst(cell)
+                          if isinstance(e, dict) and e.get("id")]
         )
-    pat = filter_analysis_window(pd.read_csv(export), year_col="publication_year",
+
+    n_linked = len(pat)
+    pat = filter_analysis_window(pat, year_col="publication_year",
                                  date_col="publication_date")
-    pat["publication_year"] = pd.to_numeric(pat["publication_year"], errors="coerce")
-    pat["priority_year"] = pd.to_numeric(pat["priority_year"], errors="coerce")
-    pat["granted_year"] = pd.to_numeric(pat["granted_year"], errors="coerce")
+    # How many linked patents the window left behind, carried the way `filter_analysis_window`
+    # carries its own dates: a caption has to be able to say 696 OF 767 without re-reading.
+    pat.attrs["n_linked_before_window"] = n_linked
+    pat.attrs["n_outside_window"] = n_linked - len(pat)
+    for column in ("publication_year", "priority_year", "granted_year"):
+        pat[column] = pd.to_numeric(pat[column], errors="coerce")
     return pat
 
 
@@ -659,6 +707,13 @@ def build_patent_aggregates(patents: pd.DataFrame, corpus: pd.DataFrame) -> dict
     """Everything the patent panels draw."""
     out = {}
 
+    # Coverage, for the captions. The analysis window is enforced in `load_patents`, so every
+    # aggregate below is already inside it; these two numbers are the only way a caption can
+    # still say how many linked patents there were before it was applied.
+    out["n_patents"] = int(len(patents))
+    out["n_patents_linked"] = int(patents.attrs.get("n_linked_before_window", len(patents)))
+    out["n_patents_outside_window"] = int(patents.attrs.get("n_outside_window", 0))
+
     # (a) filing status by publication year. `filing_status` is the two-way split
     # (Application / Grant); `legal_status_replaced` is the seven-way outcome.
     status = (patents.dropna(subset=["publication_year", "filing_status"])
@@ -725,16 +780,6 @@ def build_patent_aggregates(patents: pd.DataFrame, corpus: pd.DataFrame) -> dict
                 lags.append(int(pyear) - int(year_of[pid]))
     out["paper_to_patent_lag"] = pd.Series(lags, dtype="int64")
 
-    # (e2) the RCDC macro-clusters. §4.1 of the patents notebook partitions the ~300 RCDC
-    # tags into seven macro-clusters by Louvain community detection on their co-occurrence
-    # graph, and writes the partition to PATENT_RCDC_SUMMARY. This rebuilds that notebook's
-    # cluster x category heatmap: for each cluster, the `top_n` tags carrying the most
-    # patents, as a share of the cluster's own tagged patents.
-    #
-    # Reuse only a cohort-verified partition; rebuild it locally from eligible patents
-    # when needed. Reviewed macro names must match the rebuilt memberships exactly.
-    out["rcdc_clusters"] = _rcdc_cluster_matrix(patents)
-
     # (f) the most-cited UK Biobank papers, by how many patents reference them.
     counter = Counter()
     for cell in patents["publication_ids"]:
@@ -747,56 +792,6 @@ def build_patent_aggregates(patents: pd.DataFrame, corpus: pd.DataFrame) -> dict
     return out
 
 
-def _rcdc_cluster_matrix(patents: pd.DataFrame, top_n: int = 4) -> pd.DataFrame | None:
-    """Macro-cluster x RCDC-category patent counts using a cohort-verified partition.
-
-    Columns are the seven Louvain macro-clusters, rows the RCDC categories that are any
-    cluster's top-`top_n`. A patent contributes to a category once, and a category belongs
-    to exactly one cluster, so a column sums to the patents its cluster's top categories
-    carry — not to the cluster's whole membership, and the matrix is block-diagonal.
-
-    That block-diagonal shape is why `top_n` is small: every category appears in exactly
-    one column, so the row count is `top_n` x 7 exactly. At 5 that is 35 rows of RCDC
-    category names, which no panel height makes legible.
-    """
-    from utils import shared_patent_utils as PU
-
-    context = PU.prepare_rcdc_macro_context(
-        patents, category_col="category_rcdc", summary_csv=P.PATENT_RCDC_SUMMARY)
-    cat_name = context["cat_dict"]
-    cluster_name = context["macro_cluster_names"]
-    # tag id -> cluster id, from the partition's own membership lists
-    tag_cluster = {str(tag): cluster
-                   for cluster, tags in context["top_topic_dict"].items()
-                   for tag in tags}
-
-    per_cluster = {str(c): Counter() for c in cluster_name}
-    for cell in patents["category_rcdc"]:
-        for entry in _lst(cell):
-            if not isinstance(entry, dict):
-                continue
-            tag = str(entry.get("id"))
-            cluster = tag_cluster.get(tag)
-            if cluster is not None:
-                per_cluster[str(cluster)][tag] += 1
-
-    columns, rows = {}, []
-    for cluster, label in cluster_name.items():
-        top = per_cluster[str(cluster)].most_common(top_n)
-        columns[str(label).strip()] = {cat_name.get(tag, tag): count for tag, count in top}
-        rows.extend(cat_name.get(tag, tag) for tag, _ in top)
-
-    ordered = list(dict.fromkeys(rows))
-    matrix = pd.DataFrame(
-        {col: [values.get(row, 0) for row in ordered] for col, values in columns.items()},
-        index=ordered,
-    )
-    # Drop a cluster the patents never touch: an all-zero column is a column of blank
-    # cells with a label, which reads as missing data rather than as a real zero.
-    return matrix.loc[:, matrix.sum(axis=0) > 0]
-
-
-# -------------------------------------------------------- clinical trials ----
 def build_trial_aggregates(trials: pd.DataFrame, corpus: pd.DataFrame) -> dict:
     """Everything the clinical-trial panels draw."""
     out = {}
@@ -1596,45 +1591,6 @@ def draw_patent_country_topics(ax, D):
     return ax
 
 
-def draw_patent_rcdc_clusters(ax, D):
-    """RCDC macro-cluster x category: what the patents are about, at two levels at once.
-
-    The seven clusters are §4.1's Louvain partition of the RCDC co-occurrence graph — a
-    grouping of the ~300 tags into research programmes. Each column shows the five tags
-    carrying the most patents in its cluster, so the panel says both which programmes the
-    patent portfolio sits in and which specific conditions carry each one.
-    """
-    st = _style()
-    matrix = D["patents"].get("rcdc_clusters")
-    if matrix is None or matrix.empty:
-        ax.text(0.5, 0.5, "RCDC macro-cluster partition not on disk\n"
-                          f"({P.raw_path(P.PATENT_RCDC_SUMMARY)})",
-                transform=ax.transAxes, ha="center", va="center",
-                fontsize=st["annot_fs"], color="#666666")
-        ax.axis("off")
-        return ax
-    image = ax.imshow(_heat_values(matrix), aspect="auto", cmap=_heat_cmap(), vmin=0)
-    ax.set_xticks(range(matrix.shape[1]))
-    ax.set_xticklabels([_wrap(c, 15) for c in matrix.columns],
-                       fontsize=st["tick_fs"] - 1)
-    ax.set_yticks(range(matrix.shape[0]))
-    ax.set_yticklabels([_shorten(r, 34) for r in matrix.index],
-                       fontsize=st["tick_fs"] - 2)
-    ax.set_xlabel("RCDC macro-cluster (Louvain)")
-    ax.set_ylabel("RCDC category")
-    top = matrix.to_numpy().max()
-    for i in range(matrix.shape[0]):
-        for j in range(matrix.shape[1]):
-            value = matrix.iat[i, j]
-            if value > 0:
-                ax.text(j, i, f"{int(value)}", ha="center", va="center",
-                        fontsize=st["annot_fs"] - 1,
-                        color=_heat_text_color(value, top))
-    ax.figure.colorbar(image, ax=ax, fraction=0.02, pad=0.015, label="Patents")
-    ax.grid(False)
-    return ax
-
-
 def draw_patent_legal_status(ax, D):
     """The seven-way legal outcome, by publication year."""
     frame = D["patents"]["legal_status_by_year"]
@@ -2062,7 +2018,10 @@ def draw_altmetric_scatter(ax, D):
     """Attention score against substantive (news + policy) mentions, both on log axes.
 
     The population is stated on the panel rather than assumed: a paper needs a positive
-    attention score AND at least one news-or-policy mention to sit on two log axes.
+    attention score AND at least one news-or-policy mention to sit on two log axes. It is
+    stated as the legend's title, not as a box of its own — the panel has two empty
+    regions and four things to put in them, so the two that are reference material share
+    one frame and the two outlier labels get a region each.
     """
     st = _style()
     scatter = D["altmetric"]["scatter"]
@@ -2074,13 +2033,6 @@ def draw_altmetric_scatter(ax, D):
     ax.set_yscale("log")
     ax.set_xlabel("News + policy mentions (log)")
     ax.set_ylabel("Altmetric Attention Score (log)")
-    ax.text(0.03, 0.97,
-            f"{len(scatter):,} publications\n"
-            f"mean AAS {scatter['Altmetric Attention Score'].mean():,.0f}\n"
-            f"median {scatter['Altmetric Attention Score'].median():,.0f}, "
-            f"max {scatter['Altmetric Attention Score'].max():,.0f}",
-            transform=ax.transAxes, va="top", ha="left", fontsize=st["annot_fs"],
-            bbox=dict(boxstyle="round,pad=0.35", fc="white", ec="black", lw=0.8))
     # Name the two most-mentioned publications. Curved leaders and a boxed label, placed
     # down-left and down-right of their points so neither runs off the top of the axes:
     # both outliers sit in the upper right by construction.
@@ -2107,7 +2059,22 @@ def draw_altmetric_scatter(ax, D):
         # The x positions are half what they were: this panel shares its row with F and
         # is half the width it was, so a box anchored at 0.44 ran off the right edge and
         # one at 0.52 sat on the cloud rather than beside it.
-        placements = [(0.02, 0.74, 0.10), (0.40, 0.23, 0.34)]
+        #
+        # Both boxes then went UP, each by the height of what used to sit under it.
+        #
+        # The upper one had the population summary above it and so started at 0.74, which
+        # laid its lower edge across the dot column at one-to-six mentions. The summary is
+        # now folded into the legend, so the box starts at the top of the axes (0.985 —
+        # not 1.0, which would clip the frame against the spine) and covers nothing.
+        #
+        # The lower one had the size key beneath it; the merged legend in that corner is
+        # two lines of summary taller, so the box rises by about that much, to 0.32. It
+        # also moves RIGHT rather than staying at 0.40, which is the difference between a
+        # box whose right edge stops short of the legend's and one flush with it: 0.47
+        # puts the two right edges in line and buys the box clear air on its left, where
+        # the cloud's lower fringe reaches out to about twenty mentions. Its leader then
+        # leaves from the right-hand edge and needs less bow (`rad` 0.34 -> 0.30).
+        placements = [(0.02, 0.985, 0.10), (0.47, 0.32, 0.30)]
         for (_, row), (fx, fy, rad) in zip(top.iterrows(), placements):
             year = int(row["year"]) if pd.notna(row.get("year")) else None
             cited = row.get("times_cited")
@@ -2131,12 +2098,44 @@ def draw_altmetric_scatter(ax, D):
                 zorder=6,
             )
 
+    # ONE box, not two. The population summary used to sit in the top-left corner and the
+    # size key in the bottom-right, which spent the panel's two empty regions on the same
+    # kind of content — reference material a reader consults once — and left the two
+    # outlier labels to fight the cloud for what was left. Both now share the frame in the
+    # wedge under the data, which is the larger of the two regions and the one the size
+    # key already occupied. The corner that frees is the corner the top label moves into.
+    #
+    # The summary rides in as the legend's TITLE rather than as a fourth handle with an
+    # invisible marker: `ncol=3` lays handles out column-major, so a text-only entry in
+    # the handle list lands in the first column beside a bubble instead of on its own row.
+    # The title is one text object, wraps where the newlines are, and is left-aligned to
+    # the handles by `set_alignment` (matplotlib >= 3.6; the fallback leaves it centred,
+    # which is tidy enough).
+    #
+    # "mentions" hangs off the last label instead of heading the key as its own line: the
+    # word has to appear somewhere, and a fourth line of type above three bubbles costs
+    # more height than eight characters cost width.
+    summary = (
+        f"{len(scatter):,} publications · mean AAS "
+        f"{scatter['Altmetric Attention Score'].mean():,.0f}\n"
+        f"median {scatter['Altmetric Attention Score'].median():,.0f} · max "
+        f"{scatter['Altmetric Attention Score'].max():,.0f}"
+    )
     handles = [ax.scatter([], [], s=18 + 10 * np.sqrt(v),
                           color=_stream_colors()["altmetric"], alpha=0.45,
-                          edgecolor="black", linewidth=0.4, label=f"{v:,}")
+                          edgecolor="black", linewidth=0.4,
+                          label=f"{v:,}" + (" mentions" if v == 1000 else ""))
                for v in (10, 100, 1000)]
-    ax.legend(handles=handles, title="Mentions", loc="lower right", ncol=3,
-              fontsize=st["legend_fs"], title_fontsize=st["legend_fs"])
+    legend = ax.legend(handles=handles, title=summary, loc="lower right", ncol=3,
+                       fontsize=st["legend_fs"], title_fontsize=st["legend_fs"],
+                       borderpad=0.5, labelspacing=0.4, handletextpad=0.4,
+                       columnspacing=1.2)
+    legend.get_title().set_multialignment("left")
+    if hasattr(legend, "set_alignment"):
+        legend.set_alignment("left")
+    legend.get_frame().set_edgecolor("black")
+    legend.get_frame().set_linewidth(0.8)
+    legend.set_zorder(6)
     # No grid: both axes are logarithmic and any gridline behind 5,601 semi-transparent
     # points reads as hatching through the cloud rather than as a scale.
     return ax
@@ -2427,9 +2426,13 @@ MAIN_CAPTION = {
          "policy linkage uses Dimensions' publication index, restricted to outcomes "
          "with publication/start dates from 1 January 2013 to 31 December 2025.",
     "B": "Legal status of the patents citing UK Biobank research, by patent publication "
-         "year; the number above each bar is that year's total. Patent metadata comes "
-         "from the detailed pull, restricted to publication dates in 2013–2025; panel "
-         "A counts linked publications using the wider endpoint inventory.",
+         "year; the number above each bar is that year's total. Patent records come from the "
+         "corpus's own endpoint block, collected in the same extraction as the publication "
+         "records: 767 patents are linked, of which the 696 published between 1 January 2013 "
+         "and 31 December 2025 are drawn here. Four carry no legal status and are dropped, "
+         "which is why this panel's yearly totals can sit one or two below the same year in "
+         "SI 1B, where the two-way filing split is missing on only two. Panel A's patent line "
+         "counts linked PUBLICATIONS (513), not patents.",
     "C": "Clinical trials citing UK Biobank research, by trial start year and study "
          "type, for starts in 2013–2025 inclusive. Each calendar year is shown separately.",
     "D": "Share of each year's publications with at least one collaborator in each "
@@ -2449,12 +2452,6 @@ SI_CAPTIONS = {
         "B": "Patents by publication year, split application against granted.",
         "C": "Number of research divisions one patent spans.",
         "D": "Research-division mix within each of the eight largest assignee countries.",
-    },
-    "patent_clusters": {
-        "—": "RCDC macro-clusters (Louvain communities of the tag co-occurrence graph) "
-             "against the four categories carrying the most patents in each. The matrix "
-             "is block-diagonal — a category belongs to exactly one cluster — so it reads "
-             "down the columns, not across the rows.",
     },
     "trials": {
         "A": "Trial lifecycle stage, by study type (nine registry statuses folded into "
@@ -2612,14 +2609,12 @@ def figure_main(D, save=True):
 def figure_si_patents(D, save=True):
     """Four patent panels on an ordinary 2x2 grid.
 
-    The RCDC macro-cluster heatmap left this figure for one of its own
-    (`figure_si_patent_clusters`). It is 28 rows of category names by seven clusters — a
-    shape that only reads at full page width, and forcing it into this grid was what had
-    pushed the page to twice its natural height and every other panel into a squashed
-    band. Two figures at ordinary proportions beat one at extraordinary ones.
+    The RCDC macro-cluster heatmap that once shared this page, and then had a page of its
+    own, was removed on 2026-09-22 (D46): its Louvain communities could not carry their
+    reviewed names onto the current patent cohort, and an unnamed partition is not a result.
 
     The paper-to-patent lag also came out earlier and stays out; its distribution is in
-    `D["patents"]["paper_to_patent_lag"]` (median 1 year over 800 links).
+    `D["patents"]["paper_to_patent_lag"]`.
     """
     st = _style()
     with _font_scale(_fs_scale("si1_patents")):
@@ -2633,21 +2628,6 @@ def figure_si_patents(D, save=True):
              draw_patent_country_topics],   # D
             2, 2, st["figsize_si"], D, "04_02_supplementary_figure_01_patents", save=save,
             hspace=0.45, wspace=0.40, width_ratios=[1.0, 1.3],
-        )
-
-
-def figure_si_patent_clusters(D, save=True):
-    """The RCDC macro-cluster heatmap, on its own page.
-
-    A single panel, so no letter: the figure IS the panel, and stamping an "A" on a
-    figure with nothing to be A of only invites the reader to look for a B.
-    """
-    st = _style()
-    width, height = st["figsize_si"]
-    with _font_scale(_fs_scale("si1b_patent_clusters")):
-        return _assemble(
-            [draw_patent_rcdc_clusters], 1, 1, (width, height * 1.15), D,
-            "04_03_supplementary_figure_02_patent_clusters", save=save, label_panels=False,
         )
 
 
@@ -2668,7 +2648,7 @@ def figure_si_trials(D, save=True):
              draw_trial_rcdc,               # C  row 1, left
              draw_trial_enrollment,         # D  row 2, left
              draw_trial_country_sector],    # E  row 2, right
-            3, 2, (width, height * 1.30), D, "04_04_supplementary_figure_03_clinical_trials",
+            3, 2, (width, height * 1.30), D, "04_03_supplementary_figure_02_clinical_trials",
             save=save, slots=[(0, 0), (slice(0, 2), 1), (1, 0), (2, 0), (2, 1)],
             hspace=0.40, wspace=0.42, height_ratios=[1.0, 1.0, 1.05],
         )
@@ -2699,7 +2679,7 @@ def figure_si_policy(D, save=True):
     return _assemble(
         [draw_policy_by_year, draw_policy_country_map, draw_policy_publishers,
          draw_policy_divisions],
-        2, 2, (width, height * 0.78), D, "04_05_supplementary_figure_04_policy",
+        2, 2, (width, height * 0.78), D, "04_04_supplementary_figure_03_policy",
         save=save, hspace=0.42, wspace=0.55, height_ratios=[0.85, 1.15],
     )
 
@@ -2719,7 +2699,7 @@ def figure_si_altmetric(D, save=True):
     return _assemble(
         [draw_altmetric_distribution, draw_altmetric_mentions_by_year,
          draw_altmetric_coverage, draw_altmetric_vs_citations],
-        2, 2, (width, height * 0.72), D, "04_06_supplementary_figure_05_altmetric", save=save,
+        2, 2, (width, height * 0.72), D, "04_05_supplementary_figure_04_altmetric", save=save,
         hspace=0.38, wspace=0.32,
     )
 
@@ -2730,7 +2710,7 @@ def figure_si_collaboration(D, save=True):
         [draw_collab_sector_summary, draw_collab_sector_papers,
          draw_collab_sector_share, draw_collab_company_by_year,
          draw_collab_top_companies, draw_collab_divisions],
-        3, 2, st["figsize_si"], D, "04_07_supplementary_figure_06_collaboration", save=save,
+        3, 2, st["figsize_si"], D, "04_06_supplementary_figure_05_collaboration", save=save,
         hspace=0.45, wspace=0.55,
     )
 
@@ -2739,7 +2719,6 @@ def figure_si_collaboration(D, save=True):
 FIGURES = {
     "main": figure_main,
     "si1_patents": figure_si_patents,
-    "si1b_patent_clusters": figure_si_patent_clusters,
     "si2_clinical_trials": figure_si_trials,
     "si3_policy": figure_si_policy,
     "si4_altmetric": figure_si_altmetric,
