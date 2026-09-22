@@ -2453,22 +2453,22 @@ def legacy_artifact_crosswalk() -> pd.DataFrame:
     """Document how each substantive legacy output is retained after consolidation."""
     rows = [
         ("05_authors_1_metrics", "author_analytics.xlsx", "top_30_authors_by_ukb_h_index.csv + top_30_authors_by_ukb_h_index.docx + supplementary_author_characteristics.xlsx + author_metrics.csv", "retained and expanded; author-indexed top-30 ranking in CSV and editable Word, with UKB-corpus-specific h-index"),
-        ("05_authors_2 / 3_CHECK", "geographic maps (whole, fractional, intensity, org basis)", "Figure 1E + Supplementary Figure 3A-C + country_metrics.csv", "all four geographic views retained with harmonized ISO-3 entities"),
-        ("05_geography_4 / 5", "static geography composite", "Figure 1E + Supplementary Figures 3-4", "separated into map-only and quantitative geography evidence"),
-        ("05_geography_4 / 5", "geography evolution GIF", "Figure 1C + Supplementary Figure 4D", "cumulative country reach promoted to the headline; annual effective geographic diversity retained as a static time series"),
+        ("05_authors_2 / 3_CHECK", "geographic maps (whole, fractional, intensity, org basis)", "Figure 3E + Supplementary Figure 3A-C + country_metrics.csv", "all four geographic views retained with harmonized ISO-3 entities"),
+        ("05_geography_4 / 5", "static geography composite", "Figure 3E + Supplementary Figures 3-4", "separated into map-only and quantitative geography evidence"),
+        ("05_geography_4 / 5", "geography evolution GIF", "Figure 3C + Supplementary Figure 4D", "cumulative country reach promoted to the headline; annual effective geographic diversity retained as a static time series"),
         ("05_authors_2 / 3_CHECK", "top-institution FOR bars", "Supplementary Figure 5", "retained with fractional multi-affiliation credit"),
         ("05_institutional_metrics", "institutional_analytics.xlsx", "supplementary_author_characteristics.xlsx + institution_metrics.csv", "retained and corrected for paper/field duplication"),
-        ("05_authors_2 / 3_CHECK", "gender trends", "Figure 1D + Supplementary Figure 2", "trend promoted to headline; coverage/roles/fields in supplement"),
-        ("05_network_over_time", "network evolution with metrics", "Figure 1A + Supplementary Figure 6 + network_metrics_by_year.csv", "retained as one static topology view, nonredundant structural summaries and a complete annual table"),
+        ("05_authors_2 / 3_CHECK", "gender trends", "Figure 3D + Supplementary Figure 2", "trend promoted to headline; coverage/roles/fields in supplement"),
+        ("05_network_over_time", "network evolution with metrics", "Figure 3A + Supplementary Figure 6 + network_metrics_by_year.csv", "retained as one static topology view, nonredundant structural summaries and a complete annual table"),
         ("05_network_over_time", "annual degree, component and tie-strength metrics", "network_metrics_by_year.csv", "retained for all papers and a hyperauthorship sensitivity"),
-        ("05_network_over_time", "Leiden community network and CSV tables", "Figure 1A + Supplementary Figure 6A + community CSVs", "retained using igraph Leiden and fractional edge weights"),
+        ("05_network_over_time", "Leiden community network and CSV tables", "Figure 3A + Supplementary Figure 6A + community CSVs", "retained using igraph Leiden and fractional edge weights"),
         ("05_network_over_time", "paper and author topic/institution assignments", "paper_for_assignments.csv + author_metrics.csv + network_community_membership.csv", "retained without imposing a first-listed primary FOR category"),
         ("05_network_over_time", "full community L2/L4/institution count and summary tables", "network_community_*_counts.csv + network_community_*_summary.csv", "retained and expanded with country and name-category intersections"),
         ("05_network_over_time", "collapsed community L2/L4/institution tables", "Supplementary Figure 6A + network_collapsed_*_counts.csv + network_collapsed_*_summary.csv", "retained for the 12-community composition display"),
         ("05_authors_1_metrics", "author productivity distribution", "Supplementary Figure 1A + author_productivity_bands.csv", "complete survival curve and mutually exclusive band table retained in the author supplement"),
-        ("03_academic_impact (Part II)", "author impact portfolio map", "Figure 1G + headline_author_impact_portfolio.csv", "promoted into the author-characteristics headline and removed as a standalone 03 figure"),
-        ("03_academic_impact (Part III)", "leading publication venues by citation impact", "Figure 1H + headline_venue_impact.csv", "promoted into the author-characteristics headline and removed as a standalone 03 figure"),
-        ("05_authors_2 / 3_CHECK", "paper_combined", "Figure 1", "replaced by an eight-panel synthesis across author, network, gender, geography, institution and citation domains"),
+        ("03_academic_impact (Part II)", "author impact portfolio map", "Figure 3G + headline_author_impact_portfolio.csv", "promoted into the author-characteristics headline and removed as a standalone 03 figure"),
+        ("03_academic_impact (Part III)", "leading publication venues by citation impact", "Figure 3H + headline_venue_impact.csv", "promoted into the author-characteristics headline and removed as a standalone 03 figure"),
+        ("05_authors_2 / 3_CHECK", "paper_combined", "Figure 3", "replaced by an eight-panel synthesis across author, network, gender, geography, institution and citation domains"),
     ]
     return pd.DataFrame(rows, columns=["legacy_source", "legacy_artifact", "successor", "status"])
 
@@ -2561,8 +2561,8 @@ def analysis_parameters(
 
 def figure_captions() -> OrderedDict:
     return OrderedDict({
-        "figure_01_caption.txt": (
-            "Figure 5 | Characteristics and collaborative structure of authors using UK Biobank, "
+        "figure_03_caption.txt": (
+            "Figure 3 | Characteristics and collaborative structure of authors using UK Biobank, "
             f"{FIRST_YEAR}-{LAST_COMPLETE_YEAR}. (A) Component-aware static coauthorship network with "
             "every resolved author plotted. Node colour distinguishes isolates, components of 2-5 authors, "
             "intermediate components and the giant component. All ties outside the giant component are "

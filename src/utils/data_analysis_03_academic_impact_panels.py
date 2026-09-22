@@ -1237,7 +1237,7 @@ def figure_main(D, save=True):
         footprint_legend(fig, D)
 
         if save:
-            savefig(fig, "03_01_figure_01_academic_impact")
+            savefig(fig, P.MAIN_FIGURE_STEMS[5])
     return fig
 
 

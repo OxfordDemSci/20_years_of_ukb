@@ -178,6 +178,7 @@ VALIDATION_HELDOUT_FIGURES = VALIDATION_HELDOUT / "figures"
 OUTPUT_FIGURES = OUTPUT / "figures"
 FIG_DATA_ANALYSIS = OUTPUT_FIGURES / "data_analysis"
 FIG_DATA_CREATION = OUTPUT_FIGURES / "data_creation"
+FIG_MANUSCRIPT = OUTPUT_FIGURES / "manuscript"
 OUTPUT_TABLES = OUTPUT / "tables"
 TABLE_DATA_ANALYSIS = OUTPUT_TABLES / "data_analysis"
 
@@ -192,10 +193,40 @@ FIG_AUTHORS = FIG_DATA_ANALYSIS / "01_authors"
 FIG_AUTHOR_CHARACTERISTICS = FIG_DATA_ANALYSIS / "05_author_characteristics"
 TABLE_AUTHOR_CHARACTERISTICS = TABLE_DATA_ANALYSIS / "05_author_characteristics"
 FIG_CONTENT = FIG_DATA_ANALYSIS / "02_content"
-FIG_NETWORK = FIG_DATA_ANALYSIS / "02_network"
+FIG_NETWORK = FIG_AUTHOR_CHARACTERISTICS / "network"
 FIG_ACADEMIC_IMPACT = FIG_DATA_ANALYSIS / "03_academic_impact"
 FIG_NON_ACADEMIC = FIG_DATA_ANALYSIS / "04_non_academic"
 FIG_CLINICAL_TRIALS = FIG_NON_ACADEMIC / "clinical_trials"
+
+# Main-paper numbering follows the manuscript, not notebook execution order. Figure 1
+# is the supplied UK Biobank overview infographic; analyses 01, 05, 02, 03 and 04 then
+# produce Figures 2-6 respectively. Supplementary figure stems remain analysis-local.
+MAIN_FIGURE_DIRS = {
+    1: FIG_MANUSCRIPT,
+    2: FIG_GROWTH,
+    3: FIG_AUTHOR_CHARACTERISTICS,
+    4: FIG_CONTENT,
+    5: FIG_ACADEMIC_IMPACT,
+    6: FIG_NON_ACADEMIC,
+}
+MAIN_FIGURE_STEMS = {
+    1: "figure_01_evolution_and_research_impact",
+    2: "01_01_figure_02_growth_and_reach",
+    3: "05_01_figure_03_author_characteristics",
+    4: "02_01_figure_04_content_composition",
+    5: "03_01_figure_05_academic_impact",
+    6: "04_01_figure_06_non_academic_reach",
+}
+
+
+def main_figure_path(number: int, suffix: str) -> Path:
+    """Return the canonical output path for one manuscript main figure."""
+    if number not in MAIN_FIGURE_STEMS:
+        raise ValueError(f"Unknown manuscript figure number: {number}")
+    extension = str(suffix).lower().lstrip(".")
+    if extension not in {"pdf", "png"}:
+        raise ValueError(f"Unsupported manuscript figure format: {suffix}")
+    return MAIN_FIGURE_DIRS[number] / f"{MAIN_FIGURE_STEMS[number]}.{extension}"
 
 # Compatibility names for older notebooks; all figures now live under output/.
 FIG = OUTPUT_FIGURES
@@ -237,8 +268,9 @@ def ensure_dirs() -> None:
               FIG_GROWTH, TABLE_GROWTH, TABLE_CONTENT,
               FIG_AUTHORS, FIG_AUTHOR_CHARACTERISTICS,
               TABLE_ACADEMIC_IMPACT, TABLE_AUTHOR_CHARACTERISTICS,
-              FIG_CONTENT, FIG_NETWORK, FIG_NON_ACADEMIC,
-              FIG_CLINICAL_TRIALS, FIG_ACADEMIC_IMPACT, FIG_PATENT):
+              FIG_CONTENT, FIG_NETWORK, FIG_GEOGRAPHY, FIG_NON_ACADEMIC,
+              FIG_CLINICAL_TRIALS, FIG_ACADEMIC_IMPACT, FIG_PATENT,
+              FIG_MANUSCRIPT):
         d.mkdir(parents=True, exist_ok=True)
 
 

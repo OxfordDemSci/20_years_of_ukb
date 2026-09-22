@@ -29,6 +29,7 @@ EXPECTED_REWRITTEN_CELL_IDS = {
     "3af229bb",
     "c98ee4e2",
     "08705997",
+    "1c49f72f",
 }
 
 
@@ -103,7 +104,7 @@ class ContentConsolidationTests(unittest.TestCase):
             "C.figure_si_breadth_coverage(D, save=False)",
             "C.figure_si_topic_robustness(D, save=False)",
             "E.export_content_tables(D, ARTIFACTS)",
-            '"02_01_figure_01_content_composition"',
+            "P.MAIN_FIGURE_STEMS[4]",
             '"02_02_supplementary_figure_01_category_composition"',
             '"02_03_supplementary_figure_02_coverage_and_breadth"',
             '"02_04_supplementary_figure_03_topic_robustness"',

@@ -41,11 +41,30 @@ publications, 2013–2026). **`data/`, `output/`, `logs/` and `doc/` are gitigno
 so a fresh clone has code and settings only.
 
 Figures are saved under `output/figures/`, including patent figures in
-`output/figures/data_analysis/04_non_academic/patent/`. All notebook PNG exports use
+`output/figures/data_analysis/04_non_academic/patent/` and geography/network figures in
+`output/figures/data_analysis/05_author_characteristics/geography/` and `network/`.
+The legacy root `fig/` directory has been retired; use `FIG_PATENT`, `FIG_GEOGRAPHY`,
+and `FIG_NETWORK` from `utils.shared_paths` for these outputs. All notebook PNG exports use
 500 dpi, enforced by `PNG_DPI` in `src/utils/shared_style.py`; inline display resolution
 is configured separately. All figures use Helvetica; titles are uppercase, bold and
 left-aligned through the shared typography helpers. Rerun a notebook to regenerate
 existing figures with these settings.
+
+Main-paper figure numbers follow the manuscript rather than analysis execution order.
+Their canonical stems are defined once in `utils.shared_paths.MAIN_FIGURE_STEMS`:
+
+| manuscript figure | source | output stem |
+|---|---|---|
+| 1 | supplied UK Biobank overview infographic | `figure_01_evolution_and_research_impact` |
+| 2 | `01_growth.ipynb` | `01_01_figure_02_growth_and_reach` |
+| 3 | `05_author_characteristics.ipynb` | `05_01_figure_03_author_characteristics` |
+| 4 | `02_content.ipynb` | `02_01_figure_04_content_composition` |
+| 5 | `03_academic_impact.ipynb` | `03_01_figure_05_academic_impact` |
+| 6 | `04_non_academic.ipynb` | `04_01_figure_06_non_academic_reach` |
+
+Figure 1 is stored under `output/figures/manuscript/`; Figures 2-6 remain in their
+analysis-specific directories. Supplementary figure numbering is analysis-local and is
+not changed by the manuscript main-figure order.
 
 The author-characteristics notebook exports the top 30 authors by individual UK Biobank
 h-index to `output/tables/data_analysis/05_author_characteristics/` as

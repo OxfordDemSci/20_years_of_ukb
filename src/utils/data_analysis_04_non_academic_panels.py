@@ -2621,7 +2621,7 @@ def figure_main(D, save=True):
              draw_altmetric_scatter,        # E - bottom row, left
              draw_collab_flag_overlap],     # F - bottom row, right
             3, 2, (figsize[0], figsize[1] * 1.30),
-            D, "04_01_figure_01_non_academic_reach", save=save,
+            D, P.MAIN_FIGURE_STEMS[6], save=save,
             slots=[(0, 0), (0, 1), (1, 0), (1, 1), (2, 0), (2, 1)],
             hspace=0.40, wspace=0.34, height_ratios=[1.0, 1.0, 1.55],
         )

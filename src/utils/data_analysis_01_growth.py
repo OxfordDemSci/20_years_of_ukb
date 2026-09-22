@@ -859,9 +859,9 @@ def main_indicator_tables(complete, annual, indicators, latest):
         *[spec["cumulative_col"] for spec in indicators.values()],
     ]
     if len(indicators) != 6:
-        raise ValueError("Figure 1 requires the same six indicators in A, C and D")
+        raise ValueError("Figure 2 requires the same six indicators in A, C and D")
     if not all(annual[column].is_monotonic_increasing for column in cumulative_columns):
-        raise ValueError("A Figure 1 cumulative series is not monotonic")
+        raise ValueError("A Figure 2 cumulative series is not monotonic")
     if not conditional.stack().between(0, 100).all():
         raise ValueError("Conditional-overlap percentages must lie between 0 and 100")
 
@@ -1040,7 +1040,7 @@ def validate_growth_analysis(
             table_count == flag_count and np.isclose(observed_rate, expected_rate),
             f"{table_count}; {observed_rate:.6f}",
             f"{flag_count}; {expected_rate:.6f}",
-            "Figure 1 rates must use the complete-year corpus denominator.",
+            "Figure 2 rates must use the complete-year corpus denominator.",
         )
 
     off_diagonal = conditional_overlap.stack()
@@ -1058,7 +1058,7 @@ def validate_growth_analysis(
         pd.isna(np.diag(conditional_overlap)).all(),
         int(pd.isna(np.diag(conditional_overlap)).sum()),
         len(conditional_overlap),
-        "Self-comparisons are omitted from Figure 1D.",
+        "Self-comparisons are omitted from Figure 2D.",
     )
 
     for key in endpoint_specs:

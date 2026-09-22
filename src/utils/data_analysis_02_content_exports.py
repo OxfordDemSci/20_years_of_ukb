@@ -5,7 +5,8 @@ from __future__ import annotations
 import pandas as pd
 
 from utils import data_analysis_02_content_panels as panels
-from utils.shared_analysis_window import ANALYSIS_START_DATE, ANALYSIS_END_DATE
+from utils import shared_paths as P
+from utils.shared_analysis_window import ANALYSIS_END_DATE, ANALYSIS_START_DATE
 
 
 def _caption(title, parts):
@@ -47,9 +48,9 @@ def export_content_tables(data, registry):
     for name, frame in tables.items():
         registry.save_table(frame, name)
     registry.save_text(
-        _caption("Research composition and thematic evolution of UK Biobank publications.",
+        _caption("Figure 4 | Research composition and thematic evolution of UK Biobank publications.",
                  panels.MAIN_CAPTION),
-        "02_01_figure_01_content_composition_caption.txt",
+        f"{P.MAIN_FIGURE_STEMS[4]}_caption.txt",
     )
     registry.save_text(
         _caption("Annual composition of leading research fields and RCDC categories.",

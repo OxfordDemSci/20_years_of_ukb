@@ -610,7 +610,7 @@ def figure_main(D, save=True):
     fig.text(.075, .018, thin_years_note(D), ha="left", va="bottom",
              fontsize=_style()["annot_fs"], color="#555555")
     if save:
-        savefig(fig, "02_01_figure_01_content_composition", formats=("pdf", "png"))
+        savefig(fig, P.MAIN_FIGURE_STEMS[4], formats=("pdf", "png"))
     return fig
 
 

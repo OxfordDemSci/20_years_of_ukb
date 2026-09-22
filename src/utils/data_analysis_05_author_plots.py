@@ -603,7 +603,7 @@ def plot_headline_figure(
         panel_label(ax, label, style, x=-0.07, y=1.055)
     return save_figure(
         fig,
-        "05_01_figure_01_author_characteristics",
+        P.MAIN_FIGURE_STEMS[3],
         style,
         formats=["pdf", "png"],
     )
