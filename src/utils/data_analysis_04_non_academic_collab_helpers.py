@@ -1247,19 +1247,18 @@ def plot_collaborator_count_distributions(df: pd.DataFrame) -> None:
             counts = df[col]
         series_spec.append((axes[idx], counts, f"{label} orgs per paper", color_map.get(label, "#BDBDBD")))
 
-    for ax, counts, title, color in series_spec:
+    for index, (ax, counts, title, color) in enumerate(series_spec):
+        set_title(ax, chr(65 + index))
+        ax.set_xlabel(title)
+        ax.set_ylabel("Papers")
         nonzero = counts[counts > 0]
         if nonzero.empty:
             ax.text(0.5, 0.5, "No data", ha="center", va="center")
-            set_title(ax, title)
             continue
 
         max_count = int(nonzero.max())
         bins = np.arange(1, max_count + 2) - 0.5
         ax.hist(nonzero, bins=bins, color=color, edgecolor="black", linewidth=0.3)
-        set_title(ax, title)
-        ax.set_xlabel("Count")
-        ax.set_ylabel("Papers")
         ax.set_xticks(range(1, max_count + 1))
         ax.grid(True, axis="y", alpha=0.2)
 

@@ -133,8 +133,8 @@ DEC_M_MAIN = 5
 from matplotlib.colors import LinearSegmentedColormap, to_hex, to_rgb   # noqa: E402
 
 from utils.shared_style import (                                        # noqa: E402
-    PALETTE_COLORS, academic_impact_colormap, grid_on, panel_label, savefig,
-    set_title, year_ticks,
+    PALETTE_COLORS, academic_impact_colormap, facet_ylabel, grid_on, panel_label, savefig,
+    year_ticks,
 )
 
 
@@ -908,9 +908,7 @@ def block_footprint_quality(fig, spec, D, nrow: int = 2, ncol: int = 4,
         ax = fig.add_subplot(gs[i // ncol, i % ncol])
         axes.append(ax)
         if i < len(letters):
-            # FREE TEXT rather than the default title placement — panel_label's documented
-            # escape hatch — because the title slot already holds the field's name.
-            panel_label(ax, letters[i], x=-0.24, y=1.10)
+            panel_label(ax, letters[i])
         col = _field_color(D, lab)
         a, b, h = all_[code].dropna(), best[code].dropna(), half[code].dropna()
         idx = _contiguous_tail(a.index.intersection(b.index).intersection(h.index))
@@ -925,7 +923,7 @@ def block_footprint_quality(fig, spec, D, nrow: int = 2, ncol: int = 4,
         ax.fill_between(idx, 0, b, color=col, alpha=0.85, lw=0)
         ax.fill_between(idx, b, h, color=col, alpha=0.18, lw=0)
         ax.plot(idx, a, color=col, lw=1.8)
-        set_title(ax, AI.short(lab, 28), fontsize=st["annot_fs"] + 1)
+        facet_ylabel(ax, lab, fontsize=st["annot_fs"] + 1)
         ax.yaxis.set_major_formatter(mticker.FuncFormatter(_pct_fmt))
         ax.set_ylim(bottom=0)
         ax.margins(x=0.02)

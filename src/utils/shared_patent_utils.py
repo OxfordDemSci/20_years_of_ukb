@@ -1669,7 +1669,8 @@ def plot_development_stage_pies(
         for t in autotexts:
             t.set_color('white')
         
-        set_title(ax, title, fontweight='bold')
+        set_title(ax, 'A' if ax is axs[0] else 'B', fontweight='bold')
+        ax.set_ylabel(title)
         ax.axis('equal')
     
     draw_pie(

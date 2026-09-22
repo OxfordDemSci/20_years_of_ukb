@@ -443,6 +443,7 @@ def run_agreement(input_path=None, *, output_dir=None, figure_dir=None,
 
     else:
         print("[SKIP] Semantic encoding: no matching cache; enable RUN_SEMANTIC_ANALYSIS to compute it.")
+    figure_captions = {}
     figure_files = render_agreement_figures(
         model_summary=model_summary, vote_distribution=vote_distribution,
         group_distribution=group_distribution,
@@ -450,7 +451,7 @@ def run_agreement(input_path=None, *, output_dir=None, figure_dir=None,
         category_summary=category_summary, tfidf_terms=tfidf_terms, tfidf_data=tfidf_data,
         semantic_data=semantic_data if semantic_available else None,
         semantic_metrics=semantic_metrics if semantic_available else None,
-        figure_dir=FIGURE_DIR, show_figures=show_figures,
+        figure_dir=FIGURE_DIR, show_figures=show_figures, captions=figure_captions,
     )
     table_files = sorted(table_files)
     figure_count = sum(path.suffix == ".png" for path in figure_files)
@@ -470,5 +471,5 @@ def run_agreement(input_path=None, *, output_dir=None, figure_dir=None,
             "semantic_detail": str(semantic_metrics.set_index("metric").loc["embedding_method", "value"])
                 if semantic_available and "embedding_method" in set(semantic_metrics.metric)
                 else "No matching semantic cache; encoding disabled.",
-            "table_frames": table_frames,
+            "table_frames": table_frames, "figure_captions": figure_captions,
             "tables": [str(p) for p in table_files], "figures": [str(p) for p in figure_files]}

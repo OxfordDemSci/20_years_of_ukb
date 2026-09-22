@@ -19,6 +19,10 @@ remaining public helpers centralize figure construction, panel lettering, axes,
 legends, statistical annotations, colorbars, saving, and notebook registration so
 analysis modules only need to define data-specific marks and layouts.
 
+Panel headings are letters only. Descriptions belong in axis labels, legends or
+notebook captions; ``finalize_figure`` also removes native and third-party titles
+before export or shared inline display.
+
 Notebooks that still build a ``STYLE`` dict by hand keep working: register it with
 ``use_style(STYLE)`` exactly as before.
 """
@@ -27,6 +31,7 @@ from __future__ import annotations
 
 from pathlib import Path
 import re
+from textwrap import fill
 
 import matplotlib.pyplot as plt
 from matplotlib.axes import Axes
@@ -163,24 +168,51 @@ def _title_kwargs(kwargs):
 
 
 def set_title(ax, label, fontdict=None, **kwargs):
-    """Set an uppercase, bold, left-aligned Helvetica axes title."""
+    """Set only a panel letter; descriptive prose belongs in labels or captions."""
     apply_typography()
+    letter = panel_title_letter(label)
+    existing = panel_title_letter(ax.get_title(loc="left"))
+    if not letter and str(label).strip() and existing:
+        # A legacy drawing helper must not overwrite or shrink an existing letter.
+        ax.title.set_text("")
+        ax._right_title.set_text("")
+        ax._left_title.set_text(existing)
+        return ax._left_title
     kwargs = _title_kwargs(kwargs)
     kwargs.update(loc="left", x=0.0)
-    return ax.set_title(uppercase_title(label), fontdict=fontdict, **kwargs)
+    ax.title.set_text("")
+    ax._right_title.set_text("")
+    return ax.set_title(letter, fontdict=fontdict, **kwargs)
+
+
+def panel_title_letter(label):
+    """Extract explicit legacy panel prefixes without turning prose into initials."""
+    text = str(label).strip()
+    match = re.fullmatch(r"\(?([A-Za-z])\)?[.:]?", text)
+    if match is None:
+        match = re.match(r"^(?:\(([A-Za-z])\)|([A-Za-z])[.):]|([A-Z])\s)\s*", text)
+    if match is None:
+        return ""
+    return next(group.upper() for group in match.groups() if group)
+
+
+def facet_ylabel(ax, label, *, width=26, **kwargs):
+    """Keep full facet names on the axis without overrunning small-multiple rows."""
+    return ax.set_ylabel(fill(str(label), width=width, break_long_words=False,
+                             break_on_hyphens=False), **kwargs)
 
 
 def set_figure_title(fig, label, **kwargs):
-    """Set an uppercase, bold, left-aligned Helvetica figure title."""
+    """Compatibility wrapper: manuscript figures have no figure-wide title."""
     apply_typography()
     kwargs = _title_kwargs(kwargs)
     kwargs.pop("loc", None)  # Figure.suptitle uses x/ha rather than loc.
     kwargs["x"] = 0.01
-    return fig.suptitle(uppercase_title(label), **kwargs)
+    return fig.suptitle("", **kwargs)
 
 
 def finalize_figure(fig):
-    """Enforce typography on existing artists before layout, display or export.
+    """Enforce typography and letter-only headings before display or export.
 
     Third-party plotters can create text with their own font properties. Native axes
     titles (including inset axes) and figure titles also receive the title policy;
@@ -193,20 +225,19 @@ def finalize_figure(fig):
         if not titles:
             continue
         base = titles[0]
-        labels = list(dict.fromkeys(title.get_text() for title in titles))
+        letter = next((panel_title_letter(title.get_text()) for title in titles
+                       if panel_title_letter(title.get_text())), "")
         properties = {"fontsize": base.get_fontsize(), "color": base.get_color()}
         if not ax._autotitlepos:
             properties["y"] = base.get_position()[1]
         ax.title.set_text("")
         ax._right_title.set_text("")
-        set_title(ax, "\n".join(labels), **properties)
+        ax._left_title.set_text("")
+        set_title(ax, letter, **properties)
     for container in [fig, *fig.findobj(match=lambda artist: hasattr(artist, "_suptitle"))]:
         title = getattr(container, "_suptitle", None)
         if title is not None and title.get_text():
-            title.set_text(uppercase_title(title.get_text()))
-            title.set_fontweight("bold")
-            title.set_ha("left")
-            title.set_x(0.01)
+            title.set_text("")
     for artist in fig.findobj(match=Text):
         properties = artist.get_fontproperties().copy()
         properties.set_file(None)
@@ -661,13 +692,30 @@ def save_figure(fig, name, style=None, **kwargs):
     return fig, savefig(fig, name, style=style, **kwargs)
 
 
-def render_figure(plotter, *args, registry=None, show=True, **kwargs):
+def display_figure(fig, paths=(), caption=None, *, width=1100):
+    """Show a figure, repository-relative export paths, and an inline caption."""
+    from IPython.display import Image, Markdown, display
+    from .shared_paths import raw_path
+
+    if isinstance(fig, (str, Path)):
+        display(Image(filename=str(fig), width=width))
+    else:
+        finalize_figure(fig)
+        display(fig)
+    for path in paths:
+        print("Saved:", raw_path(path))
+    if caption:
+        display(Markdown(caption))
+
+
+def render_figure(plotter, *args, registry=None, show=True, caption=None, **kwargs):
     """Build, register, and optionally display a saved figure in one call."""
     fig, paths = plotter(*args, **kwargs)
     if registry is not None:
         registry.record_figures(paths)
     if show:
-        plt.show()
+        display_figure(fig, paths, caption)
+        plt.close(fig)
     return fig, paths
 
 

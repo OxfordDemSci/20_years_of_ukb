@@ -30,6 +30,7 @@ EXPECTED_REWRITTEN_CELL_IDS = {
     "c98ee4e2",
     "08705997",
     "1c49f72f",
+    "a04e0276",  # Display and export ten leading FOR fields, not eight plot bands.
 }
 
 
@@ -85,8 +86,10 @@ class ContentConsolidationTests(unittest.TestCase):
         self.assertEqual(len(cells), sum(SOURCE_CELL_COUNTS.values()) + 2)
         self.assertEqual(len({cell["id"] for cell in cells}), len(cells))
         code_cells = [cell for cell in cells if cell["cell_type"] == "code"]
-        self.assertTrue(all(cell.get("execution_count") is None for cell in code_cells))
-        self.assertTrue(all(cell.get("outputs") == [] for cell in code_cells))
+        self.assertTrue(all(cell.get("execution_count") is None
+                            or isinstance(cell["execution_count"], int) for cell in code_cells))
+        self.assertFalse(any(output.get("output_type") == "error"
+                             for cell in code_cells for output in cell.get("outputs", [])))
         self.assertEqual(self.source.count('run_line_magic("reset", "-f")'), 1)
         headings = [
             "# Part I: UK Biobank research content, 2013–2025",

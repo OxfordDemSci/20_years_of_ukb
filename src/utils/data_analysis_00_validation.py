@@ -43,7 +43,7 @@ PERFORMANCE_CAPTION = (
     "Model performance across six prompt strategies. A, Accuracy. B, Precision. "
     "C, Recall (sensitivity). D, F1 score. Rows identify models and columns identify "
     "prompt strategies; cell labels and colours show percentages on a common "
-    "0–100% scale. Metrics are calculated only among each model's parsed predictions; "
+    "observed-range scale. Metrics are calculated only among each model's parsed predictions; "
     "parse coverage and confusion-matrix counts are provided in the accompanying CSV "
     "tables. A dashed rule separates instruction-tuned language models from encoder "
     "baselines (asterisks). Encoder similarity thresholds were optimised for F1 on "
@@ -56,7 +56,7 @@ CAPTION = (
     "B, Balanced instructions; C, Evidence cues; D, Context without examples; "
     "E, Real one-shot; F, Real five-shot. Cells give the percentage of matching "
     "predictions among papers for which both models returned parsed predictions, "
-    "on a common 0–100% colour scale. Each panel reports its range of paired-paper "
+    "on a common observed-range colour scale. Each panel reports its range of paired-paper "
     "denominators; exact cell counts are supplied in the accompanying CSV tables. "
     "Blank cells with a dash indicate unavailable comparisons or zero paired "
     "predictions. Dashed rules separate language models from encoder baselines "
@@ -217,22 +217,24 @@ def _agreement(frame, models):
     return agreement, counts
 
 
-def _draw_matrix(ax, values, *, title, row_models, column_labels, model_columns=False, fontsize=9):
-    from .shared_style import blue_cream_red_colormap, palette, set_title
+def _draw_matrix(ax, values, *, letter, row_models, column_labels, model_columns=False):
+    from .shared_style import blue_cream_red_colormap, load_style, palette, set_title
+    style = load_style("00_dataset", activate=False)
     cmap = blue_cream_red_colormap().with_extremes(bad="white")
     array = values.to_numpy(dtype=float)
     image = ax.pcolormesh(np.ma.masked_invalid(array), cmap=cmap, vmin=0, vmax=1,
                          edgecolors=palette("navy"), linewidth=.45)
     ax.invert_yaxis()
-    ax.set_xticks(np.arange(values.shape[1]) + .5, column_labels, rotation=40, ha="right", fontsize=fontsize)
-    ax.set_yticks(np.arange(values.shape[0]) + .5, [MODEL_LABELS[m] for m in row_models], fontsize=fontsize)
+    ax.set_xticks(np.arange(values.shape[1]) + .5, column_labels, rotation=40, ha="right",
+                  fontsize=style["tick_fs"])
+    ax.set_yticks(np.arange(values.shape[0]) + .5, [MODEL_LABELS[m] for m in row_models],
+                  fontsize=style["tick_fs"])
     ax.tick_params(length=0, pad=5)
-    title_options = {"y": 1.075, "pad": 6} if model_columns else {"pad": 12}
-    set_title(ax, title, fontsize=12, **title_options)
+    set_title(ax, letter, fontsize=style["title_fs"], y=1.12 if model_columns else 1.02)
     for row, col in np.ndindex(array.shape):
         value = array[row, col]
         label = f"{100 * value:.1f}" if np.isfinite(value) else "—"
-        ax.text(col + .5, row + .5, label, ha="center", va="center", fontsize=fontsize - .5)
+        ax.text(col + .5, row + .5, label, ha="center", va="center", fontsize=style["annot_fs"])
     llm_count = sum(m not in ENCODER_MODELS for m in row_models)
     if 0 < llm_count < len(row_models):
         ax.axhline(llm_count, color=palette("navy"), lw=1.6, linestyle="--")
@@ -242,9 +244,9 @@ def _draw_matrix(ax, values, *, title, row_models, column_labels, model_columns=
     return image
 
 
-def _save_publication_figure(fig, figure_dir, stem, *, show_figures):
+def _save_publication_figure(fig, figure_dir, stem, *, show_figures, caption=None):
     import matplotlib.pyplot as plt
-    from .shared_style import PNG_DPI, finalize_figure
+    from .shared_style import PNG_DPI, display_figure, finalize_figure
     finalize_figure(fig)
     figure_dir = Path(figure_dir)
     figure_dir.mkdir(parents=True, exist_ok=True)
@@ -254,8 +256,7 @@ def _save_publication_figure(fig, figure_dir, stem, *, show_figures):
         fig.savefig(path, dpi=PNG_DPI, bbox_inches="tight", facecolor="white")
         paths.append(path)
     if show_figures:
-        from IPython.display import display
-        display(fig)
+        display_figure(fig, paths, caption)
     plt.close(fig)
     return paths
 
@@ -263,38 +264,43 @@ def _save_publication_figure(fig, figure_dir, stem, *, show_figures):
 def _render_performance(summary, figure_dir, *, n_papers, n_positive, show_figures=True):
     import matplotlib.pyplot as plt
     from matplotlib.ticker import PercentFormatter
-    from .shared_style import apply_typography
-    apply_typography()
+    from .shared_style import load_style
+    from .data_analysis_00_figures import format_heatmap_colorbar, heatmap_limits
+    style = load_style("00_dataset")
     models = [m for m in MODEL_NAMES if m in set(summary["model"])]
     prompts = [p for p, _ in PROMPTS]
     labels = ["Conservative", "Balanced", "Evidence cues", "Context", "One-shot", "Five-shot"]
     fig, axes = plt.subplots(2, 2, figsize=(14.8, 10.6))
-    for index, (ax, metric, title) in enumerate(zip(axes.ravel(),
-            ("accuracy", "precision", "recall", "f1"), ("Accuracy", "Precision", "Recall", "F1 score"))):
+    for index, (ax, metric) in enumerate(zip(axes.ravel(), ("accuracy", "precision", "recall", "f1"))):
         values = summary.pivot(index="model", columns="prompt", values=metric).reindex(index=models, columns=prompts)
-        image = _draw_matrix(ax, values, title=f"{chr(65 + index)}  {title}",
-                             row_models=models, column_labels=labels, fontsize=10)
+        image = _draw_matrix(ax, values, letter=chr(65 + index),
+                             row_models=models, column_labels=labels)
     fig.subplots_adjust(left=.12, right=.9, bottom=.21, top=.94, wspace=.43, hspace=.50)
+    limits = heatmap_limits(*(ax.collections[0].get_array() for ax in axes.flat))
+    for ax in axes.flat:
+        ax.collections[0].set_clim(*limits)
     cbar = fig.colorbar(image, cax=fig.add_axes([.93, .33, .012, .50]), format=PercentFormatter(1))
-    cbar.set_label("Performance among parsed predictions", fontsize=10)
+    format_heatmap_colorbar(cbar, "Performance among parsed predictions", style)
     parse = pd.to_numeric(summary["parse_rate"], errors="coerce").dropna()
     coverage = f"{100 * parse.min():.1f}–{100 * parse.max():.1f}%" if len(parse) else "unavailable"
     fig.text(.12, .072,
              f"Evaluation: {n_papers:,} papers ({n_positive:,} positive; {n_papers - n_positive:,} negative), 2013–2025. "
              f"Parse coverage: {coverage}.\n"
              "* Encoder baselines: thresholds optimised on these labels (in-sample); not held-out validation.",
-             ha="left", va="bottom", fontsize=10, linespacing=1.6)
-    return _save_publication_figure(fig, figure_dir, PERFORMANCE_STEM, show_figures=show_figures)
+             ha="left", va="bottom", fontsize=style["annot_fs"], linespacing=1.6)
+    return _save_publication_figure(fig, figure_dir, PERFORMANCE_STEM, show_figures=show_figures,
+                                    caption=PERFORMANCE_CAPTION)
 
 
 def _render_agreement(agreements, figure_dir, *, comparison_counts=None, n_papers=None, show_figures=True):
     import matplotlib.pyplot as plt
     from matplotlib.ticker import PercentFormatter
-    from .shared_style import apply_typography
-    apply_typography()
+    from .shared_style import load_style
+    from .data_analysis_00_figures import format_heatmap_colorbar, heatmap_limits
+    style = load_style("00_dataset")
     models = [m for m in MODEL_NAMES if any(m in frame.index for frame in agreements.values())]
     fig, axes = plt.subplots(2, 3, figsize=(17, 11.5))
-    for index, (ax, (prompt, title)) in enumerate(zip(axes.ravel(), PROMPTS)):
+    for index, (ax, (prompt, _)) in enumerate(zip(axes.ravel(), PROMPTS)):
         values = agreements[prompt].reindex(index=models, columns=models)
         if comparison_counts is not None:
             counts = comparison_counts[prompt].reindex(index=models, columns=models).fillna(0)
@@ -307,18 +313,22 @@ def _render_agreement(agreements, figure_dir, *, comparison_counts=None, n_paper
                 note = f"Paired predictions: n = {number}{suffix} papers"
             else:
                 note = "No paired predictions available"
-            ax.text(0, 1.013, note, transform=ax.transAxes, ha="left", va="bottom", fontsize=8.5)
-        image = _draw_matrix(ax, values, title=f"{chr(65 + index)}  {title}", row_models=models,
-                             column_labels=[MODEL_LABELS[m] for m in models], model_columns=True, fontsize=8.5)
+            ax.text(0, 1.013, note, transform=ax.transAxes, ha="left", va="bottom", fontsize=style["annot_fs"])
+        image = _draw_matrix(ax, values, letter=chr(65 + index), row_models=models,
+                             column_labels=[MODEL_LABELS[m] for m in models], model_columns=True)
     fig.subplots_adjust(left=.10, right=.915, bottom=.20, top=.935, wspace=.47, hspace=.67)
     cax = fig.add_axes([.944, .31, .012, .49])
+    limits = heatmap_limits(*(ax.collections[0].get_array() for ax in axes.flat))
+    for ax in axes.flat:
+        ax.collections[0].set_clim(*limits)
     cbar = fig.colorbar(image, cax=cax, format=PercentFormatter(1))
-    cbar.set_label("Pairwise agreement")
+    format_heatmap_colorbar(cbar, "Pairwise agreement", style)
     fig.text(.10, .07,
              "Cell percentages use papers with two parsed predictions; exact paired counts are provided in the CSV tables.\n"
              "* Encoder baselines use thresholds optimised on the evaluation labels (in-sample); not held-out validation.",
-             ha="left", va="bottom", fontsize=10, linespacing=1.6)
-    return _save_publication_figure(fig, figure_dir, AGREEMENT_STEM, show_figures=show_figures)
+             ha="left", va="bottom", fontsize=style["annot_fs"], linespacing=1.6)
+    return _save_publication_figure(fig, figure_dir, AGREEMENT_STEM, show_figures=show_figures,
+                                    caption=CAPTION)
 
 
 def run_validation(output_dir=None, *, positive_csv=None, negative_csv=None,
@@ -432,10 +442,8 @@ def run_validation(output_dir=None, *, positive_csv=None, negative_csv=None,
     files.extend(figure_files)
     cohort_note = (f" Evaluation contains {len(reference):,} papers ({positives:,} positive and "
                    f"{negatives:,} negative), published during 2013–2025.")
-    for stem, caption in ((PERFORMANCE_STEM, PERFORMANCE_CAPTION), (AGREEMENT_STEM, CAPTION)):
-        caption_path = figures / f"{stem}_caption.txt"
-        caption_path.write_text(caption + cohort_note + "\n")
-        files.append(caption_path)
+    figure_captions = {PERFORMANCE_STEM: PERFORMANCE_CAPTION + cohort_note,
+                       AGREEMENT_STEM: CAPTION + cohort_note}
     action = "reused" if reused_predictions else "generated"
     reason = "Reused saved predictions" if reused_predictions else "Generated predictions by explicit inference"
     print(f"[PASS] Validation: {action} six prediction tables; {len(reference):,} papers, {len(summary)} model/prompt results.")
@@ -443,6 +451,7 @@ def run_validation(output_dir=None, *, positive_csv=None, negative_csv=None,
     for entry in availability["figure_status"]:
         entry.update(status="PASS", detail=f"Rendered from six verified prediction tables ({len(reference):,} papers, 2013–2025).")
     return {"status": "PASS", "reason": reason, "files": files, "figure_files": figure_files,
+            "figure_captions": figure_captions,
             "n_papers": len(reference), "summary": summary, "ranked": ranked, **availability}
 
 

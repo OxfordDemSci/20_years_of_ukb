@@ -52,6 +52,20 @@ class ContentFigureTests(unittest.TestCase):
         self.assertEqual(last.effective_categories, 1)
         self.assertEqual(last.coverage_pct, 100)
 
+    def test_leading_change_table_has_ten_fields_independent_of_plot_selection(self):
+        fields = [f'Field {i}' for i in range(12)]
+        weights = pd.DataFrame([range(1, 13)] * len(panels.FLOW_YEARS),
+                               index=panels.FLOW_YEARS, columns=fields)
+        share = weights.div(weights.sum(axis=1), axis=0) * 100
+        block = {'weights': weights, 'share': share, 'keep': fields[-8:]}
+        table = panels.leading_category_change_table(block)
+        self.assertEqual(len(table), 10)
+        self.assertEqual(set(table.index), set(fields[2:]))
+        self.assertEqual(table.shape[1], 6)
+        self.assertEqual(table.loc['Field 11', 'rank_2025'], 1)
+        self.assertEqual(block['keep'], fields[-8:])
+        self.assertEqual(len(panels.leading_category_change_table(block, n=20)), 12)
+
     def test_unknown_early_rank_is_not_filled_with_zero(self):
         D = self.fixture()
         change = panels.category_change_table(D)
@@ -117,11 +131,38 @@ class ContentFigureTests(unittest.TestCase):
         self.assertGreater(C.get_position().width, A.get_position().width)
         self.assertEqual(block['share'].loc[2024, 'T1: X'], 50)
         self.assertIn('75.0%', C.texts[0].get_text())
-        self.assertTrue(A.get_title(loc='left').startswith('A  '))
+        self.assertEqual([ax.get_title(loc='left') for ax in (A, B, C)], list('ABC'))
+        self.assertEqual(A.get_legend()._ncols, 3)
+        self.assertEqual(B.get_legend()._ncols, 3)
+        self.assertEqual(panels.OTHER_COLOR, '#FFFFFF')
+        self.assertIn('Fields of Research', A.get_ylabel())
+        self.assertIn('RCDC', B.get_ylabel())
         finalize_figure(fig)
         fig.canvas.draw()
         self.assertFalse(C._left_title.get_window_extent().overlaps(
             C.texts[0].get_window_extent()))
+
+    def test_category_heatmap_headings_are_letters_only(self):
+        fig = panels.figure_si_category_changes(self.fixture(), save=False)
+        finalize_figure(fig)
+        fig.canvas.draw()
+        self.assertEqual([ax.get_title(loc='left') for ax in fig.axes], ['A', 'B'])
+        self.assertTrue(all(not ax.get_title() and not ax.get_title(loc='right')
+                            for ax in fig.axes))
+        self.assertIn('Fields of Research', fig.axes[0].get_ylabel())
+        self.assertIn('RCDC', fig.axes[1].get_ylabel())
+
+    def test_coverage_uses_letter_headings_and_large_shared_legend(self):
+        fig = panels.figure_si_breadth_coverage(self.fixture(), save=False)
+        finalize_figure(fig)
+        fig.canvas.draw()
+        self.assertEqual([ax.get_title(loc='left') for ax in fig.axes], list('ABCD'))
+        legend = fig.legends[0]
+        self.assertEqual(legend._ncols, len(legend.get_texts()))
+        self.assertGreaterEqual(legend.get_texts()[0].get_fontsize(), 14)
+        self.assertEqual(legend.get_frame().get_edgecolor(), (0, 0, 0, 1))
+        self.assertTrue(all(not legend.get_window_extent().overlaps(ax.get_tightbbox())
+                            for ax in fig.axes))
 
     def test_supplement_tables_preserve_complete_distributions(self):
         D = self.fixture()

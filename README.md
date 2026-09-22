@@ -46,8 +46,10 @@ Figures are saved under `output/figures/`, including patent figures in
 The legacy root `fig/` directory has been retired; use `FIG_PATENT`, `FIG_GEOGRAPHY`,
 and `FIG_NETWORK` from `utils.shared_paths` for these outputs. All notebook PNG exports use
 500 dpi, enforced by `PNG_DPI` in `src/utils/shared_style.py`; inline display resolution
-is configured separately. All figures use Helvetica; titles are uppercase, bold and
-left-aligned through the shared typography helpers. Rerun a notebook to regenerate
+is configured separately. All figures use Helvetica; panel headings contain only bold,
+left-aligned letters (A, B, C, ...), with no descriptive or figure-wide titles.
+Put descriptions in axis labels, legends or notebook captions. The shared title,
+display and export helpers enforce this policy. Rerun a notebook to regenerate
 existing figures with these settings.
 
 Main-paper figure numbers follow the manuscript rather than analysis execution order.

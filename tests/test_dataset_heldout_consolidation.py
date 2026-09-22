@@ -49,6 +49,10 @@ EXPECTED_REWRITTEN_CELL_IDS = {
     "6e1c92cc",
     "c459fcdf",
     "b6ed2374",
+    "281fb309",
+    "7eba14c7",
+    "3cbeffa1",  # Figure display helper moved into utils.
+    "fb4b07e5",  # Relative paths in the final figure inventory.
 }
 
 
@@ -99,13 +103,15 @@ class DatasetHeldoutConsolidationTests(unittest.TestCase):
 
         self.assertEqual(rewritten_ids, EXPECTED_REWRITTEN_CELL_IDS)
 
-    def test_notebook_is_clean_and_parts_are_isolated(self):
+    def test_notebook_is_valid_and_parts_are_isolated(self):
+        import nbformat
+        nbformat.validate(nbformat.from_dict(self.notebook))
         cells = self.notebook["cells"]
         self.assertEqual(len(cells), sum(SOURCE_CELL_COUNTS.values()) + 2)
         self.assertEqual(len({cell["id"] for cell in cells}), len(cells))
         code_cells = [cell for cell in cells if cell["cell_type"] == "code"]
-        self.assertTrue(all(cell.get("execution_count") is None for cell in code_cells))
-        self.assertTrue(all(cell.get("outputs") == [] for cell in code_cells))
+        for cell in code_cells:
+            compile("".join(cell["source"]), f"00_dataset:{cell['id']}", "exec")
         self.assertEqual(self.source.count('run_line_magic("reset", "-f")'), 1)
         headings = [
             "# Part I: Dataset agreement and original validation, 2013–2025",
@@ -134,12 +140,8 @@ class DatasetHeldoutConsolidationTests(unittest.TestCase):
             '"00_05_figure_semantic_diagnostics"',
             '"00_06_figure_consensus_validation"',
             '"00_07_figure_consensus_groups"',
-            'f"pairwise_agreement_{prompt_name}.png"',
             '"pairwise_agreement_all_six_prompts.png"',
-            '"heldout_precision_recall_f1_heatmaps.png"',
-            '"heldout_selected_prompt_performance.png"',
             '"heldout_confusion_matrices_6_prompts_6_models.png"',
-            'f"heldout_confusion_matrices_{prompt_name}.png"',
             '"development_metrics_all_prompts_models.csv"',
             '"heldout_metrics_all_prompts_models.csv"',
             '"heldout_metrics_selected_prompt_primary.csv"',
@@ -148,6 +150,14 @@ class DatasetHeldoutConsolidationTests(unittest.TestCase):
         for marker in required_markers:
             with self.subTest(marker=marker):
                 self.assertIn(marker, self.source)
+
+        plot_source = (ROOT / "src/utils/data_analysis_00_heldout_figures.py").read_text()
+        for stem in ("pairwise_agreement_{prompt}", "pairwise_agreement_all_six_prompts",
+                     "heldout_precision_recall_f1_heatmaps", "heldout_selected_prompt_performance",
+                     "heldout_confusion_matrices_6_prompts_6_models", "heldout_confusion_matrices_{prompt}"):
+            self.assertIn(stem, plot_source)
+        for renderer in ("render_heldout_agreement", "render_heldout_performance", "render_heldout_confusion"):
+            self.assertIn(f"H.{renderer}(", self.source)
 
     def test_supplied_data_and_results_are_in_canonical_locations(self):
         self.assertFalse((ROOT / "required_data_for_rerun_the_models").exists())

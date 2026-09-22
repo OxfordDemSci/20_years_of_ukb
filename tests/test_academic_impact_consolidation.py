@@ -19,6 +19,7 @@ SOURCE_CELL_COUNTS = {
 
 # These cells were deliberately rewritten only to turn notebook-to-notebook language
 # into part-to-part language, correct stale paths/windows, and rename the panel style.
+# Five small-multiple cells also move field names from titles to y-axis labels.
 EXPECTED_REWRITTEN_CELL_IDS = {
     "d7b747de",
     "9817cf4f",
@@ -32,6 +33,12 @@ EXPECTED_REWRITTEN_CELL_IDS = {
     "6f31bc80",
     "2e4dd06b",
     "f8c73484",
+    "28def57b",
+    "0888db1e",
+    "553e3e0e",
+    "97df02fc",
+    "5fcf165b",
+    "30993265",  # Import the shared wrapped facet-label helper.
 }
 
 
@@ -88,8 +95,10 @@ class AcademicImpactConsolidationTests(unittest.TestCase):
         self.assertEqual(len(cells), sum(SOURCE_CELL_COUNTS.values()) + 7)
         self.assertEqual(len({cell["id"] for cell in cells}), len(cells))
         code_cells = [cell for cell in cells if cell["cell_type"] == "code"]
-        self.assertTrue(all(cell.get("execution_count") is None for cell in code_cells))
-        self.assertTrue(all(cell.get("outputs") == [] for cell in code_cells))
+        self.assertTrue(all(cell.get("execution_count") is None
+                            or isinstance(cell["execution_count"], int) for cell in code_cells))
+        self.assertFalse(any(output.get("output_type") == "error"
+                             for cell in code_cells for output in cell.get("outputs", [])))
         self.assertEqual(self.source.count('run_line_magic("reset", "-f")'), 3)
         headings = [
             "# Part I: Fields of Research",

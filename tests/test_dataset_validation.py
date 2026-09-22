@@ -193,7 +193,9 @@ class ValidationReuseTests(unittest.TestCase):
             result = validation.run_validation(self.output, figure_dir=self.figures, show_figures=False)
         self.assertEqual(result["figure_files"], current)
         self.assertNotIn(self.figures / "stale_heatmap.png", result["files"])
-        self.assertEqual(len(list(self.figures.glob("*_caption.txt"))), 2)
+        self.assertFalse(list(self.figures.glob("*_caption.txt")))
+        self.assertEqual(set(result["figure_captions"]),
+                         {validation.PERFORMANCE_STEM, validation.AGREEMENT_STEM})
         self.assertFalse(list(self.output.glob("*_caption.txt")))
 
     def test_explicit_inference_reports_generated_predictions(self):
@@ -246,7 +248,7 @@ class ValidationFigureTests(unittest.TestCase):
         self.assertEqual(int(np.ma.getmaskarray(array).sum()), 2)
         self.assertEqual(sum(t.get_text() == "—" for t in ax.texts), 2)
         self.assertEqual([t.get_text() for t in ax.get_yticklabels()], ["Qwen2.5-7B", "MiniLM*"])
-        self.assertEqual(ax.collections[0].get_clim(), (0, 1))
+        np.testing.assert_allclose(ax.collections[0].get_clim(), (1 - 1e-6, 1 + 1e-6))
         self.assertIn("n = 10 / 10 papers", ax.texts[0].get_text())
         self.assertIn("in-sample", fig.texts[0].get_text())
         from utils.shared_style import finalize_figure
@@ -268,9 +270,9 @@ class ValidationFigureTests(unittest.TestCase):
                                            n_positive=10, show_figures=False)
         fig = captured[0]
         self.assertEqual([a.get_title(loc="left") for a in fig.axes[:4]],
-                         ["A  ACCURACY", "B  PRECISION", "C  RECALL", "D  F1 SCORE"])
+                         ["A", "B", "C", "D"])
         for ax in fig.axes[:4]:
-            self.assertEqual(ax.collections[0].get_clim(), (0, 1))
+            self.assertEqual(ax.collections[0].get_clim(), (.7, .9))
             self.assertEqual(int(np.ma.getmaskarray(ax.collections[0].get_array()).sum()), 1)
         self.assertIn("99.0–99.0%", fig.texts[0].get_text())
         plt.close(fig)

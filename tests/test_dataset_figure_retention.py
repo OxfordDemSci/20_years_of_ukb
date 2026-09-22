@@ -100,12 +100,14 @@ class DatasetFigureRetentionTests(unittest.TestCase):
         sample = pd.DataFrame({"binary_split": [F.TRUE_GROUP, F.REST_GROUP]})
         for complete in (False, True):
             with self.subTest(complete=complete), tempfile.TemporaryDirectory() as directory:
+                captions = {}
                 with patch("matplotlib.figure.Figure.savefig") as save:
                     files = F.render_agreement_figures(
                         model_summary=models, vote_distribution=votes, agreement_matrix=agreement,
                         yearly=yearly, category_summary=categories, tfidf_terms=terms, tfidf_data=sample,
                         group_distribution=groups, semantic_data=semantics if complete else None,
-                        semantic_metrics=metrics if complete else None, figure_dir=directory, show_figures=False)
+                        semantic_metrics=metrics if complete else None, figure_dir=directory,
+                        show_figures=False, captions=captions)
                 stems = {path.stem for path in files}
                 self.assertIn("00_01_figure_candidate_agreement", stems)
                 self.assertIn("00_02_figure_candidate_text", stems)
@@ -114,8 +116,9 @@ class DatasetFigureRetentionTests(unittest.TestCase):
                 suffix = "" if complete else "_incomplete"
                 stem = "00_06_figure_consensus_validation" + suffix
                 self.assertIn(stem, stems)
-                caption = (Path(directory) / f"{stem}_caption.txt").read_text()
+                caption = captions[stem]
                 self.assertIn("test embeddings" if complete else "incomplete", caption)
+                self.assertFalse(list(Path(directory).glob("*_caption.txt")))
                 self.assertTrue(all(call.kwargs["dpi"] == 500 for call in save.call_args_list))
                 self.assertEqual({path.suffix for path in files}, {".png", ".pdf"})
 

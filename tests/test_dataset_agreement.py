@@ -105,7 +105,8 @@ class DatasetAgreementTests(unittest.TestCase):
             ])
             self.assertEqual(savefig.call_count, 8)
             self.assertTrue(all(call.kwargs["dpi"] == 500 for call in savefig.call_args_list))
-            self.assertEqual(len(list((folder / "figures").glob("*_caption.txt"))), 4)
+            self.assertFalse(list((folder / "figures").glob("*_caption.txt")))
+            self.assertEqual(len(result["figure_captions"]), 4)
             self.assertEqual(set(result["table_frames"]), {
                 "overview", "model_summary", "vote_distribution", "group_distribution",
                 "signature_distribution", "pairwise_agreement", "yearly", "explicit_summary",

@@ -293,14 +293,7 @@ def style_plotly_figure(fig):
         "title": {"font": {"family": "Helvetica"}},
         "tickfont": {"family": "Helvetica"},
     })
-    title = fig.layout.title.text
-    if title:
-        fig.update_layout(title={
-            "text": f"<b>{str(title).upper()}</b>",
-            "font": {"family": "Helvetica"},
-            "x": 0.01,
-            "xanchor": "left",
-        })
+    fig.update_layout(title={"text": ""})
     return fig
 
 

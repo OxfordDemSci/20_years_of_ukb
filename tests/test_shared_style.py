@@ -5,6 +5,86 @@ from matplotlib.colors import to_hex
 from utils import shared_style
 
 
+@pytest.mark.parametrize('text,expected', [
+    ('A', 'A'), ('b.', 'B'), ('(c)', 'C'),
+    ('A  Classification coverage', 'A'), ('d. Clinical trials', 'D'),
+    ('B: Category diversity', 'B'), ('A title', 'A'),
+    ('Annual growth', ''), ('RCDC categories', ''), ('', ''),
+])
+def test_panel_titles_contain_only_explicit_letters(text, expected):
+    assert shared_style.panel_title_letter(text) == expected
+
+
+def test_facet_ylabel_wraps_without_dropping_field_names():
+    fig, ax = plt.subplots()
+    try:
+        label = 'Cardiovascular Medicine and Haematology'
+        shared_style.facet_ylabel(ax, label)
+        assert '\n' in ax.get_ylabel()
+        assert ax.get_ylabel().replace('\n', ' ') == label
+    finally:
+        plt.close(fig)
+
+
+def test_title_helpers_keep_panel_letters_and_drop_prose():
+    fig, ax = plt.subplots()
+    try:
+        shared_style.set_title(ax, 'B  Research categories', fontsize=20)
+        assert ax.get_title(loc='left') == 'B'
+        shared_style.set_title(ax, 'Legacy helper description', fontsize=9)
+        assert ax.get_title(loc='left') == 'B'
+        assert ax._left_title.get_fontsize() == 20
+        shared_style.set_figure_title(fig, 'Overall descriptive heading')
+        assert fig._suptitle.get_text() == ''
+        shared_style.set_title(ax, '')
+        assert ax.get_title(loc='left') == ''
+    finally:
+        plt.close(fig)
+
+
+def test_finalization_catches_native_and_inset_titles_without_changing_labels():
+    fig, ax = plt.subplots()
+    try:
+        ax.set_title('A  Coverage', loc='left')
+        ax.set_title('Legacy centre title', loc='center')
+        ax.set_title('Legacy right title', loc='right')
+        inset = ax.inset_axes([.2, .2, .3, .3])
+        inset.set_title('Inset description')
+        fig.suptitle('Figure-wide heading')
+        ax.set_ylabel('Publications classified (%)')
+        note = ax.text(.5, .5, 'Keep data annotations')
+        shared_style.finalize_figure(fig)
+        shared_style.finalize_figure(fig)
+        assert ax.get_title(loc='left') == 'A'
+        assert not ax.get_title(loc='center')
+        assert not ax.get_title(loc='right')
+        assert not inset.get_title(loc='left')
+        assert not fig._suptitle.get_text()
+        assert ax.get_ylabel() == 'Publications classified (%)'
+        assert note.get_text() == 'Keep data annotations'
+    finally:
+        plt.close(fig)
+
+
+def test_display_figure_posts_relative_paths_then_caption_below_figure(monkeypatch, capsys):
+    import IPython.display
+    from utils import shared_paths as P
+    events = []
+    monkeypatch.setattr(IPython.display, "display",
+                        lambda obj: events.append((obj, capsys.readouterr().out)))
+    fig = plt.figure()
+    try:
+        paths = [P.ROOT / "output/figures/example.png", P.ROOT / "output/figures/example.pdf"]
+        shared_style.display_figure(fig, paths, "A, Example caption.")
+        assert events[0] == (fig, "")
+        assert events[1][0].data == "A, Example caption."
+        assert "output/figures/example.png" in events[1][1]
+        assert "output/figures/example.pdf" in events[1][1]
+        assert str(P.ROOT) not in events[1][1]
+    finally:
+        plt.close(fig)
+
+
 def test_marker_helpers_apply_configured_scale():
     style = {"marker_size": 9.5, "dot_marker_area": 92}
 

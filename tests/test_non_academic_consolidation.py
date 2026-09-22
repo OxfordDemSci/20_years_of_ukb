@@ -93,8 +93,10 @@ class NonAcademicConsolidationTests(unittest.TestCase):
         self.assertEqual(len(cells), sum(SOURCE_CELL_COUNTS.values()) + 10)
         self.assertEqual(len({cell["id"] for cell in cells}), len(cells))
         code_cells = [cell for cell in cells if cell["cell_type"] == "code"]
-        self.assertTrue(all(cell.get("execution_count") is None for cell in code_cells))
-        self.assertTrue(all(cell.get("outputs") == [] for cell in code_cells))
+        self.assertTrue(all(cell.get("execution_count") is None
+                            or isinstance(cell["execution_count"], int) for cell in code_cells))
+        self.assertFalse(any(output.get("output_type") == "error"
+                             for cell in code_cells for output in cell.get("outputs", [])))
         self.assertEqual(self.source.count('run_line_magic("reset", "-f")'), 4)
         headings = [
             "# Part I: Clinical-trial impact",

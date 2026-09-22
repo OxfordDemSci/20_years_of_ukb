@@ -69,6 +69,8 @@ style:
   notebooks:
 
     00_dataset:
+      title_fs: 20
+      colorbar_label_fs: 16
       colors: ["#E66859", "#FEE7BA", "#75BBD4", "#74ADD1", "#416FA0", "#274668", "#74D1AF"]
       save: true
       formats: [pdf, png]
@@ -202,13 +204,13 @@ style:
       # One content-analysis notebook; shared project palette and publication exports.
       colors: ["#E66859", "#FEE7BA", "#75BBD4", "#74ADD1",
                "#416FA0", "#274668", "#74D1AF"]
-      title_fs: 15
-      label_fs: 12
-      tick_fs: 10
-      annot_fs: 9
-      legend_fs: 10
+      title_fs: 20
+      label_fs: 13
+      tick_fs: 11
+      annot_fs: 10
+      legend_fs: 11
       body_fs: 11
-      panel_label_fs: 18
+      panel_label_fs: 20
       fs_scale:
         main: 1.0
         si1_rank_flow: 1.0

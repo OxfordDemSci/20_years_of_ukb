@@ -177,6 +177,15 @@ def _flow_block(long, cat_col, key, n_total=None, *, view_note="") -> dict:
     }
 
 
+def leading_category_change_table(block, n=10):
+    """Endpoint changes for leading categories, independent of the plotted bands."""
+    if n < 1:
+        raise ValueError("n must be positive")
+    totals = block["weights"].sum(axis=0, min_count=1).dropna()
+    keep = totals.sort_values(ascending=False, kind="stable").head(n).index
+    return start_end_table(block["share"], keep)
+
+
 def start_end_table(share, keep):
     """Start-year vs end-year share and rank for the drawn bands (§6/§7's own table)."""
     y0, y1 = FLOW_YEARS[0], FLOW_YEARS[-1]
@@ -422,11 +431,11 @@ from matplotlib.patches import Patch
 from matplotlib.ticker import MaxNLocator, PercentFormatter
 
 from utils.shared_style import (
-    PALETTE, blue_cream_red_colormap, extended_palette, grid_on,
-    palette, savefig, set_title,
+    PALETTE, black_legend, blue_cream_red_colormap, extended_palette, grid_on,
+    palette, panel_label, savefig, set_title,
 )
 
-OTHER_COLOR = "#DCDCDC"
+OTHER_COLOR = "#FFFFFF"
 VOCABULARY_COLORS = {"for": palette("navy"), "rcdc": palette("red"),
                      "topics": palette("steel_blue")}
 VOCABULARY_LABELS = {"for": "FOR Level 4", "rcdc": "RCDC", "topics": "BERTopic"}
@@ -460,7 +469,7 @@ def _years(ax, *, every=3):
 
 
 def _heading(ax, letter, title):
-    set_title(ax, f"{letter}  {title}", fontsize=_style()["title_fs"], pad=20)
+    panel_label(ax, letter, _style())
 
 
 def _short_label(text, limit=46):
@@ -526,17 +535,17 @@ def draw_share_stream(ax, block, title, *, label_min=None, callout_gap=None,
     ax.set_ylim(0, 100)
     ax.set_yticks([0, 25, 50, 75, 100])
     ax.yaxis.set_major_formatter(PercentFormatter(100, decimals=0))
-    ax.set_ylabel("Share of field assignments" if block["weight"] == "n_papers"
-                  else "Share of fractional paper credit")
+    measure = ("Share of field assignments" if block["weight"] == "n_papers"
+               else "Share of fractional paper credit")
+    ax.set_ylabel(f"{title}\n{measure}")
     handles = []
     for color, label in zip(colors, band.columns):
         name = f"Other ({block['n_other']} categories)" if label == OTHER_LABEL else label
         handles.append(Patch(facecolor=color, edgecolor=palette("navy"), linewidth=.4,
-                             label=_legend_label(name)))
-    ax.legend(handles=handles, loc="upper left", bbox_to_anchor=(-.015, -.20),
-              ncol=2, frameon=False, borderaxespad=0, handlelength=1.25,
-              columnspacing=1.4, labelspacing=.40, fontsize=_style()["legend_fs"])
-    set_title(ax, title, fontsize=_style()["title_fs"], pad=20)
+                             label=_legend_label(name, width=22)))
+    black_legend(ax, _style(), handles=handles, loc="upper left", bbox_to_anchor=(0, -.20),
+                 ncol=3, borderaxespad=0, handlelength=1.25,
+                 columnspacing=.9, labelspacing=.40, fontsize=_style()["legend_fs"])
     return ax
 
 
@@ -565,16 +574,15 @@ def draw_topic_stream(ax, D):
     _years(ax)
     ax.set_yticks([])
     ax.spines["left"].set_visible(False)
-    ax.set_ylabel("Relative topic prominence")
+    ax.set_ylabel("BERTopic thematic waves\nRelative topic prominence")
     grid_on(ax, axis="x", which="major", linestyle="--", alpha=.3)
     legend_labels = _topic_legend_labels(block["share"].columns)
     handles = [Patch(facecolor=color, edgecolor=palette("navy"), linewidth=.4,
                      label=legend_labels[label])
                for color, label in zip(colors, keep)]
-    ax.legend(handles=handles, loc="center left", bbox_to_anchor=(1.025, .5),
-              frameon=False, borderaxespad=0, handlelength=1.3,
+    black_legend(ax, _style(), handles=handles, loc="center left", bbox_to_anchor=(1.025, .5),
+              borderaxespad=0, handlelength=1.3,
               labelspacing=.5, fontsize=_style()["legend_fs"])
-    set_title(ax, "Thematic waves", fontsize=_style()["title_fs"], pad=20)
     coverage = selected.sum(axis=1, min_count=1)
     noun = "assigned papers" if block.get("from_assignments") else "cached topic selection"
     ax.text(0, 1.01, f"{len(keep)} topics; {coverage.mean():.1f}% of {noun} per year on average",
@@ -606,7 +614,7 @@ def figure_main(D, save=True):
         _heading(ax, letter, title)
     # An explicit title position survives shared export finalisation and reserves
     # a separate line for the coverage annotation above the streamgraph.
-    set_title(ax_topic, "C  Thematic waves", fontsize=_style()["title_fs"], y=1.075)
+    set_title(ax_topic, "C", fontsize=_style()["title_fs"], y=1.075)
     fig.text(.075, .018, thin_years_note(D), ha="left", va="bottom",
              fontsize=_style()["annot_fs"], color="#555555")
     if save:
@@ -718,7 +726,9 @@ def draw_category_heatmap(ax, block, title, *, n_categories=12):
     cb.set_ticks(np.linspace(0, vmax, 5))
     cb.ax.set_yticklabels([f"{v:.1f}" for v in np.linspace(0, vmax, 5)])
     cb.outline.set_edgecolor(palette("navy"))
-    set_title(ax, title, fontsize=_style()["title_fs"], pad=18)
+    letter, description = title.split("  ", 1)
+    ax.set_ylabel(description)
+    panel_label(ax, letter, _style())
     return ax
 
 
@@ -765,7 +775,7 @@ def figure_si_coverage(D, save=True):
     )
     for ax, (metric, label, title) in zip(axes.flat, panels):
         _metric_lines(ax, metrics, metric, label)
-        set_title(ax, title, fontsize=_style()["title_fs"], pad=16)
+        panel_label(ax, title.split("  ", 1)[0], _style())
         if metric == "coverage_pct":
             ax.set_ylim(0, 105)
             ax.set_yticks([0, 25, 50, 75, 100])
@@ -773,8 +783,10 @@ def figure_si_coverage(D, save=True):
         else:
             ax.set_ylim(bottom=0)
     handles, labels = axes[0, 0].get_legend_handles_labels()
-    fig.legend(handles, labels, loc="lower center", bbox_to_anchor=(.53, .01),
-               ncol=len(handles), frameon=False, fontsize=_style()["legend_fs"])
+    black_legend(fig, _style(), handles=handles, labels=labels,
+                 loc="lower center", bbox_to_anchor=(.53, .01),
+                 ncol=len(handles), fontsize=_style()["legend_fs"] + 3,
+                 markerscale=1.5, handlelength=2.4, columnspacing=2.0)
     if save:
         savefig(fig, "02_03_supplementary_figure_02_coverage_and_breadth", formats=("pdf", "png"))
     return fig
@@ -843,7 +855,7 @@ def draw_rank_flow(ax, block, title):
     grid_on(ax, axis="y", which="major", linestyle="--", alpha=0.4)
     ax.set_axisbelow(True)
     ax.spines["left"].set_visible(False)
-    set_title(ax, title, fontsize=_style()["title_fs"], pad=16)
+    panel_label(ax, title.split("  ", 1)[0], _style())
     return ax
 
 
@@ -947,7 +959,7 @@ def figure_si_topic_robustness(D, save=True):
                     color=palette("red"), linewidth=2.4, zorder=4)
         ax.set_ylabel(ylabel)
         ax.yaxis.set_major_locator(MaxNLocator(5))
-        set_title(ax, title, fontsize=_style()["title_fs"], pad=16)
+        panel_label(ax, title.split("  ", 1)[0], _style())
 
     ax = axes[1, 0]
     configuration_axis(ax)
@@ -965,7 +977,7 @@ def figure_si_topic_robustness(D, save=True):
     ax.set_ylim(min(0, float(pairs[["ari", "nmi"]].min().min()) - .03), 1.03)
     ax.legend(loc="lower left", frameon=True, facecolor="white",
               edgecolor=palette("navy"), fontsize=_style()["legend_fs"] - 1)
-    set_title(ax, "C  Assignment stability", fontsize=_style()["title_fs"], pad=16)
+    panel_label(ax, "C", _style())
 
     ax = axes[1, 1]
     _axes(ax)
@@ -983,7 +995,7 @@ def figure_si_topic_robustness(D, save=True):
     ax.set_xlabel("HDBSCAN cluster size before outlier reassignment")
     ax.set_ylabel("Cluster persistence")
     ax.legend(loc="upper right", frameon=False, fontsize=_style()["legend_fs"] - 1)
-    set_title(ax, "D  Final-model cluster persistence", fontsize=_style()["title_fs"], pad=16)
+    panel_label(ax, "D", _style())
     fig.text(.085, .018, "Points in A–B: individual seeds; red bars: means. "
              "Cream shading: selected parameter setting. C includes all seed pairs.",
              fontsize=_style()["annot_fs"], color="#555555")
@@ -1002,11 +1014,11 @@ MAIN_CAPTION = {
     "A": f"Annual composition of UK Biobank research by Fields of Research 2020 Level 4, "
          f"{FLOW_MIN}–{FLOW_MAX}. Papers count once in each assigned field; percentages "
          "use all paper–field assignments in each year as the denominator. The eight "
-         "leading fields by total assignment count are shown separately; grey pools the remainder.",
+         "leading fields by total assignment count are shown separately; white pools the remainder.",
     "B": "Annual Research, Condition and Disease Categorisation (RCDC) composition. "
          "Each classified paper contributes a total weight of one, "
          "divided equally across its distinct tags. Shares are fractions of classified papers, "
-         "with the eight leading tags displayed separately and remaining tags pooled in grey.",
+         "with the eight leading tags displayed separately and remaining tags pooled in white.",
     "C": "Thematic waves from cached BERTopic assignments. Band thickness shows the annual shares of "
          "all topic-assigned publications attributable to the selected leading topics; the "
          "stream is centred for display, so vertical position carries no meaning. Topics "
