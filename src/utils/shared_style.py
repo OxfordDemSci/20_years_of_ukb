@@ -171,6 +171,10 @@ def set_title(ax, label, fontdict=None, **kwargs):
     """Set only a panel letter; descriptive prose belongs in labels or captions."""
     apply_typography()
     letter = panel_title_letter(label)
+    if str(label).strip() and not re.fullmatch(r"\(?[A-Za-z]\)?[.:]?", str(label).strip()):
+        description = re.sub(r"^\(?[A-Za-z]\)?[).:]?\s+", "", str(label).strip()) if letter else str(label).strip()
+        if len(description) > 1:
+            ax._ukb_description = description
     existing = panel_title_letter(ax.get_title(loc="left"))
     if not letter and str(label).strip() and existing:
         # A legacy drawing helper must not overwrite or shrink an existing letter.
@@ -205,6 +209,7 @@ def facet_ylabel(ax, label, *, width=26, **kwargs):
 def set_figure_title(fig, label, **kwargs):
     """Compatibility wrapper: manuscript figures have no figure-wide title."""
     apply_typography()
+    fig._ukb_description = str(label).strip()
     kwargs = _title_kwargs(kwargs)
     kwargs.pop("loc", None)  # Figure.suptitle uses x/ha rather than loc.
     kwargs["x"] = 0.01
@@ -650,7 +655,7 @@ def figure_export_formats(formats):
     return list(dict.fromkeys(ext for ext in normalized if ext in {"png", "pdf"})) or ["pdf"]
 
 
-def savefig(fig, name, style=None, formats=None, dpi=None, **kwargs):
+def savefig(fig, name, style=None, formats=None, dpi=None, caption=None, **kwargs):
     """Optionally persist a figure as PNG and/or PDF.
 
     `savedir` is anchored on the repo root when relative, so a figure lands in the same
@@ -660,6 +665,11 @@ def savefig(fig, name, style=None, formats=None, dpi=None, **kwargs):
     messages always use repository-relative paths.
     """
     style = _resolve(style)
+    from .shared_figure_captions import caption_for_name
+    if caption is not None:
+        fig._ukb_caption = caption
+    elif not getattr(fig, "_ukb_caption", None):
+        fig._ukb_caption = caption_for_name(name)
     finalize_figure(fig)
     if not style.get("save"):
         return []
@@ -679,11 +689,7 @@ def savefig(fig, name, style=None, formats=None, dpi=None, **kwargs):
             save_kwargs["dpi"] = PNG_DPI
         fig.savefig(dest, format=ext, **save_kwargs)
         saved.append(dest)
-        try:
-            shown = dest.relative_to(ROOT).as_posix()
-        except ValueError:
-            shown = dest.name
-        print("saved", shown)
+    fig._ukb_export_paths = list(dict.fromkeys([*getattr(fig, "_ukb_export_paths", []), *saved]))
     return saved
 
 
@@ -692,20 +698,46 @@ def save_figure(fig, name, style=None, **kwargs):
     return fig, savefig(fig, name, style=style, **kwargs)
 
 
+def save_figure_file(fig, path, **kwargs):
+    """Legacy explicit-path export with metadata for the unified notebook display."""
+    from .shared_figure_captions import caption_for_name
+    path = Path(path)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    finalize_figure(fig)
+    if path.suffix.lower() == ".png":
+        kwargs["dpi"] = PNG_DPI
+    fig.savefig(path, **kwargs)
+    fig._ukb_export_paths = list(dict.fromkeys([*getattr(fig, "_ukb_export_paths", []), path]))
+    if not getattr(fig, "_ukb_caption", None):
+        fig._ukb_caption = caption_for_name(path)
+    return path
+
+
 def display_figure(fig, paths=(), caption=None, *, width=1100):
     """Show a figure, repository-relative export paths, and an inline caption."""
     from IPython.display import Image, Markdown, display
     from .shared_paths import raw_path
+    from .shared_figure_captions import caption_for_name, suggest_caption
 
     if isinstance(fig, (str, Path)):
+        caption = caption or caption_for_name(fig) or "The plotted quantities and groups are identified by the figure labels and legend."
         display(Image(filename=str(fig), width=width))
     else:
+        paths = paths or getattr(fig, "_ukb_export_paths", [])
+        caption = caption or suggest_caption(fig)
         finalize_figure(fig)
         display(fig)
     for path in paths:
         print("Saved:", raw_path(path))
-    if caption:
-        display(Markdown(caption))
+    display(Markdown("**Suggested caption:** " + caption))
+
+
+def show_figures():
+    """Display open figures with paths and suggested captions, then close them."""
+    for number in plt.get_fignums():
+        fig = plt.figure(number)
+        display_figure(fig)
+        plt.close(fig)
 
 
 def render_figure(plotter, *args, registry=None, show=True, caption=None, **kwargs):

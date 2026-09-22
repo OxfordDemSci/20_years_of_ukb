@@ -52,6 +52,11 @@ Put descriptions in axis labels, legends or notebook captions. The shared title,
 display and export helpers enforce this policy. Rerun a notebook to regenerate
 existing figures with these settings.
 
+Display figures through `display_figure` or `show_figures` from `utils.shared_style`.
+Each figure is followed by its repository-relative export paths and a suggested
+caption in the notebook. Captions and methodological footnotes belong below the
+image, not in the exported artwork; caption text sidecars are not generated.
+
 Main-paper figure numbers follow the manuscript rather than analysis execution order.
 Their canonical stems are defined once in `utils.shared_paths.MAIN_FIGURE_STEMS`:
 
@@ -76,9 +81,10 @@ before the network and field-normalised citation analyses. Word export uses `pyt
 included in `requirements-analysis.txt`.
 
 The consolidated `src/data_analysis/02_content.ipynb` combines BERTopic and category
-composition. It exports one main figure (FOR L4 and RCDC above the topic waves), two
-classification supplements, a third topic-robustness supplement when verified diagnostics
-are available, source tables, captions and an artifact manifest. The previous
+composition. It exports one main figure (FOR L4 and RCDC above stacked topic shares),
+category-detail, coverage/breadth and rank-flow supplements, plus topic robustness when
+verified diagnostics are available. Source tables and artifact manifests are retained;
+suggested captions appear below the figures in the notebook. The previous
 two content notebooks are preserved under `_archived/` and do not run in the batch.
 
 Completed topic-result CSVs in `output/bertopic/` or registered legacy locations are
@@ -179,8 +185,9 @@ validation as two namespace-isolated parts. Exact pre-consolidation copies of bo
 source notebooks are preserved in `_archived/` and excluded from the batch. Run the
 complete analysis with `bash run_analysis_notebooks.sh --only 00_dataset`.
 
-The consolidated `02_content.ipynb` runs the topic/category analysis and the
-publication-panel workflow as two namespace-isolated parts. Exact pre-consolidation
+The consolidated `02_content.ipynb` builds the topic/category aggregates once and
+displays each distinct figure and summary table once. The publication-panel ledger,
+source tables and manifests reuse those same aggregates. Exact pre-consolidation
 copies of both source notebooks are preserved in `_archived/` and excluded from the
 batch. Run the complete content analysis with
 `bash run_analysis_notebooks.sh --only 02_content`.

@@ -1,4 +1,4 @@
-"""Publication tables, captions and provenance for the consolidated content notebook."""
+"""Publication tables and provenance for the consolidated content notebook."""
 
 from __future__ import annotations
 
@@ -7,10 +7,6 @@ import pandas as pd
 from utils import data_analysis_02_content_panels as panels
 from utils import shared_paths as P
 from utils.shared_analysis_window import ANALYSIS_END_DATE, ANALYSIS_START_DATE
-
-
-def _caption(title, parts):
-    return title + " " + " ".join(f"{letter}, {text}" for letter, text in parts.items()) + "\n"
 
 
 def export_content_tables(data, registry):
@@ -22,6 +18,7 @@ def export_content_tables(data, registry):
         "content_displayed_band_coverage.csv": panels.band_summary(data),
         "content_topic_labels.csv": panels.topic_label_table(data),
     }
+    tables.update(panel_source_tables(data))
     # Retain the convenient matrix exports consumed by existing manuscript workflows.
     for key, name in (("for", "for_l4"), ("rcdc", "rcdc"), ("topics", "bertopic")):
         block = data[key]
@@ -48,27 +45,6 @@ def export_content_tables(data, registry):
     for name, frame in tables.items():
         registry.save_table(frame, name)
     registry.save_text(
-        _caption("Figure 4 | Research composition and thematic evolution of UK Biobank publications.",
-                 panels.MAIN_CAPTION),
-        f"{P.MAIN_FIGURE_STEMS[4]}_caption.txt",
-    )
-    registry.save_text(
-        _caption("Annual composition of leading research fields and RCDC categories.",
-                 panels.SI_CAPTIONS["category_detail"]),
-        "02_02_supplementary_figure_01_category_composition_caption.txt",
-    )
-    registry.save_text(
-        _caption("Classification coverage and breadth of UK Biobank research.",
-                 panels.SI_CAPTIONS["coverage"]),
-        "02_03_supplementary_figure_02_coverage_and_breadth_caption.txt",
-    )
-    if diagnostics is not None:
-        registry.save_text(
-            _caption("Robustness and cluster persistence of the BERTopic analysis.",
-                     panels.SI_CAPTIONS["topic_robustness"]),
-            "02_04_supplementary_figure_03_topic_robustness_caption.txt",
-        )
-    registry.save_text(
         "The content analysis includes publications dated 1 January 2013 through "
         "31 December 2025, inclusive, from the canonical Showcase+ corpus. "
         "Missing dates may be resolved using publication year; contradictory or "
@@ -84,8 +60,8 @@ def export_content_tables(data, registry):
         "shown as missing, never as a zero-percent composition. "
         "Main-panel categories are selected reproducibly by total in-window weight; "
         "all categories, annual denominators, and the shares covered by the displayed "
-        "selection are exported. Topic waves are centred for display without "
-        "renormalising the selected topics to 100%; vertical position has no meaning. "
+        "selection are exported. Topic composition is stacked on a zero-based "
+        "percentage axis without renormalising the selected topics to 100%. "
         "Selected topics use concise display descriptors reviewed against their leading "
         "keywords and example publication titles; other topics retain keyword summaries. "
         "Full model labels, display labels and label sources are retained in the "
@@ -108,3 +84,37 @@ def export_content_tables(data, registry):
         "content_methods.txt",
     )
     return tables
+
+
+def panel_source_tables(data):
+    """Retain the panel ledger and matrix exports without a second analysis pass."""
+    rows = [{"figure": "main", "panel": letter, "caption": caption}
+            for letter, caption in panels.MAIN_CAPTION.items()]
+    rows += [{"figure": f"si_{section}", "panel": letter, "caption": caption}
+             for section, captions in panels.SI_CAPTIONS.items()
+             for letter, caption in captions.items()]
+    tables = {
+        "panel_band_rules.csv": panels.band_summary(data),
+        "panel_selection.csv": pd.DataFrame(rows),
+    }
+    for key, stem in (("topics", "topics"), ("for", "for_l4"), ("rcdc", "rcdc")):
+        block = data[key]
+        if not block["available"]:
+            continue
+        changes = (panels.leading_category_change_table(block, n=10) if key == "for"
+                   else panels.start_end_table(block["share"], block["keep"]))
+        tables[f"panel_{stem}_year_share.csv"] = block["share"].round(4).reset_index()
+        tables[f"panel_{stem}_drawn_bands.csv"] = block["band"].round(4).reset_index()
+        tables[f"panel_{stem}_start_vs_end.csv"] = changes.reset_index()
+    return tables
+
+
+def export_panel_manifest(registry):
+    """List only figures generated in this run, not stale files in the output folder."""
+    frame = pd.DataFrame([
+        {"file": P.raw_path(path), "kb": path.stat().st_size // 1024,
+         "modified": pd.Timestamp(path.stat().st_mtime, unit="s").round("s")}
+        for path in sorted(registry.figure_paths)
+    ], columns=["file", "kb", "modified"])
+    registry.save_table(frame, "panel_manifest.csv")
+    return frame

@@ -42,6 +42,35 @@ EXPECTED_REWRITTEN_CELL_IDS = {
 }
 
 
+# Shared figure display now posts relative paths and suggested captions.
+EXPECTED_REWRITTEN_CELL_IDS.update({
+    "5fcf165b",
+    "dd23861b",
+    "553e3e0e",
+    "03fda641",
+    "42599e5b",
+    "ce585b5d",
+    "9577628c",
+    "97df02fc",
+    "0888db1e",
+    "28def57b",
+    "0abf9e5d",
+    "0a3110bc",
+    "979e57ec",
+    "c0FB5fEoRHhK",
+    "AYh5B5D4RHhK",
+    "JCUZAwHSRHhK",
+    "yahZopFZRHhL",
+    "sgMydPt1RHhM",
+    "_wMswquSRHhM",
+    "88CbgM16RHhN",
+    "15a71a71",
+    "9b1379bb",
+    "4ede67d9",
+    "4ff6ccb9",
+})
+
+
 class AcademicImpactConsolidationTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls):

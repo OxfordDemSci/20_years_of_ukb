@@ -77,7 +77,7 @@ def test_display_figure_posts_relative_paths_then_caption_below_figure(monkeypat
         paths = [P.ROOT / "output/figures/example.png", P.ROOT / "output/figures/example.pdf"]
         shared_style.display_figure(fig, paths, "A, Example caption.")
         assert events[0] == (fig, "")
-        assert events[1][0].data == "A, Example caption."
+        assert events[1][0].data == "**Suggested caption:** A, Example caption."
         assert "output/figures/example.png" in events[1][1]
         assert "output/figures/example.pdf" in events[1][1]
         assert str(P.ROOT) not in events[1][1]

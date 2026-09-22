@@ -2795,7 +2795,7 @@ def export_analysis_artifacts(
     network: NetworkTables,
     impact: HeadlineImpactTables,
 ) -> dict:
-    """Export all analytical tables, workbook sheets, captions, methods, and crosswalk."""
+    """Export analytical tables, workbook sheets, methods, and crosswalk."""
     author_table = merge_author_network_metrics(core.author_metrics, network)
     top_authors = top_authors_by_ukb_h_index(author_table)
     top_author_exports = export_top_author_table(registry, top_authors)
@@ -2943,8 +2943,6 @@ def export_analysis_artifacts(
     workbook = registry.save_workbook(
         workbook_sheets, "supplementary_author_characteristics.xlsx"
     )
-    for filename, caption in figure_captions().items():
-        registry.save_text(caption + "\n", filename)
     methods = registry.save_text(
         methods_text(source, papers, core, network, impact) + "\n",
         "methods_author_characteristics.txt",

@@ -130,7 +130,16 @@ class ContentFigureTests(unittest.TestCase):
         self.assertLess(C.get_position().y1, A.get_position().y0)
         self.assertGreater(C.get_position().width, A.get_position().width)
         self.assertEqual(block['share'].loc[2024, 'T1: X'], 50)
-        self.assertIn('75.0%', C.texts[0].get_text())
+        self.assertEqual(C.get_ylim()[0], 0)
+        self.assertTrue(C.spines['left'].get_visible())
+        self.assertEqual(C.yaxis.get_major_formatter()(50), '50%')
+        self.assertIn('Share of topic-assigned publications', C.get_ylabel())
+        vertices = C.collections[0].get_paths()[0].vertices
+        self.assertEqual(vertices[vertices[:, 0] == 2024, 1].max(), 50)
+        self.assertIn('not rescaled to 100%', fig._ukb_caption)
+        self.assertEqual(len(C.texts), 0)
+        self.assertEqual(len(fig.texts), 0)
+        self.assertIn('Publication window', fig._ukb_caption)
         self.assertEqual([ax.get_title(loc='left') for ax in (A, B, C)], list('ABC'))
         self.assertEqual(A.get_legend()._ncols, 3)
         self.assertEqual(B.get_legend()._ncols, 3)
@@ -139,8 +148,42 @@ class ContentFigureTests(unittest.TestCase):
         self.assertIn('RCDC', B.get_ylabel())
         finalize_figure(fig)
         fig.canvas.draw()
-        self.assertFalse(C._left_title.get_window_extent().overlaps(
-            C.texts[0].get_window_extent()))
+        self.assertEqual(len(C.texts), 0)
+
+    def test_incomplete_main_caption_does_not_describe_missing_topic_data(self):
+        fig = panels.figure_main(self.fixture(), save=False)
+        self.assertIn('Topic panel unavailable', fig._ukb_caption)
+        self.assertNotIn('Band thickness shows', fig._ukb_caption)
+        self.assertEqual(len(fig.texts), 0)
+
+    def test_composition_legends_have_matching_heights_and_fit_their_panels(self):
+        D = self.fixture()
+        fields = ['Epidemiology', 'Clinical Sciences', 'Genetics',
+                  'Biological Psychology', 'Cardiovascular Medicine and Haematology',
+                  'Public Health', 'Oncology and Carcinogenesis',
+                  'Health Services and Systems', panels.OTHER_LABEL]
+        categories = ['Genetics', 'Prevention', 'Human Genome', 'Clinical Research',
+                      'Aging', 'Cardiovascular', 'Neurosciences', 'Brain Disorders',
+                      panels.OTHER_LABEL]
+        for key, names in [('for', fields), ('rcdc', categories)]:
+            D[key]['band'] = pd.DataFrame(100 / 9, index=panels.FLOW_YEARS,
+                                         columns=names)
+            D[key]['n_other'] = 105 if key == 'for' else 258
+        fig = panels.figure_main(D, save=False)
+        finalize_figure(fig)
+        fig.canvas.draw()
+        A, B, C = fig.axes
+        boxes = [ax.get_legend().get_window_extent() for ax in (A, B)]
+        self.assertAlmostEqual(boxes[0].height, boxes[1].height)
+        self.assertAlmostEqual(boxes[0].y0, boxes[1].y0)
+        for ax, box, names in zip((A, B), boxes, (fields, categories)):
+            self.assertLessEqual(box.x1, ax.get_window_extent().x1)
+            self.assertGreater(box.y0, C.get_tightbbox().y1)
+            self.assertLess(box.y0 - C.get_tightbbox().y1, .04 * fig.bbox.height)
+            texts = ax.get_legend().get_texts()
+            self.assertTrue(all(text.get_text().count('\n') <= 1 for text in texts))
+            self.assertEqual([' '.join(t.get_text().split()) for t in texts[:-1]],
+                             names[:-1])
 
     def test_category_heatmap_headings_are_letters_only(self):
         fig = panels.figure_si_category_changes(self.fixture(), save=False)

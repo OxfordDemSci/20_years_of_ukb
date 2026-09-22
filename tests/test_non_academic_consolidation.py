@@ -39,6 +39,59 @@ EXPECTED_REWRITTEN_CELL_IDS = {
 }
 
 
+# Shared figure display now posts relative paths and suggested captions.
+EXPECTED_REWRITTEN_CELL_IDS.update({
+    "98fc48f2",
+    "d2c81ad4",
+    "c83c8411",
+    "9e2a4f36",
+    "1ff70dd7",
+    "1a06eb29",
+    "f7eec542",
+    "5a22f648",
+    "b8cd5be3",
+    "701c21a5",
+    "36b5d875",
+    "7d4d906b",
+    "40571432",
+    "8365c642",
+    "e3820dfe",
+    "af8d5afa",
+    "f3a1dc2e",
+    "e32778ed",
+    "21d3e3d0",
+    "24a133cf",
+    "9049bb49",
+    "f1bd2b23",
+    "fb7eb8b5-5f5f-4480-999c-223252b2c797",
+    "902d9104",
+    "c9e56414",
+    "d6a3c010",
+    "169681e0",
+    "234ce457",
+    "0affb6ac",
+    "970365cb",
+    "0d39d731",
+    "7bae36f8",
+    "ea4a8f46",
+    "29fe3eea",
+    "8664da3d",
+    "44aa8574",
+    "a979d05e",
+    "073c11ce",
+    "f894ef46",
+    "2d712122",
+    "14baeb66",
+    "627a224c",
+    "800e8726",
+    "a671a27d",
+    "f401016e",
+    "937b241c",
+    "64a4eb1a",
+    "34dea78e",
+})
+
+
 class NonAcademicConsolidationTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls):

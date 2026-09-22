@@ -6,6 +6,7 @@ from utils.shared_style import apply_typography, finalize_figure
 from pathlib import Path
 
 import matplotlib.pyplot as plt
+from utils.shared_style import show_figures
 import pandas as pd
 
 # Load IPC hierarchy (path anchored on this file: utils/ -> src/ -> repo root)
@@ -354,7 +355,7 @@ if not hier_df_ipc.empty and hier_df_ipc['section_code'].notna().any():
         finalize_figure(plt.gcf())
         plt.tight_layout()
         finalize_figure(plt.gcf())
-        plt.show()
+        show_figures()
     else:
         print("No IPC data with sufficient hierarchy levels available.")
 else:

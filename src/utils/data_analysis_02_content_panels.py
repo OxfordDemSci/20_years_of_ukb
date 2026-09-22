@@ -503,6 +503,28 @@ def _topic_legend_labels(labels, width=36):
     return shown
 
 
+def _composition_legend(ax, handles, *, labelspacing=.4):
+    return black_legend(
+        ax, _style(), handles=handles, loc="upper left", bbox_to_anchor=(0, -.20),
+        ncol=3, borderaxespad=0, handlelength=1.25, columnspacing=.9,
+        labelspacing=labelspacing, fontsize=_style()["legend_fs"])
+
+
+def _align_legend_heights(*axes):
+    """Match legend frames by spreading shorter legends' rows, not shrinking text."""
+    fig = axes[0].figure
+    fig.draw_without_rendering()
+    legends = [ax.get_legend() for ax in axes]
+    heights = [legend.get_window_extent().height for legend in legends]
+    target = max(heights)
+    for ax, legend, height in zip(axes, legends, heights):
+        rows = (len(legend.get_texts()) + 2) // 3
+        if rows > 1 and target > height:
+            font_pixels = legend.get_texts()[0].get_fontsize() * fig.dpi / 72
+            spacing = legend.labelspacing + (target - height) / ((rows - 1) * font_pixels)
+            _composition_legend(ax, legend.get_patches(), labelspacing=spacing)
+
+
 def _missing_panel(ax, title, note):
     """A clearly incomplete preview; the notebook reports the absent source."""
     _axes(ax, grid=False)
@@ -542,10 +564,8 @@ def draw_share_stream(ax, block, title, *, label_min=None, callout_gap=None,
     for color, label in zip(colors, band.columns):
         name = f"Other ({block['n_other']} categories)" if label == OTHER_LABEL else label
         handles.append(Patch(facecolor=color, edgecolor=palette("navy"), linewidth=.4,
-                             label=_legend_label(name, width=22)))
-    black_legend(ax, _style(), handles=handles, loc="upper left", bbox_to_anchor=(0, -.20),
-                 ncol=3, borderaxespad=0, handlelength=1.25,
-                 columnspacing=.9, labelspacing=.40, fontsize=_style()["legend_fs"])
+                             label=fill(str(name), width=25)))
+    _composition_legend(ax, handles)
     return ax
 
 
@@ -566,15 +586,15 @@ def draw_topic_stream(ax, D):
     selected = block["share"][keep]
     colors = _colors(len(keep))
     _axes(ax, grid=False)
-    # A centred streamgraph retains actual share widths. The vertical displacement
-    # conveys no additional quantity; omitting the numerical y scale makes that clear.
     values = selected.T.to_numpy(dtype=float)
-    ax.stackplot(selected.index, values, baseline="sym", colors=colors,
+    ax.stackplot(selected.index, values, baseline="zero", colors=colors,
                  edgecolor="white", linewidth=.35)
     _years(ax)
-    ax.set_yticks([])
-    ax.spines["left"].set_visible(False)
-    ax.set_ylabel("BERTopic thematic waves\nRelative topic prominence")
+    maximum = selected.sum(axis=1, min_count=1).max()
+    upper = max(10, 10 * np.ceil(maximum / 10)) if np.isfinite(maximum) else 100
+    ax.set_ylim(0, upper)
+    ax.yaxis.set_major_formatter(PercentFormatter(100, decimals=0))
+    ax.set_ylabel("BERTopic topics\nShare of topic-assigned publications")
     grid_on(ax, axis="x", which="major", linestyle="--", alpha=.3)
     legend_labels = _topic_legend_labels(block["share"].columns)
     handles = [Patch(facecolor=color, edgecolor=palette("navy"), linewidth=.4,
@@ -583,11 +603,6 @@ def draw_topic_stream(ax, D):
     black_legend(ax, _style(), handles=handles, loc="center left", bbox_to_anchor=(1.025, .5),
               borderaxespad=0, handlelength=1.3,
               labelspacing=.5, fontsize=_style()["legend_fs"])
-    coverage = selected.sum(axis=1, min_count=1)
-    noun = "assigned papers" if block.get("from_assignments") else "cached topic selection"
-    ax.text(0, 1.01, f"{len(keep)} topics; {coverage.mean():.1f}% of {noun} per year on average",
-            transform=ax.transAxes, ha="left", va="bottom",
-            fontsize=_style()["annot_fs"], color="#555555")
     return ax
 
 
@@ -605,18 +620,20 @@ def figure_main(D, save=True):
     fig = plt.figure(figsize=figsize)
     ax_for = fig.add_axes([.075, .64, .39, .29])
     ax_rcdc = fig.add_axes([.575, .64, .39, .29])
-    ax_topic = fig.add_axes([.075, .095, .65, .31])
+    ax_topic = fig.add_axes([.075, .14, .65, .31])
     draw_for_stream(ax_for, D)
     draw_rcdc_stream(ax_rcdc, D)
     draw_topic_stream(ax_topic, D)
     for ax, letter, title in ((ax_for, "A", "Fields of Research, Level 4"),
                               (ax_rcdc, "B", "RCDC categories")):
         _heading(ax, letter, title)
-    # An explicit title position survives shared export finalisation and reserves
-    # a separate line for the coverage annotation above the streamgraph.
-    set_title(ax_topic, "C", fontsize=_style()["title_fs"], y=1.075)
-    fig.text(.075, .018, thin_years_note(D), ha="left", va="bottom",
-             fontsize=_style()["annot_fs"], color="#555555")
+    panel_label(ax_topic, "C", _style())
+    _align_legend_heights(ax_for, ax_rcdc)
+    from .shared_figure_captions import panel_caption
+    captions = dict(MAIN_CAPTION)
+    if not D["topics"]["available"]:
+        captions["C"] = "Topic panel unavailable: verified BERTopic assignments were not available for this run."
+    fig._ukb_caption = panel_caption(captions) + " " + thin_years_note(D)
     if save:
         savefig(fig, P.MAIN_FIGURE_STEMS[4], formats=("pdf", "png"))
     return fig
@@ -739,9 +756,6 @@ def figure_si_category_detail(D, save=True):
     fig.subplots_adjust(left=.27, right=.88, top=.95, bottom=.115, hspace=.48)
     draw_category_heatmap(axes[0], D["for"], "A  Fields of Research, Level 4")
     draw_category_heatmap(axes[1], D["rcdc"], "B  RCDC categories")
-    fig.text(.27, .018, "Numbers give percentages. Grey cells indicate no classified publications. "
-             "The complete category distributions are supplied as CSV.",
-             fontsize=_style()["annot_fs"], color="#555555")
     if save:
         savefig(fig, "02_02_supplementary_figure_01_category_composition", formats=("pdf", "png"))
     return fig
@@ -871,14 +885,6 @@ def figure_si_rank_flow(D, save=True):
         axes[1], D["rcdc"],
         f"B  RCDC categories, rank by annual share ({FLOW_MIN}–{FLOW_MAX})",
     )
-    fig.text(
-        .24,
-        .018,
-        "Lines cover the leading categories selected for the main composition figure; "
-        "line width is proportional to mean annual share.",
-        fontsize=_style()["annot_fs"],
-        color="#555555",
-    )
     if save:
         savefig(
             fig,
@@ -996,9 +1002,6 @@ def figure_si_topic_robustness(D, save=True):
     ax.set_ylabel("Cluster persistence")
     ax.legend(loc="upper right", frameon=False, fontsize=_style()["legend_fs"] - 1)
     panel_label(ax, "D", _style())
-    fig.text(.085, .018, "Points in A–B: individual seeds; red bars: means. "
-             "Cream shading: selected parameter setting. C includes all seed pairs.",
-             fontsize=_style()["annot_fs"], color="#555555")
     if save:
         savefig(fig, "02_04_supplementary_figure_03_topic_robustness", formats=("pdf", "png"))
     return fig
@@ -1019,9 +1022,10 @@ MAIN_CAPTION = {
          "Each classified paper contributes a total weight of one, "
          "divided equally across its distinct tags. Shares are fractions of classified papers, "
          "with the eight leading tags displayed separately and remaining tags pooled in white.",
-    "C": "Thematic waves from cached BERTopic assignments. Band thickness shows the annual shares of "
-         "all topic-assigned publications attributable to the selected leading topics; the "
-         "stream is centred for display, so vertical position carries no meaning. Topics "
+    "C": "Topic composition from cached BERTopic assignments. Band thickness shows the annual shares of "
+         "all topic-assigned publications attributable to the selected leading topics. "
+         "The zero-based percentage axis shows their combined share; the selected topics "
+         "are not rescaled to 100%. Topics "
          "are selected using total publication counts across the analysis window, with "
          "up to twelve shown. Descriptive labels summarise model keywords and example publications.",
 }

@@ -43,6 +43,7 @@ from tqdm import tqdm
 import community as community_louvain   # python-louvain
 from sklearn.metrics import adjusted_rand_score
 import matplotlib.pyplot as plt
+from utils.shared_style import save_figure_file
 import seaborn as sns
 
 # Optional leiden
@@ -326,7 +327,7 @@ def plot_network(G, partition, outpath=result_path + "/network_plot.png", figsiz
     output_format = figure_export_formats([Path(outpath).suffix or plt.rcParams['savefig.format']])[0]
     outpath = Path(outpath).with_suffix(f'.{output_format}')
     finalize_figure(plt.gcf())
-    plt.savefig(outpath, dpi=PNG_DPI if output_format == 'png' else 300)
+    save_figure_file(plt.gcf(), outpath, dpi=PNG_DPI if output_format == 'png' else 300)
     plt.close()
 
 # --------------------------

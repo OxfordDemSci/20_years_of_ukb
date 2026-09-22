@@ -33,6 +33,7 @@ _ROOT = Path(__file__).resolve().parents[2]
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
+from utils.shared_style import show_figures, save_figure_file
 import matplotlib.patheffects as path_effects
 from bs4 import BeautifulSoup
 from collections import Counter
@@ -883,10 +884,10 @@ def plot_bar_matplotlib(
     
     if savefile:
         finalize_figure(plt.gcf())
-        plt.savefig(_figure_export_path(savefile), dpi=_export_dpi(savefile, 200))
+        save_figure_file(plt.gcf(), _figure_export_path(savefile), dpi=_export_dpi(savefile, 200))
         print(f"Bar chart saved to: {savefile}")
     finalize_figure(plt.gcf())
-    plt.show()
+    show_figures()
 
 
 def build_country_count(df_with_iso):
@@ -970,7 +971,7 @@ def plot_topics_distribution(df_patent, cat_col,figsize=(10,6),savefigure=False)
         P.FIG_PATENT.mkdir(parents=True, exist_ok=True)
         figure_path = P.FIG_PATENT / f'topics_distribution_{cat_col}.pdf'
         finalize_figure(fig)
-        fig.savefig(figure_path)
+        save_figure_file(fig, figure_path)
         print(f"Topics distribution plot saved to: {P.raw_path(figure_path)}")
     else:
         return fig, ax
@@ -1030,7 +1031,7 @@ def map_plotting(country_df, column_to_show_counts,figsize=(12, 8),savefigure=Tr
     if savefigure:
         P.FIG_PATENT.mkdir(parents=True, exist_ok=True)
         finalize_figure(fig)
-        fig.savefig(P.FIG_PATENT / f'patent_countries_map_{column_to_show_counts}.pdf', dpi=500)
+        save_figure_file(fig, P.FIG_PATENT / f'patent_countries_map_{column_to_show_counts}.pdf', dpi=500)
     else:
         return fig, ax
     
@@ -1177,7 +1178,7 @@ def plot_filing_status_over_time(df_patent,col,figsize=(10, 6),savefigure=True, 
         if savefigure:
             P.FIG_PATENT.mkdir(parents=True, exist_ok=True)
             finalize_figure(fig)
-            fig.savefig(P.FIG_PATENT / 'patent_filing_status_over_time.pdf', dpi=300)
+            save_figure_file(fig, P.FIG_PATENT / 'patent_filing_status_over_time.pdf', dpi=300)
         else:
             return fig, ax
     return fig, ax
@@ -1277,9 +1278,9 @@ def plot_patent_counts_by_filing_status(
     plt.tight_layout()
     if savefile:
         finalize_figure(plt.gcf())
-        plt.savefig(_figure_export_path(savefile), dpi=_export_dpi(savefile, 300))
+        save_figure_file(plt.gcf(), _figure_export_path(savefile), dpi=_export_dpi(savefile, 300))
     finalize_figure(plt.gcf())
-    plt.show()
+    show_figures()
 
 
 def plot_patent_countries_map(
@@ -1364,9 +1365,9 @@ def plot_patent_countries_map(
     
     if savefile:
         finalize_figure(plt.gcf())
-        plt.savefig(_figure_export_path(savefile), dpi=_export_dpi(savefile, 500))
+        save_figure_file(plt.gcf(), _figure_export_path(savefile), dpi=_export_dpi(savefile, 500))
     finalize_figure(plt.gcf())
-    plt.show()
+    show_figures()
 
 
 def plot_topics_histogram(
@@ -1412,9 +1413,9 @@ def plot_topics_histogram(
     
     if savefile:
         finalize_figure(plt.gcf())
-        plt.savefig(_figure_export_path(savefile), dpi=_export_dpi(savefile, 300))
+        save_figure_file(plt.gcf(), _figure_export_path(savefile), dpi=_export_dpi(savefile, 300))
     finalize_figure(plt.gcf())
-    plt.show()
+    show_figures()
 
 
 def plot_top_topics_horizontal(
@@ -1455,9 +1456,9 @@ def plot_top_topics_horizontal(
     
     if savefile:
         finalize_figure(plt.gcf())
-        plt.savefig(_figure_export_path(savefile), dpi=_export_dpi(savefile, 300))
+        save_figure_file(plt.gcf(), _figure_export_path(savefile), dpi=_export_dpi(savefile, 300))
     finalize_figure(plt.gcf())
-    plt.show()
+    show_figures()
 
 
 def plot_collapsed_topics_horizontal(
@@ -1517,9 +1518,9 @@ def plot_collapsed_topics_horizontal(
     plt.tight_layout()
     if savefile:
         finalize_figure(plt.gcf())
-        plt.savefig(_figure_export_path(savefile), dpi=_export_dpi(savefile, 300))
+        save_figure_file(plt.gcf(), _figure_export_path(savefile), dpi=_export_dpi(savefile, 300))
     finalize_figure(plt.gcf())
-    plt.show()
+    show_figures()
 
 
 def plot_drug_dev_by_country(
@@ -1605,9 +1606,9 @@ def plot_drug_dev_by_country(
     plt.tight_layout()
     if savefile:
         finalize_figure(plt.gcf())
-        plt.savefig(_figure_export_path(savefile), dpi=_export_dpi(savefile, 300))
+        save_figure_file(plt.gcf(), _figure_export_path(savefile), dpi=_export_dpi(savefile, 300))
     finalize_figure(plt.gcf())
-    plt.show()
+    show_figures()
 
 
 def plot_development_stage_pies(
@@ -1693,9 +1694,9 @@ def plot_development_stage_pies(
     
     if savefile:
         finalize_figure(plt.gcf())
-        plt.savefig(_figure_export_path(savefile), dpi=_export_dpi(savefile, 300))
+        save_figure_file(plt.gcf(), _figure_export_path(savefile), dpi=_export_dpi(savefile, 300))
     finalize_figure(plt.gcf())
-    plt.show()
+    show_figures()
 
 
 def plot_top_cited_papers(
@@ -1754,9 +1755,9 @@ def plot_top_cited_papers(
     
     if savefile:
         finalize_figure(plt.gcf())
-        plt.savefig(_figure_export_path(savefile), dpi=_export_dpi(savefile, 300))
+        save_figure_file(plt.gcf(), _figure_export_path(savefile), dpi=_export_dpi(savefile, 300))
     finalize_figure(plt.gcf())
-    plt.show()
+    show_figures()
 
 
 def plot_model_agreement_pairwise(
@@ -1803,9 +1804,9 @@ def plot_model_agreement_pairwise(
     plt.tight_layout()
     if savefile:
         finalize_figure(plt.gcf())
-        plt.savefig(_figure_export_path(savefile), dpi=_export_dpi(savefile, 300))
+        save_figure_file(plt.gcf(), _figure_export_path(savefile), dpi=_export_dpi(savefile, 300))
     finalize_figure(plt.gcf())
-    plt.show()
+    show_figures()
 
 
 def plot_model_agreement_distribution(
@@ -1851,9 +1852,9 @@ def plot_model_agreement_distribution(
     plt.tight_layout()
     if savefile:
         finalize_figure(plt.gcf())
-        plt.savefig(_figure_export_path(savefile), dpi=_export_dpi(savefile, 300))
+        save_figure_file(plt.gcf(), _figure_export_path(savefile), dpi=_export_dpi(savefile, 300))
     finalize_figure(plt.gcf())
-    plt.show()
+    show_figures()
 
 
 
@@ -2469,6 +2470,12 @@ def plot_topic_cooccurrence_network(
     edge_widths = [0.5 + graph[u][v].get('weight', 1) * 0.4 for u, v in graph.edges()]
 
     fig, ax = plt.subplots(figsize=figsize)
+    fig._ukb_caption = (
+        "Topic co-occurrence among UK Biobank-linked patents. Nodes represent topics; "
+        "node size increases with the number of connected topics. Edges join topics "
+        "occurring in the same patent; widths and edge labels encode joint occurrence "
+        "counts. Only topic pairs meeting the configured co-occurrence threshold are shown."
+    )
     nx.draw_networkx_edges(graph, pos, width=edge_widths, alpha=0.35, ax=ax)
     nx.draw_networkx_nodes(
         graph,
@@ -2490,10 +2497,10 @@ def plot_topic_cooccurrence_network(
 
     if savefile:
         finalize_figure(plt.gcf())
-        plt.savefig(_figure_export_path(savefile), dpi=_export_dpi(savefile, 200), bbox_inches='tight')
+        save_figure_file(plt.gcf(), _figure_export_path(savefile), dpi=_export_dpi(savefile, 200), bbox_inches='tight')
         print(f'Network plot saved to: {savefile}')
     finalize_figure(plt.gcf())
-    plt.show()
+    show_figures()
     return fig, ax
 
 
@@ -2609,10 +2616,11 @@ def plot_country_topic_heatmap(
 
     if savefile:
         finalize_figure(fig)
-        plt.savefig(_figure_export_path(savefile), dpi=_export_dpi(savefile, 200), bbox_inches='tight')
+        save_figure_file(plt.gcf(), _figure_export_path(savefile), dpi=_export_dpi(savefile, 200), bbox_inches='tight')
         print(f'Heatmap saved to: {savefile}')
     finalize_figure(fig)
-    plt.show()
+    if created_fig:
+        show_figures()
     return fig, ax
 
 
@@ -2663,10 +2671,10 @@ def plot_country_dominant_topics(
 
     if savefile:
         finalize_figure(plt.gcf())
-        plt.savefig(_figure_export_path(savefile), dpi=_export_dpi(savefile, 200), bbox_inches='tight')
+        save_figure_file(plt.gcf(), _figure_export_path(savefile), dpi=_export_dpi(savefile, 200), bbox_inches='tight')
         print(f'Dominant-topic plot saved to: {savefile}')
     finalize_figure(plt.gcf())
-    plt.show()
+    show_figures()
     return fig, ax
 
 
@@ -2746,10 +2754,10 @@ def plot_two_level_hierarchy(
 
     if savefile:
         finalize_figure(plt.gcf())
-        plt.savefig(_figure_export_path(savefile), dpi=_export_dpi(savefile, 200), bbox_inches='tight')
+        save_figure_file(plt.gcf(), _figure_export_path(savefile), dpi=_export_dpi(savefile, 200), bbox_inches='tight')
         print(f'Hierarchy plot saved to: {savefile}')
     finalize_figure(plt.gcf())
-    plt.show()
+    show_figures()
     return fig, ax
 
 
@@ -2987,9 +2995,9 @@ def plot_rcdc_macro_hierarchy(
 
     if savefile:
         finalize_figure(plt.gcf())
-        plt.savefig(_figure_export_path(savefile), dpi=_export_dpi(savefile, 300), bbox_inches='tight')
+        save_figure_file(plt.gcf(), _figure_export_path(savefile), dpi=_export_dpi(savefile, 300), bbox_inches='tight')
     finalize_figure(plt.gcf())
-    plt.show()
+    show_figures()
     return fig, ax
 
 
@@ -3117,7 +3125,7 @@ def plot_rcdc_macro_heatmap(
 
     if savefile:
         finalize_figure(plt.gcf())
-        plt.savefig(_figure_export_path(savefile), dpi=_export_dpi(savefile, 300))
+        save_figure_file(plt.gcf(), _figure_export_path(savefile), dpi=_export_dpi(savefile, 300))
     finalize_figure(plt.gcf())
-    plt.show()
+    show_figures()
     return fig, ax, sorted_df

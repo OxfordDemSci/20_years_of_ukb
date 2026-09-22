@@ -17,6 +17,7 @@ from typing import Any, Iterable
 import matplotlib.cm as cm
 import matplotlib.colors as mcolors
 import matplotlib.pyplot as plt
+from utils.shared_style import show_figures, save_figure_file
 import numpy as np
 import pandas as pd
 from cycler import cycler
@@ -953,7 +954,7 @@ def plot_non_academic_sector_breakdown(
     finalize_figure(plt.gcf())
     plt.tight_layout()
     finalize_figure(plt.gcf())
-    plt.show()
+    show_figures()
 
 
 def mention_coverage(df: pd.DataFrame, paper_col: str, mention_col: str) -> tuple[int, int, float]:
@@ -1215,7 +1216,7 @@ def plot_top_orgs(
     finalize_figure(plt.gcf())
     plt.tight_layout()
     finalize_figure(plt.gcf())
-    plt.show()
+    show_figures()
 
 
 def plot_collaborator_count_distributions(df: pd.DataFrame) -> None:
@@ -1268,7 +1269,7 @@ def plot_collaborator_count_distributions(df: pd.DataFrame) -> None:
     finalize_figure(plt.gcf())
     plt.tight_layout()
     finalize_figure(plt.gcf())
-    plt.show()
+    show_figures()
 
 
 def ensure_year_column(df_in: pd.DataFrame) -> pd.DataFrame:
@@ -1356,7 +1357,7 @@ def plot_cumulative_by_type(df: pd.DataFrame, start_year: int = ANALYSIS_START_Y
     finalize_figure(plt.gcf())
     plt.tight_layout()
     finalize_figure(plt.gcf())
-    plt.show()
+    show_figures()
 
 
 def plot_yearly_share_by_type(df: pd.DataFrame, start_year: int = ANALYSIS_START_YEAR, end_year: int = ANALYSIS_END_YEAR) -> None:
@@ -1406,7 +1407,7 @@ def plot_yearly_share_by_type(df: pd.DataFrame, start_year: int = ANALYSIS_START
     finalize_figure(plt.gcf())
     plt.tight_layout()
     finalize_figure(plt.gcf())
-    plt.show()
+    show_figures()
 
 
 def plot_company_share_within_non_academic(
@@ -1449,7 +1450,7 @@ def plot_company_share_within_non_academic(
     finalize_figure(plt.gcf())
     plt.tight_layout()
     finalize_figure(plt.gcf())
-    plt.show()
+    show_figures()
 
 
 def _collaboration_mix_masks(df: pd.DataFrame) -> dict[str, pd.Series]:
@@ -1510,7 +1511,7 @@ def plot_collaboration_mix_stacked_area(
     finalize_figure(plt.gcf())
     plt.tight_layout()
     finalize_figure(plt.gcf())
-    plt.show()
+    show_figures()
 
 
 def plot_collaboration_mix_share_stacked_area(
@@ -1546,7 +1547,7 @@ def plot_collaboration_mix_share_stacked_area(
     finalize_figure(plt.gcf())
     plt.tight_layout()
     finalize_figure(plt.gcf())
-    plt.show()
+    show_figures()
 
 
 def plot_flag_overlap_heatmap(
@@ -1613,11 +1614,11 @@ def plot_flag_overlap_heatmap(
         if clean_fmt == "png":
             save_kwargs["dpi"] = PNG_DPI
         finalize_figure(fig)
-        fig.savefig(out_path, **save_kwargs)
+        save_figure_file(fig, out_path, **save_kwargs)
         saved_paths[clean_fmt] = out_path
 
     finalize_figure(plt.gcf())
-    plt.show()
+    show_figures()
     return saved_paths
 
 
@@ -1683,7 +1684,7 @@ def plot_citation_distribution_by_group(df: pd.DataFrame, citation_col: str = "t
     finalize_figure(plt.gcf())
     plt.tight_layout()
     finalize_figure(plt.gcf())
-    plt.show()
+    show_figures()
 
 
 def plot_collaborator_concentration_curves(df: pd.DataFrame) -> None:
@@ -1741,7 +1742,7 @@ def plot_collaborator_concentration_curves(df: pd.DataFrame) -> None:
     finalize_figure(plt.gcf())
     plt.tight_layout()
     finalize_figure(plt.gcf())
-    plt.show()
+    show_figures()
 
 
 def plot_yearly_median_log_citations_by_group(
@@ -1797,7 +1798,7 @@ def plot_yearly_median_log_citations_by_group(
     finalize_figure(plt.gcf())
     plt.tight_layout()
     finalize_figure(plt.gcf())
-    plt.show()
+    show_figures()
 
 
 def _pick_journal_name(row: pd.Series) -> str:
@@ -1974,7 +1975,7 @@ def plot_top_journal_company_share(
     finalize_figure(plt.gcf())
     plt.tight_layout()
     finalize_figure(plt.gcf())
-    plt.show()
+    show_figures()
 
 
 def plot_for_company_share_scatter(
@@ -2175,11 +2176,11 @@ def plot_for_company_share_scatter(
         if clean_fmt == "png":
             save_kwargs["dpi"] = PNG_DPI
         finalize_figure(fig)
-        fig.savefig(out_path, **save_kwargs)
+        save_figure_file(fig, out_path, **save_kwargs)
         saved_paths[clean_fmt] = out_path
 
     finalize_figure(plt.gcf())
-    plt.show()
+    show_figures()
     return saved_paths
 
 
@@ -2267,7 +2268,7 @@ def plot_yearly_metrics_dashboard(yearly_df: pd.DataFrame) -> None:
     finalize_figure(plt.gcf())
     plt.tight_layout()
     finalize_figure(plt.gcf())
-    plt.show()
+    show_figures()
 
 
 def plot_company_geography_mix_over_time(
@@ -2324,7 +2325,7 @@ def plot_company_geography_mix_over_time(
     finalize_figure(plt.gcf())
     plt.tight_layout()
     finalize_figure(plt.gcf())
-    plt.show()
+    show_figures()
 
 
 def build_company_collaborator_churn_table(
@@ -2391,7 +2392,7 @@ def plot_new_vs_returning_company_collaborators(churn_df: pd.DataFrame) -> None:
     finalize_figure(plt.gcf())
     plt.tight_layout()
     finalize_figure(plt.gcf())
-    plt.show()
+    show_figures()
 
 
 def build_top_company_year_matrix(
@@ -2517,7 +2518,7 @@ def plot_top_company_heatmap(company_year_df: pd.DataFrame) -> None:
     finalize_figure(plt.gcf())
     plt.tight_layout()
     finalize_figure(plt.gcf())
-    plt.show()
+    show_figures()
 
 
 def _iter_for_texts(item: Any) -> Iterable[str]:
@@ -2698,7 +2699,7 @@ def plot_for_share_table(for_df: pd.DataFrame, top_n: int = 15) -> None:
     finalize_figure(plt.gcf())
     plt.tight_layout()
     finalize_figure(plt.gcf())
-    plt.show()
+    show_figures()
 
 
 def build_uk_company_for_table(df: pd.DataFrame, name_map: dict[str, str]) -> pd.DataFrame:
@@ -2752,7 +2753,7 @@ def plot_uk_company_for_table(uk_for_df: pd.DataFrame, top_n: int = 15) -> None:
     finalize_figure(plt.gcf())
     plt.tight_layout()
     finalize_figure(plt.gcf())
-    plt.show()
+    show_figures()
 
 
 def extract_affiliations(authors_value: Any) -> list[dict[str, Any]]:
@@ -2958,7 +2959,7 @@ def plot_country_map(country_df: pd.DataFrame, title: str, cmap_name: str = "civ
     cbar.ax.yaxis.set_label_position("left")
 
     finalize_figure(plt.gcf())
-    plt.show()
+    show_figures()
 
 
 def _first_author_info_from_parsed(parsed: Any) -> tuple[str | None, int]:
@@ -3359,10 +3360,10 @@ def plot_publication_figure(
             if clean_fmt == "png":
                 save_kwargs["dpi"] = PNG_DPI
             finalize_figure(fig)
-            fig.savefig(out_path, **save_kwargs)
+            save_figure_file(fig, out_path, **save_kwargs)
             saved_paths[clean_fmt] = out_path
         finalize_figure(plt.gcf())
-        plt.show()
+        show_figures()
 
     return saved_paths
 
