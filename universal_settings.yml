@@ -238,39 +238,32 @@ style:
       # set a font by hand; it now takes the shared base like everything else.
       savedir: output/figures/data_analysis/04_non_academic
 
-    03_academic_impact:
-      # slightly smaller type: these figures are dense small-multiple grids
-      title_fs:  15
-      label_fs:  12
-      tick_fs:   10
-      annot_fs:   9
-      legend_fs: 10
+    03_academic_impact: &academic_style
+      colors: ["#E66859", "#FEE7BA", "#75BBD4", "#74ADD1",
+               "#416FA0", "#274668", "#74D1AF"]
+      title_fs: 20
+      panel_label_fs: 20
+      label_fs: 13
+      tick_fs: 11
+      annot_fs: 10
+      legend_fs: 11
+      body_fs: 11
+      colorbar_label_fs: 13
+      edgecolor: black
+      marker_size: 7
+      dot_marker_area: 76
+      save: true
+      formats: [pdf, png]
       savedir: output/figures/data_analysis/03_academic_impact
 
     03_academic_impact_panels:
-      # The assembled main + SI panels in Part IV of the consolidated analysis 03
-      # notebook. Same seven named colours as
-      # 04_non_academic_panels, listed in the same order as shared_style.PALETTE, so the
-      # two figure families belong to one paper (D29).
-      #
-      #   0 red  1 cream  2 light_blue  3 blue  4 steel_blue  5 navy  6 green
-      colors: ["#E66859", "#FEE7BA", "#75BBD4", "#74ADD1",
-               "#416FA0", "#274668", "#74D1AF"]
-      title_fs: 15
-      label_fs: 12
-      tick_fs: 10
-      annot_fs: 9
-      legend_fs: 10
-      body_fs: 11
-      panel_label_fs: 15          # the bold A / B / C stamped on each sub-panel
-      # Per-figure type scale, as in the 04 family: every font size above is multiplied
-      # by the entry for the figure being drawn. The main page is four grid rows tall and
-      # is read at figure width in a paper, so it carries the largest scale.
+      <<: *academic_style
+      # Main and supplementary pages inherit identical typography and palette.
       fs_scale:
-        main: 1.34
-        si1_impact_map: 1.05
-        si2_top_decile: 1.05
-        si3_growth: 1.10
+        main: 1.0
+        si1_impact_map: 1.0
+        si2_top_decile: 1.0
+        si3_growth: 1.0
       axes_linewidth: 1.0
       tick_length: 4
       tick_width: 1.0
@@ -281,8 +274,10 @@ style:
       marker_size: 8.5
       dot_marker_area: 76
       figsize_main:     [19, 18]  # A (2x2), B and C stacked beside it, D-K full width
-      figsize_si_wide:  [14, 10]  # SI 1 and SI 2, one full-page panel each
-      figsize_si:       [16, 8]   # SI 3: two panels side by side
+      main_legend_fs: 14
+      figsize_si_wide:  [14, 10]    # SI 1: labelled impact map
+      figsize_si_grid:  [20, 17]    # SI 2: 25 common-scale field panels
+      figsize_si:       [18, 10.5]  # SI 3: rates and trajectories with a shared key
       save: true
       # pdf + png only, per D32. `*.svg` is gitignored, so an svg written here is a file
       # the repo cannot carry — and §8 of the notebook already says pdf and png only.

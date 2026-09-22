@@ -1,9 +1,8 @@
-"""The consolidated academic-impact notebook retains every analysis phase."""
+"""The refined academic-impact workflow retains every distinct analysis."""
 
 import json
 from pathlib import Path
 import unittest
-
 
 ROOT = Path(__file__).resolve().parents[1]
 NOTEBOOK_DIR = ROOT / "src" / "data_analysis"
@@ -17,149 +16,109 @@ SOURCE_CELL_COUNTS = {
     "03_academic_impact_99_all.ipynb": 21,
 }
 
-# These cells were deliberately rewritten only to turn notebook-to-notebook language
-# into part-to-part language, correct stale paths/windows, and rename the panel style.
-# Five small-multiple cells also move field names from titles to y-axis labels.
-EXPECTED_REWRITTEN_CELL_IDS = {
-    "d7b747de",
-    "9817cf4f",
-    "610b0ead",
-    "a686192b",
-    "35f087c3",
-    "879TU0cIRHhD",
-    "a23ccc79",
-    "ccbdaad6",
-    "72d9d8e6",
-    "6f31bc80",
-    "2e4dd06b",
-    "f8c73484",
-    "28def57b",
-    "0888db1e",
-    "553e3e0e",
-    "97df02fc",
-    "5fcf165b",
-    "30993265",  # Import the shared wrapped facet-label helper.
-}
-
-
-# Shared figure display now posts relative paths and suggested captions.
-EXPECTED_REWRITTEN_CELL_IDS.update({
-    "5fcf165b",
-    "dd23861b",
-    "553e3e0e",
-    "03fda641",
-    "42599e5b",
-    "ce585b5d",
-    "9577628c",
-    "97df02fc",
-    "0888db1e",
-    "28def57b",
-    "0abf9e5d",
-    "0a3110bc",
-    "979e57ec",
-    "c0FB5fEoRHhK",
-    "AYh5B5D4RHhK",
-    "JCUZAwHSRHhK",
-    "yahZopFZRHhL",
-    "sgMydPt1RHhM",
-    "_wMswquSRHhM",
-    "88CbgM16RHhN",
-    "15a71a71",
-    "9b1379bb",
-    "4ede67d9",
-    "4ff6ccb9",
-})
-
 
 class AcademicImpactConsolidationTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         cls.notebook = json.loads(NOTEBOOK.read_text(encoding="utf-8"))
-        cls.source = "\n".join(
-            "".join(cell.get("source", [])) for cell in cls.notebook["cells"]
-        )
+        cls.source = "\n".join("".join(c.get("source", [])) for c in cls.notebook["cells"])
+        cls.cells = {c["id"]: c for c in cls.notebook["cells"]}
 
     def test_only_one_academic_impact_notebook_is_active(self):
-        active = sorted(path.name for path in NOTEBOOK_DIR.glob("03*.ipynb"))
-        self.assertEqual(active, [NOTEBOOK.name])
+        self.assertEqual(sorted(p.name for p in NOTEBOOK_DIR.glob("03*.ipynb")), [NOTEBOOK.name])
 
-    def test_all_source_notebooks_are_archived_and_accounted_for(self):
+    def test_archived_sources_and_deduplication_are_accounted_for(self):
         provenance = self.notebook["metadata"]["ukb_consolidation"]
         self.assertEqual(provenance["source_cell_counts"], SOURCE_CELL_COUNTS)
         self.assertEqual(provenance["source_cells_total"], sum(SOURCE_CELL_COUNTS.values()))
+        refinement = provenance["refinement"]
+        removed = set(refinement["removed_cell_ids"])
+        previous = -1
+        positions = {c["id"]: i for i, c in enumerate(self.notebook["cells"])}
         for source, count in SOURCE_CELL_COUNTS.items():
             archived = ARCHIVE / source.replace(".ipynb", "_pre_consolidation.ipynb")
-            self.assertTrue(archived.is_file(), archived)
             payload = json.loads(archived.read_text(encoding="utf-8"))
             self.assertEqual(len(payload["cells"]), count)
+            for cell in payload["cells"]:
+                if cell["id"] in removed:
+                    self.assertNotIn(cell["id"], self.cells)
+                    continue
+                self.assertIn(cell["id"], self.cells)
+                self.assertEqual(cell["cell_type"], self.cells[cell["id"]]["cell_type"])
+                self.assertGreater(positions[cell["id"]], previous)
+                previous = positions[cell["id"]]
+        for duplicate, retained in refinement["duplicate_figures_replaced_by"].items():
+            self.assertIn(duplicate, removed)
+            self.assertIn(retained, self.cells)
 
-    def test_every_archived_cell_is_retained_in_source_order(self):
-        combined_by_id = {cell["id"]: cell for cell in self.notebook["cells"]}
-        combined_positions = {
-            cell["id"]: position
-            for position, cell in enumerate(self.notebook["cells"])
-        }
-        previous_position = -1
-        rewritten_ids = set()
+    def test_single_build_and_no_namespace_resets(self):
+        self.assertEqual(self.source.count("AI.build("), 1)
+        self.assertIn("NP.build_panel_data(context=CTX)", self.source)
+        self.assertNotIn('run_line_magic("reset"', self.source)
+        self.assertEqual(len(self.cells), len(self.notebook["cells"]))
+        self.assertFalse(any(o.get("output_type") == "error"
+                             for c in self.cells.values() for o in c.get("outputs", [])))
 
-        for source in SOURCE_CELL_COUNTS:
-            archived_path = ARCHIVE / source.replace(
-                ".ipynb", "_pre_consolidation.ipynb"
-            )
-            archived = json.loads(archived_path.read_text(encoding="utf-8"))
-            for archived_cell in archived["cells"]:
-                cell_id = archived_cell["id"]
-                self.assertIn(cell_id, combined_by_id)
-                combined_cell = combined_by_id[cell_id]
-                self.assertEqual(combined_cell["cell_type"], archived_cell["cell_type"])
-                self.assertGreater(combined_positions[cell_id], previous_position)
-                previous_position = combined_positions[cell_id]
-                if combined_cell.get("source") != archived_cell.get("source"):
-                    rewritten_ids.add(cell_id)
-
-        self.assertEqual(rewritten_ids, EXPECTED_REWRITTEN_CELL_IDS)
-
-    def test_combined_notebook_is_clean_and_has_isolated_parts(self):
-        cells = self.notebook["cells"]
-        self.assertEqual(len(cells), sum(SOURCE_CELL_COUNTS.values()) + 7)
-        self.assertEqual(len({cell["id"] for cell in cells}), len(cells))
-        code_cells = [cell for cell in cells if cell["cell_type"] == "code"]
-        self.assertTrue(all(cell.get("execution_count") is None
-                            or isinstance(cell["execution_count"], int) for cell in code_cells))
-        self.assertFalse(any(output.get("output_type") == "error"
-                             for cell in code_cells for output in cell.get("outputs", [])))
-        self.assertEqual(self.source.count('run_line_magic("reset", "-f")'), 3)
-        headings = [
-            "# Part I: Fields of Research",
-            "# Part II: Author-level citation impact",
-            "# Part III: Showcase+ citation and disciplinary figures",
-            "# Part IV: Assembled publication panels",
+    def test_all_fifteen_distinct_figures_use_one_publishing_path(self):
+        self.assertEqual(self.source.count("Q.publish("), 15)
+        self.assertEqual(self.notebook["metadata"]["ukb_consolidation"]["refinement"]
+                         ["retained_figure_count"], 15)
+        for duplicate in ("05_impact_map_", "07_citation_share_",
+                          "09_footprint_quality_median_", "11_fastest_growing_"):
+            self.assertNotIn(duplicate, self.source)
+        required = [
+            "Q.whole_database_trends", "Q.publication_contribution",
+            "Q.annual_growth_speed", "Q.activity_over_time",
+            "Q.citation_measure_comparison", "Q.citation_cutoffs",
+            "Q.top_decile_pool", "Q.author_cohort_profile", "Q.author_fingerprint",
+            "Q.citation_overview", "Q.citation_concentration_and_cohorts",
+            "NP.figure_main(D, save=False)",
+            "NP.figure_si_impact_map(D, save=False)",
+            "NP.figure_si_top_decile(D, save=False)", "NP.figure_si_growth(D, save=False)",
         ]
-        positions = [self.source.index(heading) for heading in headings]
-        self.assertEqual(positions, sorted(positions))
+        for marker in required:
+            self.assertIn(marker, self.source)
 
-    def test_figure_and_table_contracts_remain_present(self):
-        required_markers = [
-            '"01_whole_db_trends_', '"02_ukbb_contribution_',
-            '"03_growth_speed_', '"04_activity_index_', '"05_impact_map_',
-            '"06_citation_impact_', '"07_citation_share_',
-            '"09_footprint_quality_median_', '"09a_footprint_quality_cutoffs_',
-            '"10_top_decile_pool_', '"11_fastest_growing_',
-            '"fig3a_author_entry_cohort_academic_impact_profile"',
-            '"fig_author_influence_fingerprint_heatmap"',
-            '"author_summary_with_impact_metrics.csv"',
-            '"fig01_disciplinary_composition"',
-            '"fig02_cumulative_output_and_citation_stock"',
-            '"fig04_field_citation_impact"', '"fig05_citation_concentration"',
-            '"fig06_age_adjusted_citation_cohorts"',
-            '"fig07_normalised_citation_performance"',
-            "NP.figure_main(D)", "NP.figure_si_impact_map(D)",
-            "NP.figure_si_top_decile(D)", "NP.figure_si_growth(D)",
-            '"panel_manifest.csv"',
-        ]
-        for marker in required_markers:
-            with self.subTest(marker=marker):
-                self.assertIn(marker, self.source)
+    def test_citation_concentration_and_cohorts_are_published_once(self):
+        self.assertEqual(self.source.count("Q.citation_concentration_and_cohorts("), 1)
+        self.assertNotIn("Q.citation_cohorts(", self.source)
+        self.assertNotIn('"fig06_age_adjusted_citation_cohorts"', self.source)
+        merged = self.notebook["metadata"]["ukb_consolidation"]["refinement"]
+        self.assertEqual(merged["combined_figures_replaced_by"]["_wMswquSRHhM"], "sgMydPt1RHhM")
+        self.assertIn("Panel B shows age-adjusted citation impact", self.source)
+
+    def test_four_citation_diagnostics_are_published_as_one_overview(self):
+        self.assertEqual(self.source.count("Q.citation_overview("), 1)
+        for function in ("disciplinary_composition", "cumulative_citation_stock",
+                         "field_citation_stock", "citation_survival"):
+            self.assertNotIn(f"Q.{function}(", self.source)
+        merged = self.notebook["metadata"]["ukb_consolidation"]["refinement"]
+        for old in ("JCUZAwHSRHhK", "yahZopFZRHhL", "88CbgM16RHhN"):
+            self.assertEqual(merged["combined_figures_replaced_by"][old], "AYh5B5D4RHhK")
+        for letter in "ABCD":
+            self.assertIn(f"**{letter}.", self.source)
+
+    def test_tables_and_window_guards_are_preserved(self):
+        for marker in (
+            "author_summary_with_impact_metrics.csv", "author_paper_fractional_credit_table.csv",
+            "input_manifest_author_impact_notebook.csv", "panel_d_citation_cutoffs.csv",
+            "si1_impact_table_all_weights.csv", "si2_fastest_growing_fields.csv",
+            "NP.assert_parameters_match(D)", "ANALYSIS_MIN = 2015",
+            'ARTIFACTS.save_manifest("panel_manifest.csv")',
+        ):
+            self.assertIn(marker, self.source)
+        self.assertNotIn('selection.to_csv', self.source)
+        self.assertNotIn('FIG_DIR.glob', self.source)
+
+    def test_figure_scaffolding_is_not_duplicated_in_notebook(self):
+        code = "\n".join("".join(c["source"]) for c in self.cells.values()
+                         if c["cell_type"] == "code")
+        for marker in ("plt.subplots(", "plt.rcParams", "COLOUR =", "set_title(",
+                       "show_figures()", 'FIGURE_DIR = OUTPUT_DIR / "figures"'):
+            self.assertNotIn(marker, code)
+        for cell in self.cells.values():
+            if cell["cell_type"] == "code":
+                compile("".join(cell["source"]), str(NOTEBOOK), "exec")
 
 
 if __name__ == "__main__":

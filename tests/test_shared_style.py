@@ -1,4 +1,5 @@
 import matplotlib.pyplot as plt
+import numpy as np
 import pytest
 from matplotlib.colors import to_hex
 
@@ -22,6 +23,29 @@ def test_facet_ylabel_wraps_without_dropping_field_names():
         shared_style.facet_ylabel(ax, label)
         assert '\n' in ax.get_ylabel()
         assert ax.get_ylabel().replace('\n', ' ') == label
+    finally:
+        plt.close(fig)
+
+
+@pytest.mark.parametrize("count,ncol", [(8, 4), (7, 3)])
+def test_legend_row_alignment_preserves_labels_and_is_idempotent(count, ncol):
+    from matplotlib.lines import Line2D
+    labels = [f"Field {i}" for i in range(count)]
+    labels[2] = "Long field name\ncontinued"
+    fig, ax = plt.subplots(figsize=(12, 4))
+    try:
+        handles = [Line2D([], [], label=label) for label in labels]
+        legend = shared_style.black_legend(fig, handles=handles, ncol=ncol)
+        shared_style.align_legend_rows(legend)
+        shared_style.align_legend_rows(legend)
+        assert [text.get_text() for text in legend.get_texts()] == labels
+        for dpi in (100, 200, 300):
+            fig.set_dpi(dpi)
+            fig.canvas.draw()
+            renderer = fig.canvas.get_renderer()
+            columns = legend._legend_handle_box.get_children()
+            heights = [column.get_window_extent(renderer).height for column in columns]
+            assert max(heights) - min(heights) < 1
     finally:
         plt.close(fig)
 
@@ -100,6 +124,13 @@ def test_apply_style_sets_matplotlib_default_marker_size():
     with plt.rc_context():
         shared_style.apply_style(style)
         assert plt.rcParams["lines.markersize"] == style["marker_size"]
+
+
+def test_blue_colormap_uses_only_the_project_blue_anchors():
+    cmap = shared_style.blue_colormap()
+    samples = cmap(np.linspace(0, 1, len(shared_style.BLUE_ANCHORS)))
+    assert [to_hex(color) for color in samples] == [
+        to_hex(color) for color in shared_style.palette(*shared_style.BLUE_ANCHORS)]
 
 
 def test_academic_impact_colormap_uses_project_palette_endpoints():

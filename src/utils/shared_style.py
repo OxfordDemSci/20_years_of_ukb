@@ -79,6 +79,7 @@ PALETTE = list(PALETTE_COLORS.values())
 # the academic-impact ramp introduced with the shared project palette: low values remain
 # visible as cream, while the upper end resolves to the project's navy.
 ACADEMIC_IMPACT_ANCHORS = ("cream", "light_blue", "steel_blue", "navy")
+BLUE_ANCHORS = ("light_blue", "blue", "steel_blue", "navy")
 
 
 def palette(*names):
@@ -519,6 +520,53 @@ def black_legend(ax, style=None, **kwargs):
     return legend
 
 
+def align_legend_rows(legend):
+    """Give multi-column legend rows equal heights, with centred text and handles.
+
+    Invisible renderer-sized spacers preserve alignment in both raster and vector
+    exports without adding blank lines to labels or shrinking the legend font.
+    """
+    from matplotlib.offsetbox import DrawingArea, HPacker
+    from matplotlib.transforms import Bbox
+
+    class RowSpacer(DrawingArea):
+        def __init__(self, peers):
+            super().__init__(0, 0)
+            self.peers = peers
+            self._ukb_legend_padding = True
+
+        def get_bbox(self, renderer):
+            # Font metrics vary with the export renderer, not just its DPI.
+            height = max(child.get_bbox(renderer).height for child in self.peers)
+            return Bbox.from_bounds(0, 0, 0, height)
+
+    figure = legend.get_figure()
+    columns = legend._legend_handle_box.get_children()
+    for column in columns:
+        column._children[:] = [row for row in column.get_children()
+                               if not getattr(row, "_ukb_legend_padding", False)]
+        for row in column.get_children():
+            row._children[:] = [child for child in row.get_children()
+                                if not getattr(child, "_ukb_legend_padding", False)]
+            row.align = "center"
+    rows_per_column = [column.get_children() for column in columns]
+    for index in range(max(map(len, rows_per_column), default=0)):
+        rows = [rows[index] for rows in rows_per_column if index < len(rows)]
+        peers = [child for row in rows for child in row.get_children()]
+        for column in columns:
+            spacer = RowSpacer(peers)
+            spacer.set_figure(figure)
+            if index < len(column.get_children()):
+                column.get_children()[index]._children.append(spacer)
+            else:
+                row = HPacker(children=[spacer], pad=0, sep=0, align="center")
+                row._ukb_legend_padding = True
+                row.set_figure(figure)
+                column._children.append(row)
+    legend.stale = True
+    return legend
+
+
 def summary_box(
     ax,
     lines,
@@ -554,6 +602,71 @@ def summary_box(
         bbox=box,
         zorder=zorder,
     )
+
+
+def scatter_callouts(ax, points, labels, *, obstacles=None, fontsize=None, width=28):
+    """Place wrapped callouts in free axes space, with curved arrows to data points.
+
+    Candidate boxes are tested in display coordinates, so this also works on log
+    axes. Set the final axes limits and layout before calling this helper.
+    ``obstacles`` can include additional unlabelled points to keep labels off data.
+    """
+    from textwrap import fill
+    from matplotlib.transforms import Bbox
+    import numpy as np
+
+    points = np.asarray(points, dtype=float)
+    if len(points) != len(labels):
+        raise ValueError("Each callout needs one point and one label.")
+    if not len(points):
+        return []
+    fontsize = _resolve(None)["annot_fs"] if fontsize is None else fontsize
+    fig = ax.figure
+    fig.canvas.draw()
+    renderer = fig.canvas.get_renderer()
+    bounds = ax.get_window_extent(renderer).padded(-5)
+    obstacle_points = points if obstacles is None else np.asarray(obstacles, dtype=float)
+    dots = ax.transData.transform(obstacle_points)
+    occupied = [Bbox.from_bounds(x - 11, y - 11, 22, 22) for x, y in dots]
+    occupied.extend(t.get_window_extent(renderer).padded(3)
+                    for t in ax.texts if t.get_visible() and t.get_text())
+    artists = []
+    pixels_per_point = fig.dpi / 72
+    for point, label in zip(points, labels):
+        anchor = ax.transData.transform(point)
+        text = fill(str(label), width=width)
+        probe = ax.text(*point, text, fontsize=fontsize)
+        box = probe.get_window_extent(renderer)
+        probe.remove()
+        candidates = []
+        for radius in (24, 40, 60, 85, 115, 150, 190):
+            for angle in (0, 180, 45, 135, -45, -135, 90, -90):
+                dx, dy = radius * np.array([np.cos(np.deg2rad(angle)),
+                                           np.sin(np.deg2rad(angle))])
+                ha = "left" if dx > 1 else "right" if dx < -1 else "center"
+                x, y = anchor + pixels_per_point * np.array([dx, dy])
+                left = x if ha == "left" else x - box.width if ha == "right" else x - box.width / 2
+                candidate = Bbox.from_bounds(left, y - box.height / 2, box.width, box.height).padded(3)
+                if not (bounds.contains(*candidate.p0) and bounds.contains(*candidate.p1)):
+                    continue
+                overlap = 0.0
+                for other in occupied:
+                    intersection = Bbox.intersection(candidate, other)
+                    if intersection is not None:
+                        overlap += intersection.width * intersection.height
+                candidates.append((overlap * 1000 + radius, dx, dy, ha, candidate))
+        if not candidates:
+            raise ValueError("Callouts do not fit; enlarge the axes or wrap labels more narrowly.")
+        _, dx, dy, ha, chosen = min(candidates, key=lambda item: item[0])
+        artist = ax.annotate(text, point, xytext=(dx, dy), textcoords="offset points",
+                             ha=ha, va="center", fontsize=fontsize, color="black",
+                             bbox={"facecolor": "white", "edgecolor": "none", "pad": .8},
+                             arrowprops={"arrowstyle": "->", "color": "black", "lw": .8,
+                                         "connectionstyle": "arc3,rad=0.15", "shrinkB": 7},
+                             zorder=5)
+        occupied.append(chosen)
+        artists.append(artist)
+    return artists
 
 
 def compact_count(value, digits=1):
@@ -624,6 +737,11 @@ def academic_impact_colormap(reverse: bool = False):
         name="academic_impact",
         reverse=reverse,
     )
+
+
+def blue_colormap():
+    """A blue sequence made only from project anchors, without a grey low end."""
+    return palette_colormap(*BLUE_ANCHORS, name="project_blues")
 
 
 def blue_cream_red_colormap():
