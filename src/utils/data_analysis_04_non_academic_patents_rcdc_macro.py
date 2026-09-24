@@ -32,7 +32,9 @@ if str(_ROOT / "src") not in sys.path:
 from utils.shared_analysis_window import ANALYSIS_START_DATE, ANALYSIS_END_DATE, filter_analysis_window
 from utils.shared_showcase import parse_listcol
 from utils import shared_paths as P
-from utils.shared_style import PNG_DPI, apply_typography, figure_export_formats, finalize_figure
+from utils.shared_style import (
+    NON_ACADEMIC_PALETTE, PNG_DPI, apply_typography, extended_palette, figure_export_formats, finalize_figure,
+)
 
 import numpy as np
 import pandas as pd
@@ -313,7 +315,7 @@ def plot_network(G, partition, outpath=result_path + "/network_plot.png", figsiz
     # layout
     pos = nx.spring_layout(G, seed=42, k=0.5)
     plt.figure(figsize=figsize)
-    cmap = sns.color_palette("tab20", n_colors=max(2,ncom))
+    cmap = extended_palette(max(2, ncom), style={"colors": NON_ACADEMIC_PALETTE})
     for com_id, nodes in communities.items():
         nx.draw_networkx_nodes(G, pos, nodelist=nodes, node_size=200, node_color=[cmap[com_id % len(cmap)]], label=f"c{com_id}")
     # edges: draw thin edges

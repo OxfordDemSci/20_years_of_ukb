@@ -120,13 +120,14 @@ COMPANY_SECTORS = ["Company (non-UK)", "UK company"]
 #: stream, a second hue says only "different panel", which the panel letter already says,
 #: and it leaves the reader hunting for a distinction that is not being drawn.
 #:
-#: Both families are blue. Policy takes the palette's `blue`; attention takes its
-#: `light_blue` and the darker `navy` where a panel genuinely carries two series (news
-#: against policy mentions, which is a real contrast, not a decorative one).
-POLICY_PRIMARY = "blue"           # #74ADD1
-POLICY_SECONDARY = "navy"         # #274668 - the UK / rest-of-world split
-ATTENTION_PRIMARY = "light_blue"  # #75BBD4
-ATTENTION_SECONDARY = "navy"      # #274668 - the policy series, where both are drawn
+#: The main attention cloud uses light blue with navy highlights. The supplementary
+#: news/policy series use the same steel-blue/red identities as the earlier trend figure.
+POLICY_PRIMARY = "steel_blue"     # #416FA0
+POLICY_SECONDARY = "red"          # #E66859 - the UK / rest-of-world split
+ATTENTION_PRIMARY = "steel_blue"  # #416FA0
+ATTENTION_SECONDARY = "red"       # #E66859 - highlighted publications in the main cloud
+ATTENTION_NEWS = "steel_blue"
+ATTENTION_POLICY = "red"
 
 #: The policy choropleth's ramp: white through the palette's three blues. Built from the
 #: named palette rather than from a Matplotlib map so the map and the bars beside it are
@@ -219,60 +220,21 @@ ICD_CHAPTERS = [
      ["infect", "covid", "viral", "bacteri", "sepsis", "hiv"]),
 ]
 
-#: Where each chapter sits on the silhouette: (x, y, short label, which side its own text
-#: sits on). Coordinates are the body map's own, the ones SILHOUETTE_EXTENT is written in.
-#:
-#: These are ANATOMICAL, measured against the artwork rather than eyeballed. Sampling the
-#: PNG's alpha mask row by row gives the body's real landmarks in these coordinates:
-#:
-#:     head          y 12.6-13.9, x 4.5-5.5
-#:     neck          y 12.3-12.5, x 4.66-5.34
-#:     chest         y  9.8-11.3, torso x 4.18-5.82 (arms merge into the outline above 10.3)
-#:     abdomen       y  7.8-9.8,  torso x 4.00-6.01
-#:     pelvis        y  7.0-7.8,  torso x 3.95-6.05
-#:     thighs        y  5.2-6.9,  left 3.98-4.92 · right 5.08-6.02
-#:     lower legs    y  2.5-5.2,  left 4.05-4.78 · right 5.22-5.95
-#:
-#: so every dot below lands on the organ it names, and none of them floats off the body.
-#: Left/right are the VIEWER's, which is why the heart sits right of the midline.
-#:
-#: The label side is stated per chapter rather than derived from x, because with the dots
-#: now clustered on the midline an "x <= 5 reads left" rule would put seven labels on one
-#: side and two on the other.
+#: Schematic chapter locations, not exact organ locations or evidence of causality.
+#: Left/right refer to the viewer; systemic chapters are deliberately off the body.
 ICD_BODY_POS = {
-    "V   Mental & behavioural (F00–F99)":               (5.00, 13.30, "Mental/behavioural", "left"),
+    "V   Mental & behavioural (F00–F99)":               (5.00, 13.20, "Mental/behavioural", "left"),
     "VI  Nervous system (G00–G99)":                     (5.00, 12.30, "Nervous", "right"),
     "X   Respiratory system (J00–J99)":                 (4.40, 10.90, "Respiratory", "left"),
     "IX  Circulatory system (I00–I99)":                 (5.50, 10.55, "Circulatory", "right"),
-    "IV  Endocrine, nutritional & metabolic (E00–E90)": (4.95, 9.60, "Endocrine/metabolic", "left"),
+    "IV  Endocrine, nutritional & metabolic (E00–E90)": (4.75, 9.45, "Endocrine/metabolic", "left"),
     "XI  Digestive system (K00–K93)":                   (5.00, 8.60, "Digestive", "right"),
-    # Genitourinary and pregnancy sit in the LOWER ABDOMEN, not on the hips: the legs
-    # split at y ~7.4 in this artwork, so the 7.15 these used to carry put both dots on
-    # the thighs. 7.75 is the last row where the torso is still one segment (x 4.00-6.01),
-    # which is where a bladder and a uterus actually are.
     "XIV Genitourinary (N00–N99)":                      (4.50, 7.75, "Genitourinary", "left"),
     "XV  Pregnancy & childbirth (O00–O99)":             (5.50, 7.75, "Pregnancy", "right"),
     "XIII Musculoskeletal (M00–M99)":                   (4.45, 5.60, "Musculoskeletal", "left"),
-    # Systemic: no organ, so no anatomical position, and inventing one would be a claim
-    # the data does not make. Parked to the right under their own heading, with their
-    # captions BELOW the dots — a caption to the right of x=8 is what used to force the
-    # x range out to 13.6, and the panel is equal-aspect, so every unit of unused x range
-    # came straight off the size of the body.
-    "II  Neoplasms (C00–D48)":                          (8.95, 13.20, "Neoplasms", "below"),
-    "I   Infectious & parasitic (A00–B99)":             (8.95, 11.75, "Infectious", "below"),
+    "II  Neoplasms (C00–D48)":                          (7.40, 4.65, "Neoplasms", "systemic"),
+    "I   Infectious & parasitic (A00–B99)":             (7.40, 3.30, "Infectious", "systemic"),
 }
-
-#: The silhouette drawn behind the body map. It is an ARTWORK FILE, not a figure this
-#: project generates, and it lives beside the clinical-trials figures where its author
-#: put it. If it is missing the body map still draws — dots and labels, no body — rather
-#: than taking the whole SI panel down with it.
-SILHOUETTE_PNG = P.FIG_CLINICAL_TRIALS / "human_silhouette" / "silhouette_clean.png"
-
-#: Where to place SILHOUETTE_PNG so its *inked* area (not its transparent margin) spans
-#: x 3.29-6.71 and y 2.10-13.60 in the coordinates ICD_BODY_POS is written in. The file
-#: is 548x1600 with the body occupying px x 51-495, y 51-1546, so the extent below is the
-#: full image back-computed from that inset. Recompute it if the artwork is replaced.
-SILHOUETTE_EXTENT = (2.897, 7.118, 1.682, 13.993)
 
 #: Condition-leaf MeSH terms that are not diseases. CTgov maps condition text like
 #: "physical activity" or "healthy" onto behavioural or descriptive MeSH descriptors, so
@@ -1038,6 +1000,16 @@ def build_altmetric_aggregates(altmetric: pd.DataFrame) -> dict:
     # what turns an anonymous cloud into a claim a reader can check — the top-right point
     # is a specific paper, and saying which one costs two labels.
     out["scatter_top"] = _annotate_rows(scatter.nlargest(2, "substantive"))
+    # Two contrasting lower-edge examples: lowest score per mention, and the most
+    # mentioned paper with a score/mention ratio <= 3 (at least ten mentions).
+    lower = scatter.loc[scatter["substantive"] >= 10].copy()
+    lower["score_per_mention"] = lower["Altmetric Attention Score"] / lower["substantive"]
+    lower = lower.loc[lower["score_per_mention"] <= 3]
+    choices = pd.concat([lower.nsmallest(1, "score_per_mention"),
+                         lower.nlargest(1, "substantive")]).drop_duplicates("id")
+    out["scatter_lower"] = _annotate_rows(choices)
+    central = scatter.loc[scatter["substantive"].between(5, 30)]
+    out["scatter_center"] = _annotate_rows(central.nlargest(1, "Altmetric Attention Score"))
 
     out["score_distribution"] = alt.loc[
         alt["Altmetric Attention Score"] > 0, "Altmetric Attention Score"
@@ -1232,8 +1204,13 @@ from matplotlib.ticker import FuncFormatter, MaxNLocator               # noqa: E
 from contextlib import contextmanager                                  # noqa: E402
 
 from utils.shared_style import (                                       # noqa: E402
-    apply_typography, finalize_figure, grid_on, palette, panel_label, savefig,
+    apply_typography, grid_on, load_style, palette, panel_label,
     semantic_colors, warm_cold_colormap,
+)
+
+
+from utils.data_analysis_04_non_academic_figures import (
+    finalize_figure, savefig, PATENT_STATUS_COLORS, TRIAL_SECTOR_COLORS,
 )
 
 
@@ -1327,7 +1304,7 @@ def _heat_cmap():
 def _heat_values(frame):
     """Matrix values with zeros as NaN, so `_heat_cmap` paints them as empty."""
     values = frame.to_numpy(dtype=float)
-    return np.where(values > 0, values, np.nan)
+    return values
 
 
 def _heat_text_color(value, top):
@@ -1463,7 +1440,7 @@ def _lines(ax, frame, colors, xlabel, ylabel, *, marker="o", labels=None,
     st = _style()
     for column in frame.columns:
         ax.plot(frame.index, frame[column].to_numpy(dtype=float),
-                marker=marker, markersize=4, linewidth=1.8,
+                marker=marker, markersize=7, linewidth=1.8,
                 markeredgecolor="white", markeredgewidth=0.5,
                 color=colors[str(column)] if isinstance(colors, dict) else colors,
                 label=(labels or {}).get(str(column), str(column)))
@@ -1591,7 +1568,9 @@ def draw_patent_country_topics(ax, D):
     """
     st = _style()
     pivot = D["patents"]["country_topic_pct"].T          # divisions x countries
-    image = ax.imshow(_heat_values(pivot), aspect="auto", cmap=_heat_cmap(), vmin=0)
+    values = _heat_values(pivot)
+    empty = (values == 0) | ~np.isfinite(values)
+    image = ax.imshow(np.ma.masked_where(empty, values), aspect="auto", cmap=_heat_cmap(), vmin=0)
     ax.set_xticks(range(pivot.shape[1]))
     ax.set_xticklabels(pivot.columns, fontsize=st["tick_fs"])
     ax.set_yticks(range(pivot.shape[0]))
@@ -1609,6 +1588,10 @@ def draw_patent_country_topics(ax, D):
     ax.figure.colorbar(image, ax=ax, fraction=0.03, pad=0.02,
                        label="% of the country's patents")
     ax.grid(False)
+    for spine in ax.spines.values():
+        spine.set_visible(True)
+        spine.set_color("black")
+        spine.set_linewidth(1)
     return ax
 
 
@@ -1619,8 +1602,7 @@ def draw_patent_legal_status(ax, D):
                          "Granted Patent Expired", "Application Ceased",
                          "Application Withdrawn", "Application Abandoned"]
              if c in frame.columns]
-    from utils.shared_style import extended_palette
-    colors = dict(zip(order, extended_palette(len(order))))
+    colors = PATENT_STATUS_COLORS
     _stacked_bars(ax, frame[order], colors, "Patent publication year", "Patents",
                   legend_title="Legal status", annotate=True, segment_labels=False)
     st = _style()
@@ -1633,8 +1615,8 @@ def draw_patent_legal_status(ax, D):
     # ~1.9x so the legend starts well clear of both.
     ax.set_ylim(0, frame.sum(axis=1).max() * 1.92)
     ax.legend(loc="upper left", ncol=2, columnspacing=1.0, handlelength=1.2,
-              handletextpad=0.5, fontsize=st["legend_fs"] - 3,
-              title="Legal status", title_fontsize=st["legend_fs"] - 2.5)
+              handletextpad=0.5, fontsize=st["legend_fs"],
+                   title="Legal status", title_fontsize=st["legend_fs"])
     ax.tick_params(axis="x", labelrotation=0)
     ax.set_xticklabels([str(i) for i in frame.index], rotation=0, ha="center")
     return ax
@@ -1671,8 +1653,8 @@ def _two_way(first: str, second: str) -> dict:
 
 
 def _trial_type_colors() -> dict:
-    """Interventional (blue) / observational (red)."""
-    return _two_way("Interventional", "Observational")
+    """Use the clinical notebook's blue/red identities without activating its style."""
+    return load_style("04_non_academic_01_clinical_trials", activate=False)["trial_type_colors"]
 
 
 def draw_trials_by_year(ax, D):
@@ -1687,15 +1669,7 @@ def draw_trials_by_year(ax, D):
 
 def _trial_sector_colors() -> dict:
     """The six organisation sectors of §7 of the source notebook, in the project palette."""
-    sector = _sector_colors()
-    return {
-        "Academia":   _stream_colors()["clinical_trials"],     # navy, the arm's identity
-        "Healthcare": sector["Hospital/Clinical"],             # light blue
-        "Industry":   _stream_colors()["policy"],              # red
-        "Government": sector["Government/Public"],             # steel blue
-        "Nonprofit":  sector["Nonprofit/Charity"],             # cream
-        "Other":      "#B8B8B8",
-    }
+    return TRIAL_SECTOR_COLORS
 
 
 def draw_trial_country_sector(ax, D):
@@ -1727,8 +1701,8 @@ def draw_trial_country_sector(ax, D):
     ax.set_xlim(0, totals.max() * 1.16)
     ax.set_xlabel("Fractional trial weight")
     ax.set_ylabel("Country")
-    ax.legend(title="Sector", loc="lower right", ncol=2, fontsize=st["legend_fs"] - 1,
-              title_fontsize=st["legend_fs"] - 1)
+    ax.legend(title="Sector", loc="lower right", ncol=2, fontsize=st["legend_fs"],
+              title_fontsize=st["legend_fs"])
     return ax                       # annotated bars carry no grid — see _hbar
 
 
@@ -1758,83 +1732,101 @@ def draw_trial_stage(ax, D):
     return ax
 
 
+def _draw_trial_body_outline(ax):
+    """A symmetric vector contour keeps the schematic crisp at publication scale."""
+    from matplotlib.path import Path as MplPath
+    from matplotlib.patches import Ellipse, PathPatch
+
+    start = (4.65, 12.40)
+    curves = [
+        ((4.65, 12.10), (4.63, 11.94), (4.45, 11.85)),
+        ((4.18, 11.73), (3.86, 11.73), (3.70, 11.40)),
+        ((3.50, 11.01), (3.50, 10.61), (3.42, 10.20)),
+        ((3.35, 9.64), (3.14, 8.68), (3.02, 8.08)),
+        ((2.96, 7.78), (3.04, 7.52), (3.23, 7.56)),
+        ((3.43, 7.60), (3.48, 8.13), (3.54, 8.46)),
+        ((3.69, 9.12), (3.86, 9.72), (3.91, 10.26)),
+        ((3.94, 10.61), (4.03, 10.60), (4.04, 10.26)),
+        ((4.04, 9.70), (4.20, 9.27), (4.12, 8.70)),
+        ((3.95, 8.10), (3.95, 7.45), (4.00, 6.87)),
+        ((4.02, 6.27), (4.16, 5.73), (4.17, 5.18)),
+        ((4.03, 4.53), (4.20, 3.51), (4.24, 2.78)),
+        ((4.26, 2.44), (3.96, 2.32), (3.96, 2.12)),
+        ((4.12, 1.98), (4.63, 2.03), (4.73, 2.10)),
+        ((4.80, 2.32), (4.64, 2.56), (4.67, 2.89)),
+        ((4.82, 3.76), (4.75, 4.57), (4.72, 5.16)),
+        ((4.77, 5.90), (4.74, 6.72), (4.90, 7.18)),
+        ((4.94, 7.30), (4.98, 7.33), (5.00, 7.33)),
+    ]
+    vertices, codes = [start], [MplPath.MOVETO]
+    segments = []
+    previous = start
+    for first, second, end in curves:
+        segments.append((previous, first, second, end))
+        vertices.extend((first, second, end))
+        codes.extend([MplPath.CURVE4] * 3)
+        previous = end
+    for beginning, first, second, _ in reversed(segments):
+        vertices.extend((10 - x, y) for x, y in (second, first, beginning))
+        codes.extend([MplPath.CURVE4] * 3)
+    vertices.append(start)
+    codes.append(MplPath.CLOSEPOLY)
+    outline = dict(facecolor="white", edgecolor=palette("navy"), linewidth=1.05, zorder=1)
+    ax.add_patch(PathPatch(MplPath(vertices, codes), gid="trial-body-outline", **outline))
+    ax.add_patch(Ellipse((5, 13.08), 1.20, 1.52, gid="trial-body-head", **outline))
+
+
 def draw_trial_bodymap(ax, D):
-    """Trials per ICD-10 chapter, placed on the body.
-
-    A ranked bar of MeSH terms answers "which conditions", and SI 2 already answers that
-    with RCDC in the next panel. This answers a question a bar cannot: *where in the body*
-    the trials that lean on UK Biobank are concentrated. Dot area is proportional to the
-    trial count; a trial counts once per chapter it touches, so the dots do not partition
-    the 195.
-
-    The two systemic chapters — neoplasms and infectious disease — sit off the body to
-    the right. They belong to no organ, and putting them on one would be an anatomical
-    claim the data does not make.
-    """
-    st = _style()
+    """Schematic disease coverage, with aligned labels and a true area/count scale."""
     counts = D["trials"]["icd_chapters"]
-    # Steel blue rather than the arm's navy: the dots sit ON a mid-tone silhouette, and
-    # navy against that ground reads as a hole rather than as a marker. It is the palette
-    # colour one step lighter, so the panel still belongs to the trials family.
+    ax._ukb_annotation_fs = 12
+    ax._ukb_legend_fs = 11
+    _draw_trial_body_outline(ax)
     color = palette("steel_blue")
-
-    if SILHOUETTE_PNG.exists():
-        # The artwork carries an OPAQUE WHITE background, not a transparent one, so this
-        # paints a white rectangle over the whole extent as well as the body. That is
-        # invisible on a white figure and the panel has no grid to hide, but it does mean
-        # nothing may be drawn beneath it — every marker below is at zorder >= 5.
-        ax.imshow(plt.imread(SILHOUETTE_PNG), extent=SILHOUETTE_EXTENT,
-                  aspect="auto", zorder=0, interpolation="antialiased")
-    else:
-        # Named, not silent: the panel is still readable, but a reader of the notebook
-        # output should know the body behind the dots is missing rather than assume the
-        # figure was designed this way.
-        print(f"body map: {P.raw_path(SILHOUETTE_PNG)} not found — dots only")
-
-    largest = max(counts.max(), 1)
-    top = set(counts.sort_values(ascending=False).head(5).index)
+    area_per_trial = 8.
     for chapter, value in counts.items():
-        if chapter not in ICD_BODY_POS:
+        if chapter not in ICD_BODY_POS or not np.isfinite(value) or value <= 0:
             continue
         x, y, short, side = ICD_BODY_POS[chapter]
-        radius = np.sqrt(60 + (value / largest) * 620)     # so AREA tracks the count
-        ax.scatter([x], [y], s=radius ** 2, c=color,
-                   edgecolors="white", linewidths=1.2, zorder=5, alpha=0.92)
-        label = f"{short} ({int(value)})"
-        weight = "bold" if chapter in top else "normal"
-        shade = "black" if chapter in top else "#444444"
-        # Clear of the dot's own edge. 52 is points-per-data-unit at this panel's fitted
-        # scale (the equal-aspect fit binds on height: ~9 in over a 12.35-unit y range).
-        offset = radius / 52.0 + 0.16
-        if side == "below":
-            ax.annotate(label, (x, y), (x, y - offset), textcoords="data",
-                        ha="center", va="top", fontsize=st["annot_fs"] - 1,
-                        fontweight=weight, color=shade, zorder=6)
+        size = area_per_trial * value
+        ax.scatter([x], [y], s=size, color=color, edgecolors="white",
+                   linewidths=1, zorder=4, gid=f"trial-chapter:{chapter}")
+        label = f"{short}\n{int(value)} trials"
+        if side == "systemic":
+            ax.annotate(label, (x, y), xytext=(18, 0), textcoords="offset points",
+                        ha="left", va="center", fontsize=12, zorder=5)
         else:
             left = side == "left"
-            ax.annotate(label, (x, y), (x - offset if left else x + offset, y),
-                        textcoords="data", ha="right" if left else "left",
-                        va="center", fontsize=st["annot_fs"] - 1,
-                        fontweight=weight, color=shade, zorder=6)
-
-    ax.text(8.95, 14.10, "Systemic", ha="center", va="bottom", zorder=6,
-            fontsize=st["annot_fs"] - 1, style="italic", color="#666666")
-    # The panel is equal-aspect, so the body is drawn at min(cell_width / x-range,
-    # cell_height / y-range). x-range was 14.8 units against a y-range of 12.4, which made
-    # width the binding constraint and left a third of the cell's height empty with a
-    # small body in the middle of it. Shortening the two longest labels and moving the
-    # systemic captions under their dots brings the x range in far enough that HEIGHT
-    # binds instead — which is what "as big as the space allows" means here.
-    ax.set_xlim(1.20, 10.05)
-    ax.set_ylim(2.2, 14.70)
+            label = label.replace("/", "/\n")
+            ax.annotate(
+                label, (x, y), xytext=(2.75 if left else 7.25, y),
+                ha="right" if left else "left", va="center", fontsize=12,
+                bbox=dict(facecolor="white", edgecolor="none", pad=1.5),
+                arrowprops=dict(arrowstyle="-", color=palette("navy"), linewidth=.7,
+                                shrinkA=4, shrinkB=np.sqrt(size) / 2 + 2,
+                                connectionstyle="arc3,rad=0"),
+                zorder=5,
+            )
+    ax.text(7.25, 5.90, "Systemic", fontsize=12, color=palette("navy"),
+            fontweight="bold", va="center")
+    handles = [ax.scatter([], [], s=area_per_trial * value, color=color,
+                          edgecolors="white", linewidths=1, label=str(value))
+               for value in (10, 30, 50)]
+    ax.legend(handles=handles, title="Trials", loc="lower center", ncol=3,
+              fontsize=11, title_fontsize=11, borderpad=.8, handleheight=2,
+              handletextpad=.5, columnspacing=1.2, labelspacing=.6)
+    ax.set_xlim(-.3, 10.3)
+    ax.set_ylim(.05, 14.25)
     ax.set_aspect("equal")
+    ax.set_anchor("N")
     ax.axis("off")
     n_trials = len(D["trials"]["papers_per_trial"])
-    ax.text(0.5, -0.01,
-            f"{D['trials']['icd_mapped_trials']} of {n_trials} trials mapped to "
-            f"1+ chapters\ndot area is proportional to the trial count",
-            transform=ax.transAxes, fontsize=st["annot_fs"] - 1, va="top", ha="center",
-            color="#666666")
+    note = (f"{D['trials']['icd_mapped_trials']} of {n_trials} trials mapped to at least one "
+            "ICD-10 chapter. Marker area is directly proportional to trial count; body "
+            "positions are schematic, not precise anatomical localisations.")
+    notes = getattr(ax.figure, "_ukb_caption_notes", [])
+    if note not in notes:
+        ax.figure._ukb_caption_notes = [*notes, note]
     return ax
 
 
@@ -1852,7 +1844,7 @@ def draw_trial_conditions(ax, D):
 
 def draw_trial_rcdc(ax, D):
     """RCDC disease tags, with the 56 cross-cutting tags stop-listed (D11)."""
-    _hbar(ax, D["trials"]["rcdc_disease"], _stream_colors()["clinical_trials"],
+    _hbar(ax, D["trials"]["rcdc_disease"], palette("steel_blue"),
           "Trials", ylabel="RCDC disease category", wrap=26)
     return ax
 
@@ -1863,7 +1855,7 @@ def draw_trial_enrollment(ax, D):
     values = D["trials"]["enrollment"]
     values = values[values > 0]
     bins = np.logspace(np.log10(values.min()), np.log10(values.max()), 24)
-    ax.hist(values, bins=bins, color=_stream_colors()["clinical_trials"],
+    ax.hist(values, bins=bins, color=palette("cream"),
             edgecolor=st.get("edgecolor", "black"), linewidth=0.6)
     ax.set_xscale("log")
     _ref_lines(ax, values)
@@ -1961,7 +1953,7 @@ def draw_policy_country_map(ax, D):
     world.plot(column="documents", ax=ax, cmap=cmap,
                norm=LogNorm(vmin=1, vmax=float(counts.max())),
                edgecolor=st.get("edgecolor", "black"), linewidth=0.25,
-               missing_kwds={"color": "#EDEDED",
+               missing_kwds={"color": "white",
                              "edgecolor": st.get("edgecolor", "black"),
                              "linewidth": 0.25})
     ax.set_xlim(-179, 179)
@@ -1983,12 +1975,9 @@ def draw_policy_country_map(ax, D):
     # this box, and a caption sitting in the Pacific reads as if it belonged to the
     # countries around it.
     top = D["policy"]["countries"].head(5)
-    ax.text(0.0, -0.04,
-            f"{len(counts)} publisher countries, {matched} drawn.  "
-            + " · ".join(f"{_shorten(name, 22)} {int(value)}"
-                         for name, value in top.items()),
-            transform=ax.transAxes, ha="left", va="top", fontsize=st["annot_fs"] - 1,
-            bbox=dict(boxstyle="round,pad=0.3", fc="white", ec="black", lw=0.8))
+    ax.figure._ukb_caption_notes = [
+        f"There are {len(counts)} publisher countries ({matched} mapped). Leading countries: "
+        + "; ".join(f"{name}, {int(value)} documents" for name, value in top.items()) + "."]
     return ax
 
 
@@ -2001,8 +1990,8 @@ def draw_policy_publishers(ax, D):
 
 def draw_policy_divisions(ax, D):
     """What the policy documents are about, as FOR 2020 research divisions."""
-    _hbar(ax, D["policy"]["divisions"], palette(POLICY_PRIMARY),
-          "Policy documents", ylabel="Research division (FOR 2020)", wrap=26)
+    _hbar(ax, D["policy"]["divisions"], palette(POLICY_SECONDARY),
+          "Policy documents", ylabel="Research division (FOR 2020)", wrap=30)
     return ax
 
 
@@ -2035,130 +2024,187 @@ def draw_policy_top_papers(ax, D):
 
 
 # ---------------------------------------------------------------- altmetric --
-def draw_altmetric_scatter(ax, D):
-    """Attention score against substantive (news + policy) mentions, both on log axes.
+def _attention_cloud(ax, frame, xcolumn, xlabel, *, top_padding=.08, color=None,
+                     outlined=False):
+    """Use small uniform marks; the axes, rather than bubble area, encode values."""
+    from matplotlib.colors import to_rgba
 
-    The population is stated on the panel rather than assumed: a paper needs a positive
-    attention score AND at least one news-or-policy mention to sit on two log axes. It is
-    stated as the legend's title, not as a box of its own — the panel has two empty
-    regions and four things to put in them, so the two that are reference material share
-    one frame and the two outlier labels get a region each.
-    """
-    st = _style()
-    scatter = D["altmetric"]["scatter"]
-    ax.scatter(scatter["substantive"], scatter["Altmetric Attention Score"],
-               s=18 + 10 * np.sqrt(scatter["substantive"]),
-               color=_stream_colors()["altmetric"], alpha=0.45,
-               edgecolor="black", linewidth=0.4)
+    ax._ukb_label_fs = 14
+    ax._ukb_tick_fs = 12
+    ax._ukb_annotation_fs = 12
+    # Apply transparency to fills only, keeping the fine black outlines legible.
+    ax.scatter(frame[xcolumn], frame["Altmetric Attention Score"],
+               s=24 if outlined else 14, marker="o",
+               facecolors=to_rgba(color or palette(ATTENTION_PRIMARY), .65 if outlined else .5),
+               edgecolors="black" if outlined else "none",
+               linewidths=.3 if outlined else 0,
+               rasterized=True, zorder=2)
     ax.set_xscale("log")
     ax.set_yscale("log")
-    ax.set_xlabel("News + policy mentions (log)")
-    ax.set_ylabel("Altmetric Attention Score (log)")
-    # Name the two most-mentioned publications. Curved leaders and a boxed label, placed
-    # down-left and down-right of their points so neither runs off the top of the axes:
-    # both outliers sit in the upper right by construction.
+    ax.set_xlabel(xlabel)
+    ax.set_ylabel("Altmetric Attention Score")
+    for column, setter, high_padding in (
+        (xcolumn, ax.set_xlim, .13),
+        ("Altmetric Attention Score", ax.set_ylim, top_padding),
+    ):
+        values = frame[column].to_numpy(dtype=float)
+        values = values[np.isfinite(values) & (values > 0)]
+        if values.size:
+            lower, upper = np.log10([values.min(), values.max()])
+            span = max(upper - lower, 1.)
+            setter(10 ** (lower - .07 * span), 10 ** (upper + high_padding * span))
+        else:
+            setter(.8, 10)
+    ax.grid(False, which="both")
+    ax.tick_params(axis="both", which="major", labelsize=12, length=4, width=1)
+    for side, spine in ax.spines.items():
+        spine.set_visible(not outlined or side in ("left", "bottom"))
+        spine.set_color("black")
+        spine.set_linewidth(1)
+    return ax
+
+
+def _attention_caption_note(ax, text):
+    notes = getattr(ax.figure, "_ukb_caption_notes", [])
+    if text not in notes:
+        ax.figure._ukb_caption_notes = [*notes, text]
+
+
+def _attention_paper_label(row):
+    author = row.get("first_author")
+    author = str(author).strip() if pd.notna(author) and str(author).strip() else "Author"
+    year = row.get("year")
+    return f"{author} et al." + (f" ({int(year)})" if pd.notna(year) else "")
+
+
+def _attention_callouts(ax, points, labels, obstacles, *, below=False, _first_candidate=0):
+    """Route short curved leaders in display space, clear of boxes and marker disks."""
+    fig = ax.figure
+    fig.canvas.draw()
+    renderer = fig.canvas.get_renderer()
+    scale = fig.dpi / 72
+    dots = ax.transData.transform(np.asarray(obstacles))
+    anchors = ax.transData.transform(np.asarray(points))
+    radii = np.full(len(dots), (np.sqrt(24) / 2 + .15 + 1.5) * scale)
+    for anchor in anchors:
+        radii[np.linalg.norm(dots - anchor, axis=1) < .1] = (np.sqrt(70) / 2 + 2) * scale
+    bounds = ax.get_window_extent(renderer).padded(-5 * scale)
+    boxes = [t.get_bbox_patch().get_window_extent(renderer).padded(3 * scale)
+             for t in ax.texts if t.get_bbox_patch() is not None]
+    paths = []
+    artists = []
+    order = list(range(len(points)))
+    skip = _first_candidate
+    for index in order:
+        point, label = points[index], labels[index]
+        lower_label = below[index] if isinstance(below, (list, tuple)) else below
+        angles = (tuple(range(-15, -180, -15)) if lower_label else
+                  (135, 150, 120, 180, 90, 60, 45, 30, 15, 0,
+                   -15, -30, -45, -60, -90, -120, -135, -150, -165, 165))
+        chosen = None
+        for radius in (56, 72, 90, 115, 145, 180):
+            for angle in angles:
+                dx, dy = radius * np.array([np.cos(np.deg2rad(angle)), np.sin(np.deg2rad(angle))])
+                for curve in (.20, -.20):
+                    text = ax.annotate(
+                        label, point, xytext=(dx, dy), textcoords="offset points",
+                        ha=("center" if abs(dy) > abs(dx) * .5 else
+                            "left" if dx > 1 else "right" if dx < -1 else "center"),
+                        va="center", fontsize=12, zorder=5,
+                        bbox=dict(boxstyle="round,pad=.25", facecolor="white",
+                                  edgecolor=palette("navy"), linewidth=.7),
+                        arrowprops=dict(arrowstyle="->", mutation_scale=9,
+                                        color=palette("navy"), linewidth=.9,
+                                        connectionstyle=f"arc3,rad={curve}", shrinkA=6, shrinkB=14),
+                    )
+                    text.update_positions(renderer)
+                    text.update_bbox_position_size(renderer)
+                    # FancyArrowPatch resolves point-based endpoint gaps when drawn.
+                    text.arrow_patch.draw(renderer)
+                    box = text.get_bbox_patch().get_window_extent(renderer).padded(2 * scale)
+                    path = np.concatenate([segment(np.linspace(0, 1, 65))
+                                           for segment, _ in text.arrow_patch.get_path().iter_bezier()])
+                    nearest = np.maximum(np.maximum(box.p0 - dots, dots - box.p1), 0)
+                    clear = (bounds.contains(*box.p0) and bounds.contains(*box.p1)
+                             and not any(box.overlaps(other) for other in boxes)
+                             and np.all(np.linalg.norm(nearest, axis=1) > radii))
+                    if clear:
+                        distances = np.linalg.norm(path[:, None, :] - dots[None, :, :], axis=2)
+                        clear = np.all(distances > radii[None, :])
+                    if clear:
+                        clear = not any(np.any((path[:, 0] >= other.x0) & (path[:, 0] <= other.x1)
+                                                & (path[:, 1] >= other.y0) & (path[:, 1] <= other.y1))
+                                        for other in [box, *boxes])
+                    if clear:
+                        clear = not any(np.any((p[:, 0] >= box.x0) & (p[:, 0] <= box.x1)
+                                                & (p[:, 1] >= box.y0) & (p[:, 1] <= box.y1)) for p in paths)
+                    if clear:
+                        clear = not any(np.min(np.linalg.norm(path[:, None, :] - p[None, :, :], axis=2))
+                                        < 2 * scale for p in paths)
+                    if clear:
+                        if index == order[0] and skip:
+                            skip -= 1
+                            text.remove()
+                            continue
+                        chosen = text
+                        boxes.append(box)
+                        paths.append(path)
+                        artists.append(text)
+                        break
+                    text.remove()
+                if chosen is not None:
+                    break
+            if chosen is not None:
+                break
+        if chosen is None:
+            if artists and _first_candidate < 40:
+                for artist in artists:
+                    artist.remove()
+                return _attention_callouts(ax, points, labels, obstacles, below=below,
+                                           _first_candidate=_first_candidate + 1)
+            raise ValueError(f"No clear attention callout route for {label}; enlarge the panel.")
+    return artists
+
+
+def draw_altmetric_scatter(ax, D):
+    """Attention against mentions, with clear upper- and lower-edge paper callouts."""
+    scatter = D["altmetric"]["scatter"]
+    _attention_cloud(ax, scatter, "substantive", "News and policy mentions",
+                     top_padding=.30, outlined=True)
     top = D["altmetric"].get("scatter_top")
     if top is not None and len(top):
-        # Label positions are in AXES FRACTION, not data coordinates. The cloud runs
-        # bottom-left to top-right, so the empty band is along the top-left — but where
-        # that band starts in data terms depends on the axis limits, which depend on the
-        # data. Anchoring to the axes puts the boxes in the gap whatever the data does,
-        # and leaves the leaders to find their points.
-        # Positive `rad` bows the leader DOWN, into the panel. A negative one arcs it up
-        # and out of the axes over the panel above, which no amount of clipping fixes
-        # because the arrow is drawn in figure space.
-        # One box above the cloud, one below it. Stacking both above put the second one's
-        # lower edge on the rising data; the panel's other empty region is the wedge
-        # UNDER the cloud on the right, which is where the second box goes.
-        #
-        # Their leaders bow in OPPOSITE directions, and the sign is the whole trick. The
-        # lower box sits below-left of its point, so a leader that curves up-left cuts
-        # straight through the cloud; curving the other way sends it right along under
-        # the data and up to the point from beneath, touching nothing. Same reasoning
-        # mirrored for the upper box.
-        #
-        # The x positions are half what they were: this panel shares its row with F and
-        # is half the width it was, so a box anchored at 0.44 ran off the right edge and
-        # one at 0.52 sat on the cloud rather than beside it.
-        #
-        # Both boxes then went UP, each by the height of what used to sit under it.
-        #
-        # The upper one had the population summary above it and so started at 0.74, which
-        # laid its lower edge across the dot column at one-to-six mentions. The summary is
-        # now folded into the legend, so the box starts at the top of the axes (0.985 —
-        # not 1.0, which would clip the frame against the spine) and covers nothing.
-        #
-        # The lower one had the size key beneath it; the merged legend in that corner is
-        # two lines of summary taller, so the box rises by about that much, to 0.32. It
-        # also moves RIGHT rather than staying at 0.40, which is the difference between a
-        # box whose right edge stops short of the legend's and one flush with it: 0.47
-        # puts the two right edges in line and buys the box clear air on its left, where
-        # the cloud's lower fringe reaches out to about twenty mentions. Its leader then
-        # leaves from the right-hand edge and needs less bow (`rad` 0.34 -> 0.30).
-        placements = [(0.02, 0.985, 0.10), (0.47, 0.32, 0.30)]
-        for (_, row), (fx, fy, rad) in zip(top.iterrows(), placements):
-            year = int(row["year"]) if pd.notna(row.get("year")) else None
-            cited = row.get("times_cited")
-            label = (
-                f"{row.get('first_author', 'Author')} et al."
-                f"{f' ({year})' if year else ''}\n"
-                f"{_shorten(row.get('journal') or '', 24)}\n"
-                f"AAS {row['Altmetric Attention Score']:,.0f} · "
-                f"{int(row['substantive']):,} mentions"
-                + (f" · {int(cited):,} citations" if pd.notna(cited) else "")
-            )
-            ax.annotate(
-                label,
-                xy=(row["substantive"], row["Altmetric Attention Score"]),
-                xytext=(fx, fy), textcoords="axes fraction",
-                ha="left", va="top", fontsize=st["annot_fs"] - 2,
-                bbox=dict(boxstyle="round,pad=0.3", fc="white", ec="black", lw=0.8),
-                arrowprops=dict(arrowstyle="-|>", color="black", lw=1.0,
-                                shrinkB=6,
-                                connectionstyle=f"arc3,rad={rad}"),
-                zorder=6,
-            )
-
-    # ONE box, not two. The population summary used to sit in the top-left corner and the
-    # size key in the bottom-right, which spent the panel's two empty regions on the same
-    # kind of content — reference material a reader consults once — and left the two
-    # outlier labels to fight the cloud for what was left. Both now share the frame in the
-    # wedge under the data, which is the larger of the two regions and the one the size
-    # key already occupied. The corner that frees is the corner the top label moves into.
-    #
-    # The summary rides in as the legend's TITLE rather than as a fourth handle with an
-    # invisible marker: `ncol=3` lays handles out column-major, so a text-only entry in
-    # the handle list lands in the first column beside a bubble instead of on its own row.
-    # The title is one text object, wraps where the newlines are, and is left-aligned to
-    # the handles by `set_alignment` (matplotlib >= 3.6; the fallback leaves it centred,
-    # which is tidy enough).
-    #
-    # "mentions" hangs off the last label instead of heading the key as its own line: the
-    # word has to appear somewhere, and a fourth line of type above three bubbles costs
-    # more height than eight characters cost width.
-    summary = (
-        f"{len(scatter):,} publications · mean AAS "
-        f"{scatter['Altmetric Attention Score'].mean():,.0f}\n"
-        f"median {scatter['Altmetric Attention Score'].median():,.0f} · max "
-        f"{scatter['Altmetric Attention Score'].max():,.0f}"
-    )
-    handles = [ax.scatter([], [], s=18 + 10 * np.sqrt(v),
-                          color=_stream_colors()["altmetric"], alpha=0.45,
-                          edgecolor="black", linewidth=0.4,
-                          label=f"{v:,}" + (" mentions" if v == 1000 else ""))
-               for v in (10, 100, 1000)]
-    legend = ax.legend(handles=handles, title=summary, loc="lower right", ncol=3,
-                       fontsize=st["legend_fs"], title_fontsize=st["legend_fs"],
-                       borderpad=0.5, labelspacing=0.4, handletextpad=0.4,
-                       columnspacing=1.2)
-    legend.get_title().set_multialignment("left")
-    if hasattr(legend, "set_alignment"):
-        legend.set_alignment("left")
-    legend.get_frame().set_edgecolor("black")
-    legend.get_frame().set_linewidth(0.8)
-    legend.set_zorder(6)
-    # No grid: both axes are logarithmic and any gridline behind 5,601 semi-transparent
-    # points reads as hatching through the cloud rather than as a scale.
+        top = top.head(2)
+        central = D["altmetric"].get("scatter_center")
+        if central is not None and len(central):
+            top = pd.concat([top, central.head(1)], ignore_index=True)
+            _attention_caption_note(
+                ax, "Centre-left: highest attention among publications with five to thirty mentions.")
+        n_upper = len(top)
+        lower = D["altmetric"].get("scatter_lower")
+        if lower is not None and len(lower):
+            top = pd.concat([top, lower.head(2)], ignore_index=True)
+        points = top[["substantive", "Altmetric Attention Score"]].to_numpy(dtype=float)
+        ax.scatter(points[:, 0], points[:, 1], s=70, marker="o",
+                   color=palette(ATTENTION_SECONDARY),
+                   edgecolors="black", linewidths=.65, zorder=4)
+        labels = [_attention_paper_label(row) for _, row in top.iterrows()]
+        _attention_callouts(
+            ax, points, labels,
+            scatter[["substantive", "Altmetric Attention Score"]].to_numpy(),
+            below=[i >= n_upper for i in range(len(top))],
+        )
+        if len(top) > n_upper:
+            _attention_caption_note(
+                ax, "Lower callouts: lowest-ratio and most-mentioned publications among those "
+                "with at least ten mentions and attention-score/mention ratio <= 3. "
+                "Selection is descriptive, not a research-quality assessment.")
+    if len(scatter):
+        scores = scatter["Altmetric Attention Score"]
+        _attention_caption_note(
+            ax, f"Panel E includes {len(scatter):,} publications "
+            f"(mean attention score {scores.mean():,.1f}; median {scores.median():,.0f}; "
+            f"maximum {scores.max():,.0f})."
+        )
     return ax
 
 
@@ -2167,12 +2213,12 @@ def draw_altmetric_distribution(ax, D):
     st = _style()
     values = D["altmetric"]["score_distribution"]
     bins = np.logspace(0, np.log10(values.max()), 40)
-    ax.hist(values, bins=bins, color=palette(ATTENTION_PRIMARY),
+    ax.hist(values, bins=bins, color=palette(ATTENTION_NEWS),
             edgecolor=st.get("edgecolor", "black"), linewidth=0.5)
     ax.set_xscale("log")
     ax.set_yscale("log")
     ax.axvline(values.median(), linestyle=REF_MEDIAN[0], color=REF_MEDIAN[1],
-               linewidth=1.6, label=f"Median = {values.median():,.0f}")
+               linewidth=1.6, label=f"Median: {values.median():,.0f}")
     ax.set_xlabel("Altmetric Attention Score (log)")
     ax.set_ylabel("UK Biobank publications (log)")
     ax.legend(loc="upper right", fontsize=st["legend_fs"])
@@ -2189,7 +2235,7 @@ def draw_altmetric_mentions_by_year(ax, D):
     st = _style()
     frame = D["altmetric"]["mentions_by_year"]
     line_news, = ax.plot(frame.index, frame["News mentions"], marker="o", markersize=5,
-                         linewidth=1.8, color=palette(ATTENTION_PRIMARY),
+                         linewidth=1.8, color=palette(ATTENTION_NEWS),
                          markeredgecolor="white", label="News (left)")
     ax.set_xlabel("Publication year")
     ax.set_ylabel("News mentions")
@@ -2198,7 +2244,7 @@ def draw_altmetric_mentions_by_year(ax, D):
     twin.spines["right"].set_visible(True)
     line_policy, = twin.plot(frame.index, frame["Policy mentions"], marker="s",
                              markersize=5, linewidth=1.8,
-                             color=palette(ATTENTION_SECONDARY),
+                             color=palette(ATTENTION_POLICY),
                              markeredgecolor="white", label="Policy (right)")
     twin.set_ylabel("Policy mentions")
     twin.grid(False)
@@ -2216,40 +2262,35 @@ def draw_altmetric_coverage(ax, D):
     so a count panel would only redraw that growth curve twice.
     """
     frame = D["altmetric"]["coverage_by_year"][["pct_news", "pct_policy"]]
-    colors = {"pct_news": palette(ATTENTION_PRIMARY),
-              "pct_policy": palette(ATTENTION_SECONDARY)}
+    colors = {"pct_news": palette(ATTENTION_NEWS),
+              "pct_policy": palette(ATTENTION_POLICY)}
     _lines(ax, frame, colors, "Publication year", "% of that year's publications",
            labels={"pct_news": "1+ news mentions", "pct_policy": "1+ policy mentions"},
            legend_loc="upper right")
+    ax.lines[1].set_marker("s")
     _year_axis(ax)
     return ax
 
 
 def draw_altmetric_vs_citations(ax, D):
-    """Attention against citation — do the two impacts pick out the same papers?"""
-    st = _style()
+    """Attention against citations, with cohort size and association in the caption."""
     scatter = D["altmetric"]["scatter"].dropna(subset=["times_cited"])
-    scatter = scatter[(scatter["times_cited"] > 0)]
-    ax.scatter(scatter["times_cited"], scatter["Altmetric Attention Score"],
-               s=14, color=palette(ATTENTION_PRIMARY), alpha=0.35,
-               edgecolor="none")
-    ax.set_xscale("log")
-    ax.set_yscale("log")
-    ax.set_xlabel("Times cited (log)")
-    ax.set_ylabel("Altmetric Attention Score (log)")
+    scatter = scatter[scatter["times_cited"] > 0]
+    _attention_cloud(ax, scatter, "times_cited", "Citations", color=palette(ATTENTION_NEWS))
     rho = scatter[["times_cited", "Altmetric Attention Score"]].corr(method="spearman").iat[0, 1]
-    ax.text(0.03, 0.97, f"{len(scatter):,} publications\nSpearman rho = {rho:.2f}",
-            transform=ax.transAxes, va="top", ha="left", fontsize=st["annot_fs"],
-            bbox=dict(boxstyle="round,pad=0.35", fc="white", ec="black", lw=0.8))
-    grid_on(ax)
+    association = f"Spearman rho = {rho:.2f}" if np.isfinite(rho) else "Spearman rho is undefined"
+    _attention_caption_note(
+        ax, f"The attention-versus-citations panel includes {len(scatter):,} publications "
+        f"with positive citations, attention scores and news or policy mentions; {association}."
+    )
     return ax
 
 
 # ------------------------------------------------------------ collaboration --
-def draw_collab_sector_share(ax, D):
+def draw_collab_sector_share(ax, D, *, colors=None):
     """Share of each year's publications carrying a collaborator in each sector."""
     frame = D["collaboration"]["sector_share_by_year"]
-    _lines(ax, frame, _sector_colors(), "Publication year",
+    _lines(ax, frame, _sector_colors() if colors is None else colors, "Publication year",
            "% of that year's publications", legend_loc="upper left", legend_ncol=2)
     _year_axis(ax)
     # Headroom for the six-entry legend rather than a legend placed over the data: the
@@ -2258,10 +2299,10 @@ def draw_collab_sector_share(ax, D):
     return ax
 
 
-def draw_collab_sector_summary(ax, D):
+def draw_collab_sector_summary(ax, D, *, colors=None):
     """Collaborator organisation mentions, by sector."""
     summary = D["collaboration"]["sector_summary"]["mentions"].sort_values(ascending=False)
-    colors = _sector_colors()
+    colors = _sector_colors() if colors is None else colors
     st = _style()
     series = summary.iloc[::-1]
     bars = ax.barh([_wrap(i, 22) for i in series.index], series.values,
@@ -2278,10 +2319,10 @@ def draw_collab_sector_summary(ax, D):
     return ax                     # annotated bars carry no grid — see _hbar
 
 
-def draw_collab_sector_papers(ax, D):
+def draw_collab_sector_papers(ax, D, *, colors=None):
     """Publications with at least one collaborator in each sector."""
     summary = D["collaboration"]["sector_summary"]["papers"].sort_values(ascending=False)
-    colors = _sector_colors()
+    colors = _sector_colors() if colors is None else colors
     st = _style()
     series = summary.iloc[::-1]
     n_corpus = D["counts"]["corpus"]
@@ -2300,7 +2341,7 @@ def draw_collab_sector_papers(ax, D):
     return ax                     # annotated bars carry no grid — see _hbar
 
 
-def draw_collab_company_by_year(ax, D):
+def draw_collab_company_by_year(ax, D, *, colors=None):
     """Publications with a company collaborator, UK against non-UK.
 
     D27: about 4% of the UK-company mentions are UK organisations that are not companies
@@ -2308,7 +2349,7 @@ def draw_collab_company_by_year(ax, D):
     over-count. It is the smaller of the two series by an order of magnitude either way.
     """
     frame = D["collaboration"]["company_by_year"]
-    colors = _sector_colors()
+    colors = _sector_colors() if colors is None else colors
     _stacked_bars(ax, frame[COMPANY_SECTORS], colors, "Publication year",
                   "Publications with a company collaborator",
                   legend_title="Company sector")
@@ -2323,7 +2364,7 @@ def draw_collab_top_companies(ax, D):
         pooled.update(top.get(sector, pd.Series(dtype="int64")).to_dict())
     series = _top_counter(pooled, 10)
     series.index = [_shorten(i, 34) for i in series.index]
-    _hbar(ax, series, _sector_colors()["Company (non-UK)"], "Publications",
+    _hbar(ax, series, palette("steel_blue"), "Publications",
           ylabel="Company collaborator", wrap=34)
     return ax
 
@@ -2334,7 +2375,7 @@ def draw_collab_divisions(ax, D):
     st = _style()
     series = frame["pct_company"].iloc[::-1]
     bars = ax.barh([_wrap(i, 26) for i in series.index], series.values,
-                   color=_sector_colors()["Company (non-UK)"],
+                   color=palette("cream"),
                    edgecolor=st.get("edgecolor", "black"), linewidth=0.6)
     sizes = frame["size"].iloc[::-1]
     span = series.max()
@@ -2342,7 +2383,7 @@ def draw_collab_divisions(ax, D):
         ax.text(value + span * 0.02, bar.get_y() + bar.get_height() / 2,
                 f"{value:.1f}%  (n={int(size):,})", va="center", fontsize=st["annot_fs"])
     ax.set_xlim(0, span * 1.45)
-    ax.set_xlabel("% of the division's publications with a company collaborator")
+    ax.set_xlabel("Company-affiliated publications (% of division)")
     ax.set_ylabel("Research division (FOR 2020)")
     return ax                     # annotated bars carry no grid — see _hbar
 
@@ -2394,13 +2435,16 @@ def draw_collab_flag_overlap(ax, D):
     # The x label carries the whole sentence and there is no y label. The row ticks are
     # wide (a sector name over its n), and a y label outside them lands in whatever panel
     # shares the row — at half width there is no margin left to put it in.
-    ax.set_xlabel("Of the publications with a collaborator in the ROW's sector,\n"
-                  "the % that also have one in the COLUMN's")
+    ax.set_xlabel("Co-occurring affiliation sector")
     cbar = ax.figure.colorbar(image, ax=ax, fraction=0.030, pad=0.02)
     cbar.set_label("% of the row's publications", fontsize=st["label_fs"] - 1)
     cbar.set_ticks([0, 20, 40, 60, 80, 100])
     cbar.set_ticklabels([f"{t}%" for t in (0, 20, 40, 60, 80, 100)])
     cbar.ax.tick_params(labelsize=st["tick_fs"] - 1)
+    for spine in ax.spines.values():
+        spine.set_visible(True)
+        spine.set_color("black")
+        spine.set_linewidth(1)
     ax.grid(False)
     return ax
 
@@ -2442,29 +2486,22 @@ def draw_collab_citations(ax, D):
 # are written in the same place and cannot drift apart.
 
 MAIN_CAPTION = {
-    "A": "UK Biobank publications carrying each non-academic linkage, accumulated over "
-         "time and dated by the publication's own year (log scale). Patent, trial and "
-         "policy linkage uses Dimensions' publication index, restricted to outcomes "
-         "with publication/start dates from 1 January 2013 to 31 December 2025.",
-    "B": "Legal status of the patents citing UK Biobank research, by patent publication "
-         "year; the number above each bar is that year's total. Patent records come from the "
-         "corpus's own endpoint block, collected in the same extraction as the publication "
-         "records: 767 patents are linked, of which the 696 published between 1 January 2013 "
-         "and 31 December 2025 are drawn here. Four carry no legal status and are dropped, "
-         "which is why this panel's yearly totals can sit one or two below the same year in "
-         "SI 1B, where the two-way filing split is missing on only two. Panel A's patent line "
-         "counts linked PUBLICATIONS (513), not patents.",
-    "C": "Clinical trials citing UK Biobank research, by trial start year and study "
-         "type, for starts in 2013–2025 inclusive. Each calendar year is shown separately.",
+    "A": "Cumulative UK Biobank publications with non-academic linkages, dated by publication "
+         "year (log scale). Patent, trial and policy links use Dimensions' publication index, "
+         "restricted to outcomes published or started between 1 January 2013 and 31 December 2025.",
+    "B": "Legal status of citing patent records from the corpus's endpoint block, by patent "
+         "publication year (2013-2025). Bar labels show annual totals; records lacking status "
+         "are omitted. Unlike A, this panel counts patents rather than distinct linked publications.",
+    "C": "Citing clinical trials by start year and study type, covering each year from 2013 to 2025.",
     "D": "Share of each year's publications with at least one collaborator in each "
          "non-academic sector.",
-    "E": "Altmetric Attention Score against substantive (news + policy) mentions, for "
-         "publications in 2013–2025 with at least one of each. Counts are source "
-         "snapshot totals; the two most-mentioned publications are named.",
-    "F": "Overlap between the collaborator sectors, row-normalised: of the publications "
-         "carrying a collaborator in the row's sector, the percentage also carrying one "
-         "in the column's. The matrix is asymmetric by construction and is read across "
-         "the rows; the row totals are on the axis.",
+    "E": "Altmetric Attention Score versus news and policy mentions for 2013-2025 publications "
+         "with positive values on both axes. Both axes are logarithmic; each uniform small point "
+         "is a publication. Counts are source-snapshot totals. Upper callouts identify the two "
+         "most-mentioned publications.",
+    "F": "Row-normalised affiliation-sector overlap: the percentage of publications in each "
+         "row's sector also represented in each column's sector. Read across rows; denominators "
+         "appear on the axis.",
 }
 
 SI_CAPTIONS = {
@@ -2477,9 +2514,11 @@ SI_CAPTIONS = {
     "trials": {
         "A": "Trial lifecycle stage, by study type (nine registry statuses folded into "
              "five).",
-        "B": "Trials per ICD-10 chapter, placed anatomically; dot area is proportional "
-             "to the trial count. Neoplasms and infectious disease are systemic and sit "
-             "off the body. A trial counts once per chapter it touches.",
+        "B": "Trials per ICD-10 chapter on a schematic body outline; marker area is "
+             "directly proportional to the trial count, using the displayed size key. "
+             "Positions indicate broad body systems, not precise organ locations. "
+             "Neoplasms and infectious disease are systemic and sit off the body. "
+             "A trial counts once per chapter it touches.",
         "C": "RCDC disease categories, with cross-cutting research-area tags removed.",
         "D": "Planned enrollment per trial (log scale).",
         "E": "Where the trials are run and who runs them: fractional trial weight by "
@@ -2487,7 +2526,7 @@ SI_CAPTIONS = {
     },
     "policy": {
         "A": "Policy documents citing UK Biobank research, by year and publisher origin.",
-        "B": "Publisher countries, on a logarithmic colour scale. Grey is a country with "
+        "B": "Publisher countries, on a logarithmic colour scale. White is a country with "
              "no citing document, which is a different statement from the ramp's "
              "lightest blue; the leading publishers are named with their counts.",
         "C": "Publishing institutions.",
@@ -2495,9 +2534,11 @@ SI_CAPTIONS = {
     },
     "altmetric": {
         "A": "Distribution of the Altmetric Attention Score over every scored publication.",
-        "B": "Total news and policy mentions, by publication year (separate axes).",
-        "C": "Share of each year's publications with at least one news / policy mention.",
-        "D": "Attention against citation, for publications with both.",
+        "B": "Total news (blue, left axis) and policy (red, right axis) mentions, by publication year.",
+        "C": "Share of each year's publications with at least one news (blue) or policy (red) mention.",
+        "D": "Attention against citations within the positive-attention, positive-mention "
+             "cohort, restricted to publications with positive citations. Both axes are "
+             "logarithmic; each point represents one publication.",
     },
     "collaboration": {
         "A": "Collaborator organisation mentions, by sector.",
@@ -2663,20 +2704,29 @@ def figure_si_trials(D, save=True):
     st = _style()
     width, height = st["figsize_si"]
     with _font_scale(_fs_scale("si2_clinical_trials")):
-        return _assemble(
+        name = "04_03_supplementary_figure_02_clinical_trials"
+        fig = _assemble(
             [draw_trial_stage,              # A  row 0, left
              draw_trial_bodymap,            # B  rows 0-1, right
              draw_trial_rcdc,               # C  row 1, left
              draw_trial_enrollment,         # D  row 2, left
              draw_trial_country_sector],    # E  row 2, right
-            3, 2, (width, height * 1.30), D, "04_03_supplementary_figure_02_clinical_trials",
-            save=save, slots=[(0, 0), (slice(0, 2), 1), (1, 0), (2, 0), (2, 1)],
+            3, 2, (width, height * 1.30), D, name,
+            save=False, slots=[(0, 0), (slice(0, 2), 1), (1, 0), (2, 0), (2, 1)],
             hspace=0.40, wspace=0.42, height_ratios=[1.0, 1.0, 1.05],
         )
+        # Translate the complete schematic, preserving its equal-aspect anatomy.
+        body = fig.axes[1]
+        bounds = body.get_position(original=True)
+        body.set_position([bounds.x0 - .04, bounds.y0, bounds.width, bounds.height])
+        finalize_figure(fig)
+        if save:
+            savefig(fig, name)
+        return fig
 
 
 def figure_si_policy(D, save=True):
-    """Four policy panels on a 2x2 grid, drawn in the palette's blue.
+    """Four policy panels on a 2x2 grid, using the approved blue/red palette.
 
     **Two panels came out.** The concentration histogram (how many documents cite one
     paper) and the ranked list of most-cited papers were the page's two weakest claims:
@@ -2690,48 +2740,78 @@ def figure_si_policy(D, save=True):
     **B is now a choropleth** rather than the ranked country bar, which is where a
     geographic finding belongs; `draw_policy_countries` still draws the bar.
 
-    **Blue, not red.** The stream palette assigns policy the palette's red, which is what
-    the five-line panel A of the main figure needs to keep five streams apart. This page
-    is about one stream, so a second hue would carry no information, and it is drawn end
-    to end in `POLICY_PRIMARY`.
+    The yearly origin split uses steel blue and red; publisher and division bars use
+    those same colours. The geographic count scale remains sequential blue.
     """
     st = _style()
     width, height = st["figsize_si"]
-    return _assemble(
+    name = "04_04_supplementary_figure_03_policy"
+    fig = _assemble(
         [draw_policy_by_year, draw_policy_country_map, draw_policy_publishers,
          draw_policy_divisions],
-        2, 2, (width, height * 0.78), D, "04_04_supplementary_figure_03_policy",
-        save=save, hspace=0.42, wspace=0.55, height_ratios=[0.85, 1.15],
+        2, 2, (width, height * 0.92), D, name,
+        save=False, hspace=0.42, wspace=0.85, height_ratios=[0.85, 1.15],
     )
+    for ax in fig.axes:
+        ax._ukb_label_fs = 16
+        ax._ukb_tick_fs = 12
+        ax._ukb_annotation_fs = 12
+        ax._ukb_legend_fs = 12
+        ax._ukb_title_fs = 24
+    for ax in (fig.axes[0], fig.axes[2], fig.axes[3]):
+        ax.set_axisbelow(True)
+        ax.grid(False, which="both")
+        grid_on(ax, axis="both", which="major")
+    finalize_figure(fig)
+    if save:
+        savefig(fig, name)
+    return fig
 
 
 def figure_si_altmetric(D, save=True):
-    """Four attention panels, drawn in one blue family rather than one hue per panel.
-
-    The page used to rotate the palette across its panels — light blue for the score, red
-    for the policy series, green for the attention-against-citation scatter — which reads
-    as four unrelated charts. `ATTENTION_PRIMARY` carries every panel, and
-    `ATTENTION_SECONDARY` (the palette's navy) appears only in B and C, where a panel
-    genuinely draws two series and the contrast is doing work. The dashed red median rule
-    in A is the family's reference colour (`REF_MEDIAN`), not a topic colour, and stays.
-    """
+    """A square 2x2 with shared news/policy colours and major-tick grids throughout."""
     st = _style()
-    width, height = st["figsize_si"]
-    return _assemble(
+    side = st["figsize_si"][0]
+    name = "04_05_supplementary_figure_04_altmetric"
+    fig = _assemble(
         [draw_altmetric_distribution, draw_altmetric_mentions_by_year,
          draw_altmetric_coverage, draw_altmetric_vs_citations],
-        2, 2, (width, height * 0.72), D, "04_05_supplementary_figure_04_altmetric", save=save,
-        hspace=0.38, wspace=0.32,
+        2, 2, (side, side), D, name, save=False, hspace=.28, wspace=.28,
     )
+    fig.subplots_adjust(left=.09, right=.91, bottom=.085, top=.905)
+    for ax in fig.axes:
+        ax._ukb_label_fs = 14
+        ax._ukb_tick_fs = 12
+        ax._ukb_legend_fs = 12
+        ax.set_box_aspect(1)
+        ax.grid(False, which="both")
+    # Only the primary axis in B draws a grid; a second grid would imply alignment
+    # between two different units. Log axes get decade grids, never minor-tick hatching.
+    for ax in fig.axes[:4]:
+        grid_on(ax, which="major", log=True)
+        for spine in ax.spines.values():
+            spine.set_visible(True)
+            spine.set_color("black")
+            spine.set_linewidth(1)
+    finalize_figure(fig)
+    if save:
+        savefig(fig, name, bbox_inches=None)
+    return fig
 
 
 def figure_si_collaboration(D, save=True):
+    from functools import partial
+
     st = _style()
+    colors = {**_sector_colors(), "Company (non-UK)": palette("steel_blue"),
+              "Government/Public": palette("navy"), "UK company": palette("red")}
     return _assemble(
-        [draw_collab_sector_summary, draw_collab_sector_papers,
-         draw_collab_sector_share, draw_collab_company_by_year,
+        [partial(draw_collab_sector_summary, colors=colors),
+         partial(draw_collab_sector_papers, colors=colors),
+         partial(draw_collab_sector_share, colors=colors),
+         partial(draw_collab_company_by_year, colors=colors),
          draw_collab_top_companies, draw_collab_divisions],
-        3, 2, st["figsize_si"], D, "04_06_supplementary_figure_05_collaboration", save=save,
+        3, 2, (17, 14), D, "04_06_supplementary_figure_05_collaboration", save=save,
         hspace=0.45, wspace=0.55,
     )
 

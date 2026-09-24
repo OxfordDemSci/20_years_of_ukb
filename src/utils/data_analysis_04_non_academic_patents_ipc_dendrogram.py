@@ -2,7 +2,7 @@
 # Use this code to replace the existing IPC dendrogram plot in patents_analysis.ipynb
 # This version automatically adapts to showing 3 or 4 levels based on available data
 
-from utils.shared_style import apply_typography, finalize_figure
+from utils.shared_style import NON_ACADEMIC_PALETTE, apply_typography, extended_palette, finalize_figure
 from pathlib import Path
 
 import matplotlib.pyplot as plt
@@ -149,7 +149,7 @@ if not hier_df_ipc.empty and hier_df_ipc['section_code'].notna().any():
         fig, ax = plt.subplots(figsize=(fig_width, 20))
         
         # Color scheme
-        colors_palette = plt.cm.Set3(range(len(section_order)))
+        colors_palette = extended_palette(len(section_order), style={"colors": NON_ACADEMIC_PALETTE})
         section_colors = dict(zip(section_order, colors_palette))
         
         # Position parameters

@@ -22,6 +22,7 @@ from . import data_analysis_05_author_characteristics as A
 from . import shared_name_gender as NG
 from . import shared_paths as P
 from .shared_style import (
+    author_geography_colormap,
     black_legend,
     blue_cream_red_colormap,
     compact_count,
@@ -538,7 +539,7 @@ def plot_headline_figure(
         colorbar_label="Fractional publication credit",
         scale="linear",
         colorbar_orientation="vertical",
-        cmap=plt.get_cmap("Blues"),
+        cmap=author_geography_colormap(),
     )
 
     # F: institutional concentration over time.

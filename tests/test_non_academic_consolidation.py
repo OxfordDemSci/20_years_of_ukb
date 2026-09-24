@@ -41,6 +41,23 @@ EXPECTED_REWRITTEN_CELL_IDS = {
 
 # Shared figure display now posts relative paths and suggested captions.
 EXPECTED_REWRITTEN_CELL_IDS.update({
+    "d2316963",  # square attention panels with blue/red identities and major-only grids
+    "f3ac1d62",  # retain only the all-sector citation panel from the repeated composite
+    "9ecfad67",  # citation distributions are part of the combined five-panel figure
+    "5865fc0e",  # document the combined citation, timing and journal panels
+    "7c696863",  # clinical panels now use the same shared palette as Part I
+    "1c54d688",  # paired cumulative and annual collaboration counts
+    "9f70b995",  # the annual count mix is shown once, in the paired figure
+    "54029217",  # stacked geography maps, without country callouts
+    "f92ef5ce",  # explicitly describe the repeated trial map in the requested 3x1
+    "f796b647",  # MeSH rankings now appear in the broad 2x2 comparison
+    "300ea14e",  # explain the broad and disease-only 2x2 comparisons
+    "b57bb796",  # clinical organisation sectors use the project palette
+    "740e411c",  # unified export/display and run inventory
+    "6ed9871c",  # patent style now comes from the manuscript settings
+    "47fe19a1",  # attention uses the same exporter
+    "518abcd2",  # captions are displayed, not exported to a CSV
+    "82cdc7fd",  # inventory includes only files produced in the current run
     "98fc48f2",
     "d2c81ad4",
     "c83c8411",
@@ -163,13 +180,15 @@ class NonAcademicConsolidationTests(unittest.TestCase):
 
     def test_figure_data_and_table_contracts_remain_present(self):
         required_markers = [
-            'savefig(fig, "ct_diseases_mesh")',
+            'savefig(fig, "ct_mesh_rcdc_categories")',
+            'savefig(fig, "ct_disease_classifications")',
+            'savefig(fig, "ct_diseases_mesh_ancestors")',
             'savefig(fig, "ct_combined_figure", STYLE)',
             'savefig(fig, "ct_country_maps_trials_vs_papers")',
             "P.CT_UKBB_PAPERS",
             "'patents_modularized_export.csv'",
-            'f"impact.{_ext}"',
-            "h.plot_collaboration_mix_stacked_area",
+            'savefig(fig, "impact", caption=',
+            "h.plot_collaboration_trends",
             "h.plot_publication_figure",
             "NP.figure_main(D)",
             "NP.figure_si_patents(D)",

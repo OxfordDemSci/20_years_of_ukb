@@ -34,7 +34,9 @@ if TYPE_CHECKING:
     from bertopic import BERTopic
 
 from utils import shared_paths as P
-from utils.shared_style import PNG_DPI, apply_typography, finalize_figure, set_title
+from utils.shared_style import (
+    PALETTE, PNG_DPI, apply_typography, extended_palette, finalize_figure, palette, set_title,
+)
 from utils.shared_analysis_window import (
     ANALYSIS_START_DATE, ANALYSIS_START_YEAR, ANALYSIS_END_DATE, ANALYSIS_END_YEAR,
     filter_analysis_window,
@@ -82,6 +84,7 @@ mpl.rcParams.update(
         "xtick.labelsize": 11,
         "ytick.labelsize": 11,
         "legend.fontsize": 10,
+        "axes.prop_cycle": mpl.cycler(color=PALETTE),
         "axes.spines.top": False,
         "axes.spines.right": False,
     }
@@ -281,18 +284,36 @@ def save_mpl(fig: plt.Figure, fig_dir: Path, basename: str, dpi: int = PNG_DPI) 
 
 
 def style_plotly_figure(fig):
-    """Apply the same font and main-title policy to interactive topic figures."""
+    """Apply the manuscript palette, font and title policy to topic diagnostics."""
+    scale = [[0., palette("light_blue")], [.5, palette("cream")], [1., palette("red")]]
     fig.update_layout(
+        colorway=PALETTE,
         font={"family": "Helvetica"},
         legend={"font": {"family": "Helvetica"}, "title": {"font": {"family": "Helvetica"}}},
     )
     fig.update_xaxes(title_font_family="Helvetica", tickfont_family="Helvetica")
     fig.update_yaxes(title_font_family="Helvetica", tickfont_family="Helvetica")
     fig.update_annotations(font={"family": "Helvetica"})
-    fig.update_coloraxes(colorbar={
+    fig.update_coloraxes(colorscale=scale, colorbar={
         "title": {"font": {"family": "Helvetica"}},
         "tickfont": {"family": "Helvetica"},
     })
+    # Plotly Express and BERTopic bake colours into traces before layout styling.
+    traces = [trace for trace in fig.data if trace.type in {"scatter", "scattergl", "bar"}]
+    groups = list(dict.fromkeys(trace.legendgroup or trace.name or str(i)
+                               for i, trace in enumerate(traces)))
+    colors = dict(zip(groups, extended_palette(len(groups), style={"colors": PALETTE})))
+    for i, trace in enumerate(traces):
+        color = mpl.colors.to_hex(colors[trace.legendgroup or trace.name or str(i)])
+        if trace.marker.color is None or isinstance(trace.marker.color, str):
+            trace.marker.color = color
+            if trace.type in {"scatter", "scattergl"}:
+                trace.line.color = color
+        else:
+            trace.marker.colorscale = scale
+    for trace in fig.data:
+        if trace.type == "heatmap":
+            trace.colorscale = scale
     fig.update_layout(title={"text": ""})
     return fig
 

@@ -31,17 +31,20 @@ CLINICAL_CAPTIONS = {
     "ct_icd_three_axes": "Comparison of disease classification routes for UK Biobank-linked "
         "clinical trials. (A) ICD-10 chapters derived from MeSH leaf descriptor IDs and their "
         "tree positions. (B) Chapter counts compared with the supplied MeSH terms and RCDC "
-        "disease tags mapped by keyword rules. A trial can contribute to multiple chapters.",
+        "disease tags mapped by keyword rules. The two MeSH routes use blue shades; RCDC "
+        "uses gold. A trial can contribute to multiple chapters.",
     "ct_mesh_leaf_condition_icd_heatmaps": "Relationships between MeSH leaf diseases and "
-        "(A) normalised free-text trial conditions or (B) ICD-10 chapters. Cells give the "
+        "(A) ICD-10 chapters or (B) normalised free-text trial conditions. Cells give the "
         "percentage of trials carrying the row disease that also touch the column condition "
-        "or chapter; a trial can contribute to multiple cells.",
+        "or chapter; a trial can contribute to multiple cells. White cells marked with a dash "
+        "represent zero; the shared colour scale spans the observed non-zero percentages.",
     "ct_ukbb_papers_fields_concepts": "Characteristics of UK Biobank publications cited by "
         "clinical trials. (A) Fields of Research and (B) research concepts, summarised using "
         "fractional publication weights across each paper's assignments.",
     "ct_field_concept_heatmap": "Fields and concepts of UK Biobank publications cited by "
         "clinical trials. (A) Field composition. (B) Concept frequencies within each field; "
-        "row labels report the number of papers assigned to that field.",
+        "row labels report the number of papers assigned to that field. White cells marked "
+        "with a dash represent zero; the colour scale spans the observed non-zero percentages.",
     "ct_papers_timeliness": "Timing and publication venues of UK Biobank papers cited by "
         "clinical trials. (A) Publication years of cited papers. (B) Positive paper-to-trial "
         "lags among trial-paper links. (C) The leading journals of cited papers. "

@@ -75,6 +75,10 @@ PALETTE_COLORS = {
 #: The same seven colours as an ordered list (the shape `style["colors"]` takes).
 PALETTE = list(PALETTE_COLORS.values())
 
+# Analysis 04 excludes green. A 50% white tint of the project red keeps its seventh
+# categorical series distinct without introducing another hue or shifting indices.
+NON_ACADEMIC_PALETTE = [*PALETTE[:6], "#F2B4AC"]
+
 # Ordered blue sequence used for normalized citation and author-impact measures. This is
 # the academic-impact ramp introduced with the shared project palette: low values remain
 # visible as cream, while the upper end resolves to the project's navy.
@@ -742,6 +746,11 @@ def academic_impact_colormap(reverse: bool = False):
 def blue_colormap():
     """A blue sequence made only from project anchors, without a grey low end."""
     return palette_colormap(*BLUE_ANCHORS, name="project_blues")
+
+
+def author_geography_colormap():
+    """The exact Blues ramp used by the author-characteristics main map."""
+    return plt.get_cmap("Blues")
 
 
 def blue_cream_red_colormap():

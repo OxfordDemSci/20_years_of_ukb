@@ -9,7 +9,6 @@ from __future__ import annotations
 import ast
 import json
 import re
-import warnings
 from collections import Counter
 from pathlib import Path
 from typing import Any, Iterable
@@ -17,14 +16,17 @@ from typing import Any, Iterable
 import matplotlib.cm as cm
 import matplotlib.colors as mcolors
 import matplotlib.pyplot as plt
-from utils.shared_style import show_figures, save_figure_file
+from utils.data_analysis_04_non_academic_figures import (
+    show_figures, save_figure_file, finalize_figure, SECTOR_COLORS, slug,
+)
+from utils.shared_style import blue_colormap, blue_cream_red_colormap, load_style, palette
 import numpy as np
 import pandas as pd
 from cycler import cycler
 
 from .shared_style import (
     DEFAULT_DOT_MARKER_AREA, DEFAULT_MARKER_SIZE, PNG_DPI,
-    apply_typography, figure_export_formats, finalize_figure, set_title,
+    apply_typography, figure_export_formats, set_title,
 )
 from .shared_analysis_window import ANALYSIS_START_YEAR, ANALYSIS_END_YEAR, filter_analysis_window
 
@@ -926,17 +928,8 @@ def plot_non_academic_sector_breakdown(
 
     plot_df = sector_df.copy()
     plot_df = plot_df.sort_values(value_col, ascending=True)
-    color_map = {
-        "University/HEI": "#457B9D",
-        "Hospital/Clinical": "#2A9D8F",
-        "Government/Public": "#8D99AE",
-        "Research institute/Centre": "#6A994E",
-        "Nonprofit/Charity": "#A1C181",
-        "Company (non-UK)": "#E9C46A",
-        "UK company": "#D4AF37",
-        "Other/Unknown": "#BDBDBD",
-    }
-    bar_colors = [color_map.get(s, "#BDBDBD") for s in plot_df["sector"]]
+    color_map = SECTOR_COLORS
+    bar_colors = [color_map.get(s, "#FFFFFF") for s in plot_df["sector"]]
 
     plt.figure(figsize=(10.5, 5.5), dpi=300)
     plt.barh(
@@ -954,7 +947,67 @@ def plot_non_academic_sector_breakdown(
     finalize_figure(plt.gcf())
     plt.tight_layout()
     finalize_figure(plt.gcf())
-    show_figures()
+    show_figures('collaboration_non_academic_sector_breakdown' + "_" + slug(value_col), caption='Sector composition of affiliations on UK Biobank publications. Counts distinguish institutional mentions from the number of publications carrying each sector; a publication can contribute to multiple sectors.')
+
+
+SECTOR_BREAKDOWN_EXPORT = "collaboration_sector_mentions_and_papers"
+
+
+def plot_sector_breakdown_comparison(sector_df: pd.DataFrame):
+    """Compare institutional mentions and publication counts on aligned sector rows."""
+    from matplotlib.ticker import MaxNLocator, StrMethodFormatter
+
+    if sector_df.empty:
+        print("No collaborator sector summary available for plotting.")
+        return None
+    required = {"sector", "institution_mentions", "papers"}
+    missing = required.difference(sector_df.columns)
+    if missing:
+        raise ValueError(f"Sector summary is missing columns: {', '.join(sorted(missing))}")
+
+    apply_typography()
+    ranked = sector_df.sort_values("institution_mentions", ascending=False, kind="stable")
+    positions = np.arange(len(ranked))
+    colors = [SECTOR_COLORS.get(sector, "#FFFFFF") for sector in ranked["sector"]]
+    fig, axes = plt.subplots(1, 2, figsize=(17, 6.5), sharey=True, layout="constrained")
+    fig.get_layout_engine().set(w_pad=.10, h_pad=.10, wspace=.04)
+    for ax, letter, metric, label in zip(
+        axes, "AB", ("institution_mentions", "papers"), ("Institution mentions", "Publications")
+    ):
+        ax._ukb_title_fs = 26
+        ax._ukb_label_fs = 17
+        ax._ukb_tick_fs = 13
+        ax._ukb_annotation_fs = 13
+        bars = ax.barh(positions, ranked[metric].to_numpy(), height=.78, color=colors,
+                edgecolor="black", linewidth=.6)
+        ax.bar_label(bars, labels=[f"{value:,.0f}" for value in ranked[metric]],
+                     padding=5, fontsize=13, color="black")
+        ax.set_yticks(positions, ranked["sector"])
+        ax.set_xlabel(label)
+        ax.set_xlim(0, max(float(ranked[metric].max()) * 1.18, 1.))
+        ax.xaxis.set_major_locator(MaxNLocator(nbins=5, integer=True))
+        ax.xaxis.set_major_formatter(StrMethodFormatter("{x:,.0f}"))
+        ax.set_axisbelow(True)
+        ax.grid(False, which="both")
+        ax.grid(True, axis="both", which="major", linestyle="--", alpha=.2, linewidth=.5)
+        for side, spine in ax.spines.items():
+            spine.set_visible(side in ("left", "bottom"))
+            spine.set_color("black")
+            spine.set_linewidth(1)
+        set_title(ax, letter)
+    axes[0].set_ylabel("Sector")
+    axes[0].invert_yaxis()
+    fig._ukb_caption = (
+        "Sector composition of institutional affiliations on UK Biobank publications. "
+        "(A) Institutional mentions, counting each recorded institutional occurrence "
+        "within a sector across publications, rather than unique organisations. "
+        "(B) Publications containing at least one institution in each sector; each "
+        "publication is counted once within a sector but can contribute to multiple "
+        "sectors. Panels use the same sector colours and order, ranked by institutional "
+        "mentions. Counts are not fractionally allocated across sectors."
+    )
+    finalize_figure(fig)
+    return fig
 
 
 def mention_coverage(df: pd.DataFrame, paper_col: str, mention_col: str) -> tuple[int, int, float]:
@@ -1152,38 +1205,8 @@ def summary_stats_as_lines(stats: dict[str, Any]) -> list[str]:
 
 
 def apply_project_plot_style() -> None:
-    """Apply a publication-oriented style aligned with project notebooks."""
-    plt.rcParams.update(
-        {
-            "font.family": "Helvetica",
-            "figure.dpi": 300,
-            "savefig.dpi": 300,
-            "axes.spines.top": False,
-            "axes.spines.right": False,
-            "axes.grid": True,
-            "grid.alpha": 0.25,
-            "axes.axisbelow": True,
-            "axes.titlesize": 13,
-            "axes.labelsize": 11,
-            "xtick.labelsize": 10,
-            "ytick.labelsize": 10,
-            "legend.fontsize": 10,
-            "lines.markersize": DEFAULT_MARKER_SIZE,
-            "axes.prop_cycle": cycler(
-                color=[
-                    "#1b9e77",
-                    "#d95f02",
-                    "#7570b3",
-                    "#e7298a",
-                    "#66a61e",
-                    "#e6ab02",
-                    "#a6761d",
-                    "#666666",
-                ]
-            ),
-        }
-    )
-    apply_typography()
+    """Use the same typography and palette as the other manuscript analyses."""
+    load_style("04_non_academic_04_collaboration")
 
 
 def plot_top_orgs(
@@ -1216,7 +1239,7 @@ def plot_top_orgs(
     finalize_figure(plt.gcf())
     plt.tight_layout()
     finalize_figure(plt.gcf())
-    show_figures()
+    show_figures('collaboration_top_orgs' + "_" + slug(title), caption='Leading affiliated organisations within the indicated sector, ranked by their number of UK Biobank publications. Counts are not fractional across organisations.')
 
 
 def plot_collaborator_count_distributions(df: pd.DataFrame) -> None:
@@ -1226,16 +1249,7 @@ def plot_collaborator_count_distributions(df: pd.DataFrame) -> None:
     fig, axes = plt.subplots(nrows, ncols, figsize=(16, 8), dpi=150)
     axes = axes.flatten()
 
-    color_map = {
-        "University/HEI": "#457B9D",
-        "Hospital/Clinical": "#2A9D8F",
-        "Government/Public": "#8D99AE",
-        "Research institute/Centre": "#6A994E",
-        "Nonprofit/Charity": "#A1C181",
-        "Company (non-UK)": "#E9C46A",
-        "UK company": "#D4AF37",
-        "Other/Unknown": "#BDBDBD",
-    }
+    color_map = SECTOR_COLORS
 
     series_spec = []
     for idx, label in enumerate(NON_ACADEMIC_SECTOR_LABELS):
@@ -1246,7 +1260,7 @@ def plot_collaborator_count_distributions(df: pd.DataFrame) -> None:
             counts = pd.Series([0] * len(df))
         else:
             counts = df[col]
-        series_spec.append((axes[idx], counts, f"{label} orgs per paper", color_map.get(label, "#BDBDBD")))
+        series_spec.append((axes[idx], counts, f"{label} orgs per paper", color_map.get(label, "#FFFFFF")))
 
     for index, (ax, counts, title, color) in enumerate(series_spec):
         set_title(ax, chr(65 + index))
@@ -1260,7 +1274,9 @@ def plot_collaborator_count_distributions(df: pd.DataFrame) -> None:
         max_count = int(nonzero.max())
         bins = np.arange(1, max_count + 2) - 0.5
         ax.hist(nonzero, bins=bins, color=color, edgecolor="black", linewidth=0.3)
-        ax.set_xticks(range(1, max_count + 1))
+        from matplotlib.ticker import MaxNLocator
+        ax.xaxis.set_major_locator(MaxNLocator(nbins=5, integer=True))
+        ax.set_xlabel(title.replace(" orgs per paper", "\norganisations per paper"))
         ax.grid(True, axis="y", alpha=0.2)
 
     for idx in range(len(series_spec), len(axes)):
@@ -1269,7 +1285,7 @@ def plot_collaborator_count_distributions(df: pd.DataFrame) -> None:
     finalize_figure(plt.gcf())
     plt.tight_layout()
     finalize_figure(plt.gcf())
-    show_figures()
+    show_figures('collaboration_collaborator_count_distributions', caption='Distribution of the number of affiliated organisations per publication, separately for each sector. Each panel includes only publications with at least one affiliation in that sector.')
 
 
 def ensure_year_column(df_in: pd.DataFrame) -> pd.DataFrame:
@@ -1303,24 +1319,21 @@ def _any_sector_collab_mask(df: pd.DataFrame) -> pd.Series:
     return pd.Series([False] * len(df), index=df.index)
 
 
-def plot_cumulative_by_type(df: pd.DataFrame, start_year: int = ANALYSIS_START_YEAR, end_year: int = ANALYSIS_END_YEAR) -> None:
+def plot_cumulative_by_type(
+    df: pd.DataFrame,
+    start_year: int = ANALYSIS_START_YEAR,
+    end_year: int = ANALYSIS_END_YEAR,
+    *, ax=None, legend: bool = True,
+):
+    """Draw cumulative sector counts; a supplied axis is never exported here."""
     apply_typography()
     year_range = _year_index(start_year, end_year)
     use_sector = all(sector_flag_col(label) in df.columns for label in NON_ACADEMIC_SECTOR_LABELS)
 
     if use_sector:
-        color_map = {
-            "University/HEI": "#457B9D",
-            "Hospital/Clinical": "#2A9D8F",
-            "Government/Public": "#8D99AE",
-            "Research institute/Centre": "#6A994E",
-            "Nonprofit/Charity": "#A1C181",
-            "Company (non-UK)": "#5E548E",
-            "UK company": "#D4AF37",
-            "Other/Unknown": "#BDBDBD",
-        }
+        color_map = SECTOR_COLORS
         series_spec = [
-            (label, sector_flag_col(label), color_map.get(label, "#BDBDBD"))
+            (label, sector_flag_col(label), color_map.get(label, "#FFFFFF"))
             for label in NON_ACADEMIC_SECTOR_LABELS
             if label != "University/HEI"
         ]
@@ -1330,17 +1343,21 @@ def plot_cumulative_by_type(df: pd.DataFrame, start_year: int = ANALYSIS_START_Y
         )
     else:
         series_spec = [
-            ("Any taxonomy collaborator", "non_academic_flag", "#D4AF37"),
-            ("Company (any)", "company_flag", "#2A9D8F"),
-            ("UK company", "uk_company_flag", "#345995"),
-            ("Non-UK company", "non_uk_company_flag", "#5E548E"),
+            ("Any taxonomy collaborator", "non_academic_flag", "#E66859"),
+            ("Company (any)", "company_flag", "#75BBD4"),
+            ("UK company", "uk_company_flag", "#416FA0"),
+            ("Non-UK company", "non_uk_company_flag", "#274668"),
         ]
         title = f"Cumulative papers by collaborator type ({start_year}-{end_year})"
 
-    plt.figure(figsize=(10, 5), dpi=150)
+    created_fig = ax is None
+    if created_fig:
+        fig, ax = plt.subplots(figsize=(10, 5), dpi=150)
+    else:
+        fig = ax.figure
     for label, col, color in series_spec:
         yearly = df[df[col] == 1].groupby("year").size().reindex(year_range, fill_value=0)
-        plt.plot(
+        ax.plot(
             year_range,
             yearly.cumsum().values,
             marker="o",
@@ -1348,16 +1365,17 @@ def plot_cumulative_by_type(df: pd.DataFrame, start_year: int = ANALYSIS_START_Y
             color=color,
             label=label,
         )
-    set_title(plt.gca(), title)
-    plt.xlabel("Year")
-    plt.ylabel("Cumulative paper count")
-    plt.xticks(year_range, rotation=45)
-    plt.grid(True, alpha=0.2)
-    plt.legend()
-    finalize_figure(plt.gcf())
-    plt.tight_layout()
-    finalize_figure(plt.gcf())
-    show_figures()
+    set_title(ax, title)
+    ax.set(xlabel="Publication year", ylabel="Cumulative publications")
+    ax.set_xticks(year_range, labels=year_range, rotation=45)
+    ax.grid(True, alpha=.2)
+    if legend:
+        ax.legend()
+    finalize_figure(fig)
+    if created_fig:
+        fig.tight_layout()
+        show_figures('collaboration_cumulative_by_type', caption='Cumulative UK Biobank publications with an affiliation in each sector, by publication year. Sectors overlap and their counts should not be summed.')
+    return fig, ax
 
 
 def plot_yearly_share_by_type(df: pd.DataFrame, start_year: int = ANALYSIS_START_YEAR, end_year: int = ANALYSIS_END_YEAR) -> None:
@@ -1368,27 +1386,18 @@ def plot_yearly_share_by_type(df: pd.DataFrame, start_year: int = ANALYSIS_START
     use_sector = all(sector_flag_col(label) in df.columns for label in NON_ACADEMIC_SECTOR_LABELS)
 
     if use_sector:
-        color_map = {
-            "University/HEI": "#457B9D",
-            "Hospital/Clinical": "#2A9D8F",
-            "Government/Public": "#8D99AE",
-            "Research institute/Centre": "#6A994E",
-            "Nonprofit/Charity": "#A1C181",
-            "Company (non-UK)": "#5E548E",
-            "UK company": "#D4AF37",
-            "Other/Unknown": "#BDBDBD",
-        }
+        color_map = SECTOR_COLORS
         series_spec = [
-            (label, sector_flag_col(label), color_map.get(label, "#BDBDBD"))
+            (label, sector_flag_col(label), color_map.get(label, "#FFFFFF"))
             for label in NON_ACADEMIC_SECTOR_LABELS
         ]
         title = f"Share of papers by taxonomy sector ({start_year}-{end_year})"
     else:
         series_spec = [
-            ("Any taxonomy collaborator", "non_academic_flag", "#D4AF37"),
-            ("Company (any)", "company_flag", "#2A9D8F"),
-            ("UK company", "uk_company_flag", "#345995"),
-            ("Non-UK company", "non_uk_company_flag", "#5E548E"),
+            ("Any taxonomy collaborator", "non_academic_flag", "#E66859"),
+            ("Company (any)", "company_flag", "#75BBD4"),
+            ("UK company", "uk_company_flag", "#416FA0"),
+            ("Non-UK company", "non_uk_company_flag", "#274668"),
         ]
         title = f"Share of papers with collaborator types ({start_year}-{end_year})"
 
@@ -1407,7 +1416,7 @@ def plot_yearly_share_by_type(df: pd.DataFrame, start_year: int = ANALYSIS_START
     finalize_figure(plt.gcf())
     plt.tight_layout()
     finalize_figure(plt.gcf())
-    show_figures()
+    show_figures('collaboration_yearly_share_by_type', caption='Annual percentage of UK Biobank publications with at least one affiliation in each sector. The denominator is all eligible publications in that year; sectors are not mutually exclusive.')
 
 
 def plot_company_share_within_non_academic(
@@ -1437,20 +1446,20 @@ def plot_company_share_within_non_academic(
     share_non_uk_in_non = np.where(yearly_non > 0, yearly_non_uk / yearly_non, 0)
 
     plt.figure(figsize=(10, 5), dpi=150)
-    plt.plot(year_range, share_company_in_non * 100, marker="o", linewidth=2, color="#2A9D8F", label="Company (any)")
-    plt.plot(year_range, share_uk_in_non * 100, marker="o", linewidth=2, color="#D4AF37", label="UK company")
-    plt.plot(year_range, share_non_uk_in_non * 100, marker="o", linewidth=2, color="#5E548E", label="Company (non-UK)")
+    plt.plot(year_range, share_company_in_non * 100, marker="o", linewidth=2, color="#75BBD4", label="Company (any)")
+    plt.plot(year_range, share_uk_in_non * 100, marker="o", linewidth=2, color="#E66859", label="UK company")
+    plt.plot(year_range, share_non_uk_in_non * 100, marker="o", linewidth=2, color="#274668", label="Company (non-UK)")
     set_title(plt.gca(), f"Share of taxonomy-collaboration papers with company sectors ({start_year}-{end_year})")
     plt.xlabel("Year")
     plt.ylabel("Percent of taxonomy-collaboration papers")
     plt.xticks(year_range, rotation=45)
-    plt.ylim(0, 100)
+    plt.ylim(0, max(1, float(np.max(share_company_in_non)) * 125))
     plt.grid(True, alpha=0.2)
     plt.legend()
     finalize_figure(plt.gcf())
     plt.tight_layout()
     finalize_figure(plt.gcf())
-    show_figures()
+    show_figures('collaboration_company_share_within_non_academic', caption='Company-affiliated publications as a percentage of publications with a classified taxonomy affiliation, distinguishing UK and non-UK companies. The two company groups can overlap.')
 
 
 def _collaboration_mix_masks(df: pd.DataFrame) -> dict[str, pd.Series]:
@@ -1487,7 +1496,8 @@ def plot_collaboration_mix_stacked_area(
     df: pd.DataFrame,
     start_year: int = ANALYSIS_START_YEAR,
     end_year: int = ANALYSIS_END_YEAR,
-) -> None:
+    *, ax=None, legend: bool = True,
+):
     """Plot annual paper counts by mutually exclusive collaboration mix."""
     apply_typography()
     year_range = _year_index(start_year, end_year)
@@ -1499,26 +1509,100 @@ def plot_collaboration_mix_stacked_area(
         counts = df[masks[label]].groupby("year").size().reindex(year_range, fill_value=0)
         stack_series.append(counts.values)
 
-    colors = ["#9e9e9e", "#d4af37", "#5e548e", "#2a9d8f", "#457b9d", "#8d99ae", "#6a994e", "#a1c181", "#bdbdbd"]
+    colors = [SECTOR_COLORS.get(label, palette("cream")) for label in labels]
+    created_fig = ax is None
+    if created_fig:
+        fig, ax = plt.subplots(figsize=(12, 6), dpi=300)
+    else:
+        fig = ax.figure
+    areas = ax.stackplot(year_range, stack_series, labels=labels, colors=colors,
+                         edgecolor="black", linewidth=.35)
+    areas[0].set_hatch("///")
+    set_title(ax, f"Annual paper volume by primary taxonomy sector ({start_year}-{end_year})")
+    ax.set(xlabel="Publication year", ylabel="Annual publications")
+    ax.set_xticks(year_range, labels=year_range, rotation=45)
+    if legend:
+        ax.legend(loc="upper left", bbox_to_anchor=(1.01, 1.0), frameon=False)
+    finalize_figure(fig)
+    if created_fig:
+        fig.tight_layout()
+        show_figures('collaboration_collaboration_mix_stacked_area', caption='Annual publication counts by primary affiliation sector. The documented priority rule assigns each publication to a single group; the hatched area represents publications with no taxonomy affiliation.')
+    return fig, ax
 
-    plt.figure(figsize=(12, 6), dpi=300)
-    plt.stackplot(year_range, stack_series, labels=labels, colors=colors, alpha=0.9)
-    set_title(plt.gca(), f"Annual paper volume by primary taxonomy sector ({start_year}-{end_year})")
-    plt.xlabel("Year")
-    plt.ylabel("Paper count")
-    plt.xticks(year_range, rotation=45)
-    plt.legend(loc="upper left", bbox_to_anchor=(1.01, 1.0), frameon=False)
-    finalize_figure(plt.gcf())
-    plt.tight_layout()
-    finalize_figure(plt.gcf())
-    show_figures()
+
+COLLABORATION_TRENDS_EXPORT = "collaboration_cumulative_and_annual_mix"
+
+
+def plot_collaboration_trends(
+    df: pd.DataFrame,
+    start_year: int = ANALYSIS_START_YEAR,
+    end_year: int = ANALYSIS_END_YEAR,
+):
+    """Pair overlapping cumulative counts with mutually exclusive annual counts."""
+    from matplotlib.legend_handler import HandlerTuple
+    from matplotlib.ticker import MaxNLocator, StrMethodFormatter
+
+    if start_year > end_year:
+        raise ValueError("The analysis start year must not exceed the end year.")
+    if not all(sector_flag_col(label) in df.columns for label in NON_ACADEMIC_SECTOR_LABELS):
+        raise ValueError("The combined trends figure requires the derived sector-taxonomy flags.")
+    if not {"collaborator_sector_counts", "non_academic_sector_counts"}.intersection(df.columns):
+        raise ValueError("The combined trends figure requires sector counts for the primary-sector mix.")
+    apply_project_plot_style()
+    df = ensure_year_column(df)
+    fig, axes = plt.subplots(1, 2, figsize=(16, 6.2), layout="constrained")
+    fig.get_layout_engine().set(w_pad=.08, h_pad=.06, wspace=.06)
+    plot_cumulative_by_type(df, start_year, end_year, ax=axes[0], legend=False)
+    plot_collaboration_mix_stacked_area(df, start_year, end_year, ax=axes[1], legend=False)
+    ticks = list(range(start_year, end_year + 1, 3))
+    if ticks[-1] != end_year:
+        ticks.append(end_year)
+    for letter, ax in zip("AB", axes):
+        set_title(ax, letter)
+        ax.set_xticks(ticks, labels=ticks, rotation=0)
+        ax.set_xlim(start_year, end_year)
+        ax.set_ylim(bottom=0)
+        ax.yaxis.set_major_locator(MaxNLocator(nbins=5, integer=True))
+        ax.yaxis.set_major_formatter(StrMethodFormatter("{x:,.0f}"))
+        ax.spines[["top", "right"]].set_visible(False)
+        ax.set_axisbelow(True)
+    padding = .02 * max(end_year - start_year, 1)
+    axes[0].set_xlim(start_year - padding, end_year + padding)
+    axes[1].grid(False)
+    finalize_figure(fig)
+
+    # Use the actual plotted artists, including the black dotted Other/Unknown
+    # line and white area. Single swatches would misrepresent that encoding.
+    line_handles, line_labels = axes[0].get_legend_handles_labels()
+    lines = dict(zip(line_labels, line_handles))
+    fills, labels = axes[1].get_legend_handles_labels()
+    handles = [(lines[label], fill) if label in lines else fill
+               for label, fill in zip(labels, fills)]
+    fig.legend(handles, labels, handler_map={tuple: HandlerTuple(ndivide=None, pad=.4)},
+               loc="outside lower center", ncol=3, handlelength=3.2,
+               columnspacing=1.8, borderaxespad=.3, labelspacing=.5)
+    fig._ukb_caption = (
+        f"Collaboration-sector trends in UK Biobank publications, {start_year}-{end_year}. "
+        "(A) Cumulative publications with at least one classified affiliation in each "
+        "sector, excluding University/HEI. A publication can contribute to several "
+        "sector curves, so these counts must not be summed. (B) Annual publication "
+        "counts assigned to one primary sector: the sector with the most classified "
+        "organisation records, with ties resolved by the priority order documented "
+        "in the notebook. University/HEI is included; the hatched area denotes "
+        "publications without a taxonomy affiliation. The stacked areas sum to all "
+        "eligible publications in each year. The shared legend pairs line and area "
+        "symbols for sectors present in both panels."
+    )
+    finalize_figure(fig)
+    return fig
 
 
 def plot_collaboration_mix_share_stacked_area(
     df: pd.DataFrame,
     start_year: int = ANALYSIS_START_YEAR,
     end_year: int = ANALYSIS_END_YEAR,
-) -> None:
+    *, ax=None, legend: bool = True,
+):
     """Plot annual paper shares by mutually exclusive collaboration mix (100% stacked)."""
     apply_typography()
     year_range = _year_index(start_year, end_year)
@@ -1535,19 +1619,27 @@ def plot_collaboration_mix_share_stacked_area(
     totals[totals == 0] = 1.0
     shares = 100.0 * stack / totals
 
-    colors = ["#9e9e9e", "#d4af37", "#5e548e", "#2a9d8f", "#457b9d", "#8d99ae", "#6a994e", "#a1c181", "#bdbdbd"]
-    plt.figure(figsize=(12, 6), dpi=300)
-    plt.stackplot(year_range, shares, labels=labels, colors=colors, alpha=0.92)
-    set_title(plt.gca(), f"Annual share by primary taxonomy sector ({start_year}-{end_year})")
-    plt.xlabel("Year")
-    plt.ylabel("Share of papers (%)")
-    plt.ylim(0, 100)
-    plt.xticks(year_range, rotation=45)
-    plt.legend(loc="upper left", bbox_to_anchor=(1.01, 1.0), frameon=False)
-    finalize_figure(plt.gcf())
-    plt.tight_layout()
-    finalize_figure(plt.gcf())
-    show_figures()
+    colors = [SECTOR_COLORS.get(label, palette("cream")) for label in labels]
+    own_fig = ax is None
+    if own_fig:
+        fig, ax = plt.subplots(figsize=(12, 6), dpi=300)
+    else:
+        fig = ax.figure
+    areas = ax.stackplot(year_range, shares, labels=labels, colors=colors, alpha=1)
+    for area, label in zip(areas, labels):
+        if label == "No taxonomy collaborator":
+            area.set(hatch="///", edgecolor="black", linewidth=.4)
+    set_title(ax, f"Annual share by primary taxonomy sector ({start_year}-{end_year})")
+    ax.set(xlabel="Publication year", ylabel="Share of publications (%)", ylim=(0, 100))
+    ax.set_xticks(year_range)
+    ax.tick_params(axis="x", labelrotation=45)
+    if legend:
+        ax.legend(loc="upper left", bbox_to_anchor=(1.01, 1.0), frameon=False)
+    if own_fig:
+        finalize_figure(fig)
+        fig.tight_layout()
+        show_figures('collaboration_collaboration_mix_share_stacked_area', caption='Annual publication composition by primary affiliation sector. Mutually exclusive groups use the documented priority rule, with all publications in each year forming the denominator.')
+    return fig, ax
 
 
 def plot_flag_overlap_heatmap(
@@ -1577,8 +1669,8 @@ def plot_flag_overlap_heatmap(
             both = int((row_mask & (df[col_col] == 1)).sum())
             matrix[i, j] = (100 * both / row_total) if row_total else 0.0
 
-    fig, ax = plt.subplots(figsize=(7.5, 6), dpi=300)
-    im = ax.imshow(matrix, cmap="Spectral_r", vmin=0, vmax=100)
+    fig, ax = plt.subplots(figsize=(11, 9), dpi=300)
+    im = ax.imshow(matrix, cmap=blue_cream_red_colormap(), vmin=0, vmax=100)
     set_title(ax, "Collaboration flag overlap (% of row flag papers)")
     ax.set_xticks(np.arange(len(labels)))
     ax.set_yticks(np.arange(len(labels)))
@@ -1618,7 +1710,7 @@ def plot_flag_overlap_heatmap(
         saved_paths[clean_fmt] = out_path
 
     finalize_figure(plt.gcf())
-    show_figures()
+    show_figures('collaboration_flag_overlap_heatmap', caption='Overlap between affiliation sectors. Each cell is the percentage of publications in the row sector that also contain the column sector. Row-specific denominators make the matrix asymmetric; diagonal cells are 100%.')
     return saved_paths
 
 
@@ -1639,11 +1731,9 @@ def plot_citation_distribution_by_group(df: pd.DataFrame, citation_col: str = "t
 
     any_sector_mask = _any_sector_collab_mask(df)
     groups = [
-        ("No taxonomy collaborator", ~any_sector_mask, "#9e9e9e"),
-        ("Hospital/Clinical", sector_mask("Hospital/Clinical"), "#2a9d8f"),
-        ("University/HEI", sector_mask("University/HEI"), "#457b9d"),
-        ("Company (non-UK)", sector_mask("Company (non-UK)"), "#5e548e"),
-        ("UK company", sector_mask("UK company"), "#d4af37"),
+        ("No taxonomy collaborator", ~any_sector_mask, palette("cream")),
+        *[(label, sector_mask(label), SECTOR_COLORS[label])
+          for label in ("Hospital/Clinical", "University/HEI", "Company (non-UK)", "UK company")],
     ]
 
     data = []
@@ -1667,14 +1757,15 @@ def plot_citation_distribution_by_group(df: pd.DataFrame, citation_col: str = "t
     box = ax.boxplot(
         data,
         patch_artist=True,
-        labels=labels,
+        tick_labels=labels,
+        orientation="vertical",
         showfliers=False,
         medianprops={"color": "black", "linewidth": 1.5},
     )
 
     for patch, color in zip(box["boxes"], colors[: len(data)]):
         patch.set_facecolor(color)
-        patch.set_alpha(0.7)
+        patch.set_alpha(1)
         patch.set_edgecolor("black")
         patch.set_linewidth(0.6)
 
@@ -1684,11 +1775,11 @@ def plot_citation_distribution_by_group(df: pd.DataFrame, citation_col: str = "t
     finalize_figure(plt.gcf())
     plt.tight_layout()
     finalize_figure(plt.gcf())
-    show_figures()
+    show_figures('collaboration_citation_distribution_by_group', caption='Citation distributions for UK Biobank publications by affiliation group, plotted as log10(citations + 1). Group sizes are shown below the distributions; overlapping sector groups are not independent samples.')
 
 
-def plot_collaborator_concentration_curves(df: pd.DataFrame) -> None:
-    """Plot collaborator concentration curves (papers covered vs collaborator rank)."""
+def plot_collaborator_concentration_curves(df: pd.DataFrame, *, ax=None, legend: bool = True):
+    """Plot cumulative organisation-paper contributions against organisation rank."""
 
     apply_typography()
     def paper_counter(series: pd.Series) -> Counter:
@@ -1709,13 +1800,13 @@ def plot_collaborator_concentration_curves(df: pd.DataFrame) -> None:
 
     series_spec: list[tuple[str, Counter, str]] = []
     for label, color in [
-        ("Hospital/Clinical", "#2a9d8f"),
-        ("University/HEI", "#457b9d"),
+        ("Hospital/Clinical", "#75BBD4"),
+        ("University/HEI", "#74ADD1"),
     ]:
         col = sector_institutions_col(label)
         if col in df.columns:
             series_spec.append((label, paper_counter(df[col]), color))
-    series_spec.append(("Company (any)", paper_counter(df["company_institutions_norm"]), "#d4af37"))
+    series_spec.append(("Company (any)", paper_counter(df["company_institutions_norm"]), "#E66859"))
 
     curves = []
     for label, counter, color in series_spec:
@@ -1726,23 +1817,27 @@ def plot_collaborator_concentration_curves(df: pd.DataFrame) -> None:
         print("No collaborator concentration data available.")
         return
 
-    plt.figure(figsize=(8, 6), dpi=300)
-    plt.plot([0, 1], [0, 1], linestyle="--", color="#bdbdbd", linewidth=1.2, label="Uniform baseline")
+    own_fig = ax is None
+    if own_fig:
+        fig, ax = plt.subplots(figsize=(8, 6), dpi=300)
+    else:
+        fig = ax.figure
+    ax.plot([0, 1], [0, 1], linestyle="--", color="black", linewidth=1.2, label="Uniform baseline")
     for label, x, y, color in curves:
         if len(x) == 0:
             continue
-        plt.plot(x, y, linewidth=2.2, color=color, label=f"{label} collaborators")
+        ax.plot(x, y, linewidth=2.2, color=color, label=f"{label} collaborators")
 
-    set_title(plt.gca(), "Collaborator concentration curve")
-    plt.xlabel("Fraction of collaborators (ranked by papers)")
-    plt.ylabel("Fraction of papers covered")
-    plt.xlim(0, 1)
-    plt.ylim(0, 1)
-    plt.legend(frameon=False)
-    finalize_figure(plt.gcf())
-    plt.tight_layout()
-    finalize_figure(plt.gcf())
-    show_figures()
+    set_title(ax, "Collaborator concentration curve")
+    ax.set(xlabel="Fraction of organisations\n(ranked by publication count)",
+           ylabel="Share of organisation-paper\ncontributions", xlim=(0, 1), ylim=(0, 1))
+    if legend:
+        ax.legend(frameon=False)
+    if own_fig:
+        finalize_figure(fig)
+        fig.tight_layout()
+        show_figures('collaboration_collaborator_concentration_curves', caption='Concentration of publication contributions among affiliated organisations, ranked by contribution within each group. The dashed diagonal represents equal contributions. Each distinct organisation-paper pair counts once; this is not unique-paper coverage.')
+    return fig, ax
 
 
 def plot_yearly_median_log_citations_by_group(
@@ -1751,7 +1846,8 @@ def plot_yearly_median_log_citations_by_group(
     start_year: int = ANALYSIS_START_YEAR,
     end_year: int = ANALYSIS_END_YEAR,
     min_papers_per_point: int = 20,
-) -> None:
+    *, ax=None, legend: bool = True,
+):
     """Plot yearly median log10(citations+1) across collaboration groups."""
     apply_typography()
     if citation_col not in df.columns:
@@ -1770,14 +1866,18 @@ def plot_yearly_median_log_citations_by_group(
 
     any_sector_mask = _any_sector_collab_mask(plot_df)
     groups = [
-        ("No taxonomy collaborator", ~any_sector_mask, "#9e9e9e"),
-        ("Hospital/Clinical", sector_mask("Hospital/Clinical"), "#2a9d8f"),
-        ("University/HEI", sector_mask("University/HEI"), "#457b9d"),
-        ("Company (non-UK)", sector_mask("Company (non-UK)"), "#5e548e"),
-        ("UK company", sector_mask("UK company"), "#d4af37"),
+        ("No taxonomy collaborator", ~any_sector_mask, "#FEE7BA"),
+        ("Hospital/Clinical", sector_mask("Hospital/Clinical"), "#75BBD4"),
+        ("University/HEI", sector_mask("University/HEI"), "#74ADD1"),
+        ("Company (non-UK)", sector_mask("Company (non-UK)"), "#274668"),
+        ("UK company", sector_mask("UK company"), "#E66859"),
     ]
 
-    plt.figure(figsize=(11, 6), dpi=300)
+    own_fig = ax is None
+    if own_fig:
+        fig, ax = plt.subplots(figsize=(11, 6), dpi=300)
+    else:
+        fig = ax.figure
     for label, mask, color in groups:
         y_vals = []
         for year in year_range:
@@ -1787,18 +1887,20 @@ def plot_yearly_median_log_citations_by_group(
                 y_vals.append(np.nan)
             else:
                 y_vals.append(float(vals.median()))
-        plt.plot(year_range, y_vals, marker="o", linewidth=2, color=color, label=label)
+        ax.plot(year_range, y_vals, marker="o", linewidth=2, color=color, label=label)
 
-    set_title(plt.gca(), f"Yearly median citation impact by taxonomy group ({start_year}-{end_year})")
-    plt.xlabel("Year")
-    plt.ylabel("Median log10(citations + 1)")
-    plt.xticks(year_range, rotation=45)
-    plt.grid(True, alpha=0.25)
-    plt.legend(frameon=False)
-    finalize_figure(plt.gcf())
-    plt.tight_layout()
-    finalize_figure(plt.gcf())
-    show_figures()
+    set_title(ax, f"Yearly median citation impact by taxonomy group ({start_year}-{end_year})")
+    ax.set(xlabel="Publication year", ylabel="Median log10(citations + 1)")
+    ax.set_xticks(year_range)
+    ax.tick_params(axis="x", labelrotation=45)
+    ax.grid(True, alpha=0.25)
+    if legend:
+        ax.legend(frameon=False)
+    if own_fig:
+        finalize_figure(fig)
+        fig.tight_layout()
+        show_figures('collaboration_yearly_median_log_citations_by_group', caption='Median log10(citations + 1) by publication year and affiliation group. Values are descriptive, not adjusted for field or time since publication.')
+    return fig, ax
 
 
 def _pick_journal_name(row: pd.Series) -> str:
@@ -1815,12 +1917,13 @@ def _pick_journal_name(row: pd.Series) -> str:
 # elsewhere in the module; the marker shapes carry the distinction when two
 # sectors land on nearly the same share.
 JOURNAL_SECTOR_MARKER_SPEC = [
-    ("Company (all)", "company_flag", "#5E548E", "o"),
-    ("UK company", sector_flag_col("UK company"), "#D4AF37", "D"),
-    ("Hospital/Clinical", sector_flag_col("Hospital/Clinical"), "#2A9D8F", "s"),
-    ("Government/Public", sector_flag_col("Government/Public"), "#8D99AE", "^"),
-    ("Research institute/Centre", sector_flag_col("Research institute/Centre"), "#6A994E", "v"),
-    ("Nonprofit/Charity", sector_flag_col("Nonprofit/Charity"), "#A1C181", "P"),
+    ("Company (all)", "company_flag", "#274668", "o"),
+    ("UK company", sector_flag_col("UK company"), "#E66859", "D"),
+    ("Hospital/Clinical", sector_flag_col("Hospital/Clinical"), "#75BBD4", "s"),
+    ("Government/Public", sector_flag_col("Government/Public"), "#416FA0", "^"),
+    ("Research institute/Centre", sector_flag_col("Research institute/Centre"),
+     SECTOR_COLORS["Research institute/Centre"], "v"),
+    ("Nonprofit/Charity", sector_flag_col("Nonprofit/Charity"), "#FEE7BA", "P"),
 ]
 
 
@@ -1905,7 +2008,8 @@ def plot_top_journal_company_share(
     journal_df: pd.DataFrame,
     top_n: int = 15,
     sort_by: str = "non_academic_share",
-) -> None:
+    *, ax=None, legend: bool = True,
+):
     """Plot non-academic collaboration shares for the highest-volume journals.
 
     The bar is the share of the journal's papers with any non-academic sector
@@ -1931,11 +2035,15 @@ def plot_top_journal_company_share(
         if journal_share_col(label) in plot_df.columns
     ]
 
-    fig, ax = plt.subplots(figsize=(12, 7.5), dpi=300)
+    own_fig = ax is None
+    if own_fig:
+        fig, ax = plt.subplots(figsize=(12, 7.5), dpi=300)
+    else:
+        fig = ax.figure
     ax.barh(
         y,
         plot_df[bar_col] * 100,
-        color="#CBD5D1",
+        color="#FFFFFF",
         edgecolor="black",
         linewidth=0.4,
         alpha=0.9,
@@ -1947,9 +2055,9 @@ def plot_top_journal_company_share(
             y,
             color=color,
             marker=marker,
-            s=42,
+            s=76,
             zorder=3,
-            edgecolor="white",
+            edgecolor="black",
             linewidth=0.5,
             label=label,
         )
@@ -1964,18 +2072,113 @@ def plot_top_journal_company_share(
     ax.set_ylabel("Journal")
     set_title(ax, "Non-academic collaboration share among top journals")
     # Below the axes: seven entries in the corner would sit on top of the bars.
-    ax.legend(
-        frameon=False,
-        loc="upper center",
-        bbox_to_anchor=(0.5, -0.11),
-        ncol=4,
-        fontsize=9,
-    )
+    if legend:
+        ax.legend(frameon=False, loc="upper center", bbox_to_anchor=(0.5, -0.09),
+                  ncol=3, fontsize=11)
     ax.grid(True, axis="x", alpha=0.25)
-    finalize_figure(plt.gcf())
-    plt.tight_layout()
-    finalize_figure(plt.gcf())
-    show_figures()
+    if own_fig:
+        finalize_figure(fig)
+        fig.tight_layout()
+        show_figures('collaboration_top_journal_company_share', caption="Affiliation-sector prevalence in leading publication venues. Points show sector-specific shares; unfilled bars show the share with any identified non-academic sector. The n labels give publication counts.")
+    return fig, ax
+
+
+ADDITIONAL_PUBLICATION_EXPORT = "collaboration_additional_publication_figure"
+
+
+def plot_additional_publication_figure(
+    df: pd.DataFrame,
+    journal_df: pd.DataFrame,
+    *, start_year: int = ANALYSIS_START_YEAR, end_year: int = ANALYSIS_END_YEAR,
+    citation_col: str = "times_cited", min_papers_per_point: int = 20,
+    top_journals: int = 15,
+):
+    """Compose Section 7's non-duplicated analyses without displaying or exporting."""
+    from textwrap import fill
+
+    if start_year > end_year:
+        raise ValueError("The start year must not exceed the end year.")
+    if min_papers_per_point < 1:
+        raise ValueError("min_papers_per_point must be positive.")
+    apply_project_plot_style()
+    fig, axes = plt.subplots(2, 2, figsize=(22, 17), layout="constrained")
+    fig.get_layout_engine().set(w_pad=.12, h_pad=.12, wspace=.09, hspace=.09)
+    a, b, c, d = axes.flat
+    for ax in axes.flat:
+        ax._ukb_title_fs = 26
+        ax._ukb_label_fs = 17
+        ax._ukb_tick_fs = 13
+        ax._ukb_annotation_fs = 12
+        ax._ukb_legend_fs = 12
+
+    plot_collaboration_mix_share_stacked_area(df, start_year, end_year, ax=a, legend=False)
+    plot_yearly_median_log_citations_by_group(
+        df, citation_col, start_year, end_year, min_papers_per_point, ax=b, legend=False)
+    if not any(np.isfinite(line.get_ydata()).any() for line in b.lines):
+        b.text(.5, .5, "No group-years meet the reporting threshold",
+               transform=b.transAxes, ha="center", va="center")
+    for line in b.lines:
+        line.set(markeredgecolor="black", markeredgewidth=.5, markersize=6)
+    if plot_collaborator_concentration_curves(df, ax=c, legend=False) is None:
+        c.text(.5, .5, "No organisation contributions", transform=c.transAxes,
+               ha="center", va="center")
+    for line, marker in zip(c.lines[1:], ("o", "s", "^")):
+        line.set(marker=marker, markersize=5, markevery=max(1, len(line.get_xdata()) // 10))
+    if plot_top_journal_company_share(journal_df, top_n=top_journals,
+                                      ax=d, legend=False) is None:
+        d.text(.5, .5, "No eligible journals", transform=d.transAxes,
+               ha="center", va="center")
+    else:
+        d.set_yticks(d.get_yticks(), [fill(label.get_text(), 27, break_long_words=False,
+                                          break_on_hyphens=False)
+                                     for label in d.get_yticklabels()])
+
+    for ax in (a, b):
+        ax.set_xticks(list(range(end_year, start_year - 1, -3))[::-1])
+        ax.tick_params(axis="x", labelrotation=0)
+        ax.set_xlim(start_year - .3, end_year + .3)
+    for ax, columns in ((a, 3), (b, 2), (d, 3)):
+        handles, labels = ax.get_legend_handles_labels()
+        if handles:
+            ax.legend(handles, [fill(label, 23, break_long_words=False,
+                                     break_on_hyphens=False) for label in labels],
+                      loc="upper center", bbox_to_anchor=(.5, -.16), ncol=columns,
+                      frameon=True, handlelength=1.5, columnspacing=1.1,
+                      labelspacing=.7, borderpad=.7)
+    if c.lines:
+        c.legend(loc="lower right", frameon=True, handlelength=2, labelspacing=.7)
+    for letter, ax in zip("ABCD", axes.flat):
+        set_title(ax, letter)
+        ax.set_axisbelow(True)
+        ax.grid(False, which="both")
+        ax.grid(True, axis="y" if ax in (a, b) else "both" if ax is c else "x",
+                which="major", linestyle="--", linewidth=.6, alpha=.2)
+        for side, spine in ax.spines.items():
+            spine.set(visible=side in ("left", "bottom"), color="black", linewidth=1)
+    fig._ukb_caption = (
+        "Additional affiliation-sector analyses of UK Biobank publications. "
+        "(A) Annual percentage composition by primary affiliation sector. The sector "
+        "with the most classified organisation records is selected; the documented "
+        "priority order breaks ties. Each nonempty year sums to 100%; hatching marks "
+        "publications without a taxonomy collaborator. Unlike Section 6's count view, "
+        "this panel shows relative composition. (B) Median log10(citations + 1) by "
+        f"publication year and group; points require at least {min_papers_per_point} "
+        "publications. Missing citation counts are treated as zero. Sector groups "
+        "overlap, and citation counts are not adjusted for field or citation age. "
+        "(C) Concentration of organisation-paper contributions, with organisations "
+        "ranked by publication count within each group. A distinct organisation is "
+        "counted once per paper; the cumulative share is not unique-paper coverage. "
+        "The dashed diagonal represents equal contributions. "
+        f"(D) The {top_journals} highest-volume eligible journals, ordered by "
+        "non-academic affiliation share. Unfilled bars show the share with any "
+        "identified non-academic sector; markers show the displayed group-specific "
+        "shares. All shares use the journal's full publication count as denominator, "
+        "and n labels report that count. Sector shares can overlap. The repeated "
+        "overlap heatmap is retained in the main figure (F); citation distributions, "
+        "including the no-taxonomy baseline, are retained in Section 12."
+    )
+    finalize_figure(fig)
+    return fig
 
 
 def plot_for_company_share_scatter(
@@ -2015,7 +2218,7 @@ def plot_for_company_share_scatter(
         y,
         c=c,
         s=size,
-        cmap="viridis",
+        cmap=blue_colormap(),
         edgecolor="black",
         linewidth=0.4,
         alpha=0.9,
@@ -2028,125 +2231,6 @@ def plot_for_company_share_scatter(
         label_df = rank_for_labels
     else:
         label_df = rank_for_labels.head(max_labels)
-    x_edge_cut = 10 ** (float(x_log.min()) + 0.82 * span) if span > 0 else float(x.iloc[0])
-    edge_rank = 0
-    label_text_overrides: dict[str, str] = {
-        "Biomedical and Clinical Sciences": "Biomedical and\nClinical Sciences",
-        "Agricultural, Veterinary and Food Sciences": "Agricultural,\nVeterinary and\nFood Sciences",
-    }
-    bbox_default = {"boxstyle": "round,pad=0.15", "fc": "white", "ec": "none", "alpha": 0.85}
-    manual_label_layout: dict[str, dict[str, Any]] = {
-        # User-requested manual placements.
-        "Biological Sciences": {"xytext": (0, -16), "ha": "center", "va": "top"},
-    }
-    for _, row in label_df.iterrows():
-        x_val = float(row["papers"])
-        y_val = float(100 * row["company_share"])
-        label = str(row["l2_for_name"])
-        display_label = label_text_overrides.get(label, label)
-
-        if label == "Health Sciences":
-            ax.annotate(
-                display_label,
-                (x_val, y_val),
-                textcoords="data",
-                xytext=(x_val, 2.5),
-                ha="center",
-                va="center",
-                fontsize=9,
-                bbox=bbox_default,
-                arrowprops={
-                    "arrowstyle": "->",
-                    "lw": 0.9,
-                    "color": "#303030",
-                    "connectionstyle": "arc3,rad=0.18",
-                    "shrinkA": 0,
-                    "shrinkB": 3,
-                },
-            )
-            continue
-
-        if label == "Biomedical and Clinical Sciences":
-            ax.annotate(
-                display_label,
-                (x_val, y_val),
-                textcoords="data",
-                xytext=(x_val * 0.78, 10.0),
-                ha="center",
-                va="center",
-                fontsize=9,
-                bbox=bbox_default,
-                arrowprops={
-                    "arrowstyle": "->",
-                    "lw": 0.9,
-                    "color": "#303030",
-                    "connectionstyle": "arc3,rad=-0.2",
-                    "shrinkA": 0,
-                    "shrinkB": 3,
-                },
-            )
-            continue
-
-        if label in manual_label_layout:
-            layout = manual_label_layout[label]
-            annotate_kwargs: dict[str, Any] = {
-                "text": display_label,
-                "xy": (x_val, y_val),
-                "textcoords": "offset points",
-                "xytext": layout["xytext"],
-                "ha": layout["ha"],
-                "va": layout["va"],
-                "fontsize": 9,
-            }
-            if x_val >= x_edge_cut:
-                # Keep curved leader arrows for right-side points.
-                annotate_kwargs["bbox"] = bbox_default
-                annotate_kwargs["arrowprops"] = {
-                    "arrowstyle": "->",
-                    "lw": 0.9,
-                    "color": "#303030",
-                    "connectionstyle": "arc3,rad=0.22",
-                    "shrinkA": 0,
-                    "shrinkB": 3,
-                }
-            ax.annotate(
-                annotate_kwargs.pop("text"),
-                annotate_kwargs.pop("xy"),
-                **annotate_kwargs,
-            )
-            continue
-        if x_val >= x_edge_cut:
-            y_offset_cycle = [18, -18, 30, -30, 12, -12]
-            y_offset = y_offset_cycle[edge_rank % len(y_offset_cycle)]
-            rad = 0.28 if edge_rank % 2 == 0 else -0.28
-            edge_rank += 1
-            ax.annotate(
-                display_label,
-                (x_val, y_val),
-                textcoords="offset points",
-                xytext=(-105, y_offset),
-                ha="right",
-                va="center",
-                fontsize=9,
-                bbox=bbox_default,
-                arrowprops={
-                    "arrowstyle": "->",
-                    "lw": 0.9,
-                    "color": "#303030",
-                    "connectionstyle": f"arc3,rad={rad}",
-                    "shrinkA": 0,
-                    "shrinkB": 3,
-                },
-            )
-        else:
-            ax.annotate(
-                display_label,
-                (x_val, y_val),
-                textcoords="offset points",
-                xytext=(6, 6),
-                fontsize=9,
-            )
-
     ax.set_xscale("log")
     ax.margins(x=0.08)
     y_low, y_high = ax.get_ylim()
@@ -2162,6 +2246,11 @@ def plot_for_company_share_scatter(
     cbar.set_label("Company collaborator share (%)")
     finalize_figure(plt.gcf())
     plt.tight_layout()
+    from utils.data_analysis_04_non_academic_figures import bubble_callouts
+    # Reserve the full bubble areas when positioning labels and curved leaders.
+    label_sizes = pd.Series(size, index=plot_df.index).loc[label_df.index]
+    bubble_callouts(ax, np.column_stack([label_df["papers"], 100 * label_df["company_share"]]),
+                    label_df["l2_for_name"].tolist(), label_sizes.to_numpy())
 
     if save_path is not None:
         base_out = Path(save_path).with_suffix("")
@@ -2180,7 +2269,7 @@ def plot_for_company_share_scatter(
         saved_paths[clean_fmt] = out_path
 
     finalize_figure(plt.gcf())
-    show_figures()
+    show_figures('collaboration_for_company_share_scatter', caption='Company collaboration across Fields of Research level-2 divisions. Publication volume is compared with the percentage of publications containing company affiliations; marker size and colour encode the quantities shown in the keys.')
     return saved_paths
 
 
@@ -2232,16 +2321,8 @@ def plot_yearly_metrics_dashboard(yearly_df: pd.DataFrame) -> None:
     years = yearly_df["year"].astype(int).tolist()
 
     fig, axes = plt.subplots(1, 2, figsize=(14, 5.6), dpi=300)
-    color_map = {
-        "Hospital/Clinical": "#2A9D8F",
-        "University/HEI": "#457B9D",
-        "Government/Public": "#8D99AE",
-        "Research institute/Centre": "#6A994E",
-        "Nonprofit/Charity": "#A1C181",
-        "Company (non-UK)": "#5E548E",
-        "UK company": "#D4AF37",
-    }
-    axes[0].plot(years, yearly_df["papers_total"], marker="o", linewidth=2, color="#6c757d", label="Total papers")
+    color_map = SECTOR_COLORS
+    axes[0].plot(years, yearly_df["papers_total"], marker="o", linewidth=2, color="#274668", label="Total papers")
     for label in color_map:
         slug = _sector_slug(label)
         col = f"papers_{slug}"
@@ -2268,7 +2349,7 @@ def plot_yearly_metrics_dashboard(yearly_df: pd.DataFrame) -> None:
     finalize_figure(plt.gcf())
     plt.tight_layout()
     finalize_figure(plt.gcf())
-    show_figures()
+    show_figures('collaboration_yearly_metrics_dashboard', caption='Annual publication counts and affiliation-sector shares. A paper contributes once to each represented sector, so sectors can overlap.')
 
 
 def plot_company_geography_mix_over_time(
@@ -2313,7 +2394,7 @@ def plot_company_geography_mix_over_time(
         mixed,
         unknown,
         labels=["UK only", "Non-UK only", "UK + non-UK", "Unknown geo"],
-        colors=["#345995", "#5e548e", "#2a9d8f", "#8d99ae"],
+        colors=["#416FA0", "#274668", "#75BBD4", "#416FA0"],
         alpha=0.92,
     )
     set_title(plt.gca(), f"Geographic composition of company-collaboration papers ({start_year}-{end_year})")
@@ -2325,7 +2406,7 @@ def plot_company_geography_mix_over_time(
     finalize_figure(plt.gcf())
     plt.tight_layout()
     finalize_figure(plt.gcf())
-    show_figures()
+    show_figures('collaboration_company_geography_mix_over_time', caption='Geographical composition of company-affiliated publications by year. Mutually exclusive categories distinguish UK-only, non-UK-only, mixed and unresolved company geography.')
 
 
 def build_company_collaborator_churn_table(
@@ -2382,8 +2463,8 @@ def plot_new_vs_returning_company_collaborators(churn_df: pd.DataFrame) -> None:
     returning_vals = churn_df["returning_company_collaborators"].values
 
     plt.figure(figsize=(11, 6), dpi=300)
-    plt.bar(years, returning_vals, color="#2a9d8f", alpha=0.82, label="Returning")
-    plt.bar(years, new_vals, bottom=returning_vals, color="#f4a261", alpha=0.92, label="New")
+    plt.bar(years, returning_vals, color="#416FA0", alpha=0.9, label="Returning")
+    plt.bar(years, new_vals, bottom=returning_vals, color="#FEE7BA", alpha=0.92, label="New")
     set_title(plt.gca(), "Annual new vs returning company collaborators")
     plt.xlabel("Year")
     plt.ylabel("Unique company collaborators")
@@ -2392,7 +2473,7 @@ def plot_new_vs_returning_company_collaborators(churn_df: pd.DataFrame) -> None:
     finalize_figure(plt.gcf())
     plt.tight_layout()
     finalize_figure(plt.gcf())
-    show_figures()
+    show_figures('collaboration_new_vs_returning_company_collaborators', caption='Annual counts of distinct company collaborators, partitioned into companies first observed in the analysis window and companies already observed in an earlier year.')
 
 
 def build_top_company_year_matrix(
@@ -2485,25 +2566,47 @@ def build_top_company_year_authorship_matrix(
 
 def plot_top_company_heatmap(company_year_df: pd.DataFrame) -> None:
     """Plot heatmap of yearly paper counts for top company collaborators."""
+    from textwrap import fill
+
     apply_typography()
     if company_year_df.empty:
         print("No top-company-by-year matrix available for plotting.")
         return
 
     plot_df = company_year_df.copy()
-    org_labels = plot_df["org"].tolist()
+    org_labels = []
+    for label in plot_df["org"]:
+        clean = re.sub(r"\s*\([^)]*\)\s*", " ", str(label)).strip()
+        clean = re.sub(r"(?i)\b(?:glaxo|glasko)\s*smithkline\b", "GSK", clean)
+        org_labels.append(fill(clean, 28, break_long_words=False, break_on_hyphens=False))
     values = plot_df.drop(columns=["org"]).to_numpy(dtype=float)
     years = plot_df.columns[1:].tolist()
 
-    fig, ax = plt.subplots(figsize=(11.5, max(5.5, 0.45 * len(org_labels))), dpi=300)
-    im = ax.imshow(values, aspect="auto", cmap="Spectral_r")
-    set_title(ax, "Top company collaborators over time (paper counts)")
-    ax.set_xlabel("Year")
+    fig, ax = plt.subplots(figsize=(13, max(7.5, 0.5 * len(org_labels))), dpi=300,
+                           layout="constrained")
+    ax._ukb_title_fs = 26
+    ax._ukb_label_fs = 17
+    ax._ukb_tick_fs = 13
+    ax._ukb_annotation_fs = 12
+    ax._ukb_heatmap_edges = False
+    cmap = blue_cream_red_colormap()
+    cmap.set_bad("white")
+    im = ax.imshow(np.ma.masked_where(values <= 0, values), aspect="auto", cmap=cmap,
+                    interpolation="nearest")
+    set_title(ax, "A")
+    ax.set_xlabel("Publication year")
     ax.set_ylabel("Company")
     ax.set_xticks(np.arange(len(years)))
     ax.set_xticklabels(years, rotation=45, ha="right")
     ax.set_yticks(np.arange(len(org_labels)))
     ax.set_yticklabels(org_labels)
+    ax.grid(False, which="both")
+    ax.tick_params(axis="both", which="major", bottom=True, left=True, top=True, right=True,
+                   labeltop=False, labelright=False, length=5, width=1, color="black")
+    for spine in ax.spines.values():
+        spine.set_visible(True)
+        spine.set_color("black")
+        spine.set_linewidth(1)
 
     for i in range(values.shape[0]):
         for j in range(values.shape[1]):
@@ -2511,14 +2614,14 @@ def plot_top_company_heatmap(company_year_df: pd.DataFrame) -> None:
             if v <= 0:
                 continue
             text_color = "white" if v >= np.nanpercentile(values, 70) else "black"
-            ax.text(j, i, f"{int(v)}", ha="center", va="center", fontsize=8, color=text_color)
+            ax.text(j, i, f"{int(v)}", ha="center", va="center", fontsize=12, color=text_color)
 
     cbar = fig.colorbar(im, ax=ax, fraction=0.046, pad=0.04)
-    cbar.set_label("Paper count")
-    finalize_figure(plt.gcf())
-    plt.tight_layout()
-    finalize_figure(plt.gcf())
-    show_figures()
+    cbar.ax._ukb_label_fs = 17
+    cbar.ax._ukb_tick_fs = 13
+    cbar.set_label("Publications")
+    finalize_figure(fig)
+    show_figures('collaboration_top_company_heatmap', caption='Annual publication counts for the leading company collaborators. Each cell counts publications containing the company, once per company-publication pair; a publication may contribute to more than one company. Zero cells are white.')
 
 
 def _iter_for_texts(item: Any) -> Iterable[str]:
@@ -2666,28 +2769,28 @@ def plot_for_share_table(for_df: pd.DataFrame, top_n: int = 15) -> None:
         x - 1.5 * width,
         plot_df["share_hospital_clinical"] * 100,
         height=width,
-        color="#2A9D8F",
+        color="#75BBD4",
         label="Hospital/Clinical share",
     )
     plt.barh(
         x - 0.5 * width,
         plot_df["share_university_hei"] * 100,
         height=width,
-        color="#457B9D",
+        color="#74ADD1",
         label="University/HEI share",
     )
     plt.barh(
         x + 0.5 * width,
         plot_df["share_company_non_uk"] * 100,
         height=width,
-        color="#5E548E",
+        color="#274668",
         label="Company (non-UK) share",
     )
     plt.barh(
         x + 1.5 * width,
         plot_df["share_uk_company"] * 100,
         height=width,
-        color="#D4AF37",
+        color="#E66859",
         label="UK company share",
     )
     plt.yticks(x, plot_df["l2_for_name"])
@@ -2695,11 +2798,11 @@ def plot_for_share_table(for_df: pd.DataFrame, top_n: int = 15) -> None:
     plt.ylabel("Level-2 FoR name")
     set_title(plt.gca(), "Taxonomy sector shares by category_for_2020 level-2 FoR")
     plt.xlim(0, 100)
-    plt.legend()
+    plt.legend(loc="upper left", bbox_to_anchor=(1.02, 1), borderaxespad=0)
     finalize_figure(plt.gcf())
     plt.tight_layout()
     finalize_figure(plt.gcf())
-    show_figures()
+    show_figures('collaboration_for_share_table', caption='Affiliation-sector shares across Fields of Research level-2 divisions. Percentages use publications in the corresponding division as the denominator; sector memberships may overlap.')
 
 
 def build_uk_company_for_table(df: pd.DataFrame, name_map: dict[str, str]) -> pd.DataFrame:
@@ -2742,7 +2845,7 @@ def plot_uk_company_for_table(uk_for_df: pd.DataFrame, top_n: int = 15) -> None:
     plt.barh(
         plot_df["l2_for_name"],
         plot_df["uk_company_share"] * 100,
-        color="#345995",
+        color="#416FA0",
         edgecolor="black",
         linewidth=0.3,
     )
@@ -2753,7 +2856,7 @@ def plot_uk_company_for_table(uk_for_df: pd.DataFrame, top_n: int = 15) -> None:
     finalize_figure(plt.gcf())
     plt.tight_layout()
     finalize_figure(plt.gcf())
-    show_figures()
+    show_figures('collaboration_uk_company_for_table', caption='Percentage of publications with UK-company affiliations within each displayed Fields of Research level-2 division.')
 
 
 def extract_affiliations(authors_value: Any) -> list[dict[str, Any]]:
@@ -2930,9 +3033,9 @@ def plot_country_map(country_df: pd.DataFrame, title: str, cmap_name: str = "civ
         print(f"No non-zero country counts to map: {title}")
         return
 
-    cmap = plt.colormaps.get_cmap(cmap_name)
+    cmap = blue_colormap()
     norm = mcolors.Normalize(vmin=nonzero.min(), vmax=nonzero.max())
-    zero_color = "#E5E5E5"
+    zero_color = "#FFFFFF"
 
     colors = [zero_color if n == 0 else mcolors.to_hex(cmap(norm(n))) for n in world_counts["n_pubs"]]
 
@@ -2959,7 +3062,7 @@ def plot_country_map(country_df: pd.DataFrame, title: str, cmap_name: str = "civ
     cbar.ax.yaxis.set_label_position("left")
 
     finalize_figure(plt.gcf())
-    show_figures()
+    show_figures('collaboration_country_map' + "_" + slug(title), caption='Geographical distribution of collaborating organisations using their recorded affiliation countries. Colour intensity represents publication counts; white countries have no observed contribution in this cohort.')
 
 
 def _first_author_info_from_parsed(parsed: Any) -> tuple[str | None, int]:
@@ -3113,258 +3216,90 @@ def plot_publication_figure(
     end_year: int = ANALYSIS_END_YEAR,
     citation_col: str = "times_cited",
     top_company_n: int = 15,
-    figsize: tuple[float, float] = (16, 12),
+    figsize: tuple[float, float] = (11, 7.5),
     save_path: str | Path | None = None,
     save_formats: tuple[str, ...] = ("png", "pdf"),
 ) -> dict[str, Path]:
-    """Create a 2x2 publication figure combining core collaboration visuals."""
+    """Show all-sector citation distributions without repeating earlier figures.
+
+    Cumulative counts, company turnover and the company heatmap are shown earlier.
+    The year and top-company arguments remain accepted for older notebook callers;
+    citations describe the supplied, already window-filtered publication cohort.
+    """
+    from textwrap import fill
+
     apply_typography()
-    def _clean_company_label(label: str) -> str:
-        # Remove parenthetical qualifiers like "(Sweden)" from company labels.
-        clean = re.sub(r"\s*\([^)]*\)\s*", " ", label).strip()
-        # Normalize Glaxo/Glasko naming variants to GSK.
-        clean = re.sub(r"(?i)\b(?:glaxo|glasko)\s*smithkline\b", "GSK", clean)
-        return clean
-
-    def _split_label_mid(label: str) -> str:
-        if len(label) <= 20:
-            return label
-        words = label.split()
-        if len(words) <= 1:
-            return label
-        mid = len(words) // 2
-        return " ".join(words[:mid]) + "\n" + " ".join(words[mid:])
-
-    year_range = _year_index(start_year, end_year)
-
-    sector_color_map = {
-        "University/HEI": "#457b9d",
-        "Hospital/Clinical": "#2a9d8f",
-        "Government/Public": "#8d99ae",
-        "Research institute/Centre": "#6a994e",
-        "Nonprofit/Charity": "#a1c181",
-        "Company (non-UK)": "#5e548e",
-        "UK company": "#d4af37",
-        "Other/Unknown": "#bdbdbd",
-    }
-
-    # Panel A: cumulative papers by taxonomy sectors.
     use_sector = all(sector_flag_col(label) in df.columns for label in NON_ACADEMIC_SECTOR_LABELS)
+    citations = (pd.to_numeric(df[citation_col], errors="coerce").fillna(0)
+                 if citation_col in df.columns else pd.Series(0., index=df.index))
     if use_sector:
-        panel_a_spec = [
-            (label, sector_flag_col(label), sector_color_map.get(label, "#bdbdbd"))
-            for label in NON_ACADEMIC_SECTOR_LABELS
-        ]
+        groups = [(label, sector_flag_col(label), SECTOR_COLORS[label])
+                  for label in NON_ACADEMIC_SECTOR_LABELS]
     else:
-        panel_a_spec = [
-            ("Any taxonomy collaborator", "non_academic_flag", "#d4af37"),
-            ("Company (any)", "company_flag", "#2a9d8f"),
-            ("UK company", "uk_company_flag", "#345995"),
-            ("Non-UK company", "non_uk_company_flag", "#5e548e"),
+        groups = [
+            ("Any taxonomy collaborator", "non_academic_flag", palette("red")),
+            ("Company (any)", "company_flag", palette("steel_blue")),
+            ("UK company", "uk_company_flag", SECTOR_COLORS["UK company"]),
+            ("Non-UK company", "non_uk_company_flag", SECTOR_COLORS["Company (non-UK)"]),
         ]
-
-    # Panel B: citation distributions.
-    if citation_col in df.columns:
-        citations = pd.to_numeric(df[citation_col], errors="coerce").fillna(0)
-    else:
-        citations = pd.Series(np.zeros(len(df)), index=df.index)
-
-    def sector_mask(label: str) -> pd.Series:
-        col = sector_flag_col(label)
-        if col in df.columns:
-            return df[col] == 1
-        return pd.Series([False] * len(df), index=df.index)
-
-    if use_sector:
-        citation_groups = [
-            (label, sector_mask(label), sector_color_map.get(label, "#bdbdbd"))
-            for label in NON_ACADEMIC_SECTOR_LABELS
-        ]
-    else:
-        citation_groups = [
-            ("Any taxonomy collaborator", df["non_academic_flag"] == 1, "#d4af37"),
-            ("Company (any)", df["company_flag"] == 1, "#2a9d8f"),
-            ("UK company", df["uk_company_flag"] == 1, "#345995"),
-            ("Non-UK company", df["non_uk_company_flag"] == 1, "#5e548e"),
-        ]
-    citation_data = []
-    citation_labels = []
-    citation_colors = []
-    for label, mask, color in citation_groups:
-        vals = np.log10(citations[mask] + 1).replace([np.inf, -np.inf], np.nan).dropna()
-        if len(vals) == 0:
+    groups.append(("No taxonomy collaborator", None, palette("cream")))
+    data, labels, colors = [], [], []
+    for label, column, color in groups:
+        mask = ~_any_sector_collab_mask(df) if column is None else df[column].eq(1)
+        values = np.log10(citations[mask] + 1).replace([np.inf, -np.inf], np.nan).dropna()
+        if values.empty:
             continue
-        citation_data.append(vals.values)
-        citation_labels.append(f"{_split_label_mid(label)}\n(n={len(vals):,})")
-        citation_colors.append(color)
+        data.append(values.to_numpy())
+        labels.append(fill(label, 25, break_long_words=False, break_on_hyphens=False)
+                      + f"\n(n={len(values):,})")
+        colors.append(color)
 
-    # Panel C: annual new vs returning company collaborators.
-    churn_df = build_company_collaborator_churn_table(df, start_year=start_year, end_year=end_year)
-
-    # Panel D: top company collaborators heatmap.
-    top_company_year_auth_df = build_top_company_year_authorship_matrix(
-        df,
-        top_n=top_company_n,
-        start_year=start_year,
-        end_year=end_year,
+    fig, ax = plt.subplots(figsize=figsize, dpi=300, layout="constrained")
+    ax._ukb_title_fs = 26
+    ax._ukb_label_fs = 17
+    ax._ukb_tick_fs = 13
+    ax._ukb_annotation_fs = 12
+    if data:
+        boxes = ax.boxplot(data, patch_artist=True, tick_labels=labels,
+                           orientation="horizontal", showfliers=False,
+                           medianprops={"color": "black", "linewidth": 1.5})
+        for box, color in zip(boxes["boxes"], colors):
+            box.set(facecolor=color, edgecolor="black", linewidth=.6, alpha=1)
+    else:
+        ax.text(.5, .5, "No citation data", transform=ax.transAxes, ha="center", va="center")
+    set_title(ax, "A")
+    ax.set_xlabel("log10(citations + 1)")
+    ax.set_ylabel("Affiliation sector")
+    ax.grid(False, which="both")
+    ax.grid(True, axis="x", linestyle="--", alpha=.2)
+    for side, spine in ax.spines.items():
+        spine.set_visible(side in ("left", "bottom"))
+        spine.set_color("black")
+        spine.set_linewidth(1)
+    fig._ukb_caption = (
+        "Citation distributions for UK Biobank publications across affiliation sectors, "
+        "on a log10(citations + 1) scale. Boxes span the interquartile range, with a "
+        "median line and whiskers extending to the most extreme values within 1.5 "
+        "interquartile ranges; outliers are not shown. Labels give the number of "
+        "publications contributing to each distribution. Sector memberships overlap, "
+        "so these are not independent samples. The no-taxonomy baseline contains "
+        "publications with none of the recorded sector flags. Missing citation counts "
+        "are treated as zero."
     )
-
-    with plt.rc_context({"font.family": "Helvetica"}):
-        fig = plt.figure(figsize=figsize, dpi=300)
-        gs = fig.add_gridspec(2, 2, wspace=0.28, hspace=0.3)
-
-        # A
-        ax1 = fig.add_subplot(gs[0, 0])
-        for label, col, color in panel_a_spec:
-            yearly = df[df[col] == 1].groupby("year").size().reindex(year_range, fill_value=0)
-            ax1.plot(
-                year_range,
-                yearly.cumsum().values,
-                marker="o",
-                linewidth=2,
-                color=color,
-                label=label,
-            )
-        set_title(ax1, "a.", loc="left", fontweight="bold")
-        ax1.set_xlabel("")
-        ax1.set_ylabel("Cumulative paper count")
-        ax1.set_xticks(year_range)
-        ax1.tick_params(axis="x", rotation=45)
-        ax1.grid(True, linestyle="--", alpha=0.3)
-        legend_a = ax1.legend(frameon=True, loc="upper left", ncol=2, fontsize=8.5)
-        legend_a.get_frame().set_facecolor("white")
-        legend_a.get_frame().set_edgecolor("black")
-
-        # B
-        ax2 = fig.add_subplot(gs[0, 1])
-        if citation_data:
-            box = ax2.boxplot(
-                citation_data,
-                patch_artist=True,
-                labels=citation_labels,
-                vert=False,
-                showfliers=False,
-                medianprops={"color": "black", "linewidth": 1.5},
-            )
-            for patch, color in zip(box["boxes"], citation_colors):
-                patch.set_facecolor(color)
-                patch.set_alpha(0.7)
-                patch.set_edgecolor("black")
-                patch.set_linewidth(0.6)
-        else:
-            ax2.text(0.5, 0.5, "No citation data", ha="center", va="center")
-        set_title(ax2, "b.", loc="left", fontweight="bold")
-        ax2.set_xlabel("log10(citations + 1)")
-        ax2.grid(True, linestyle="--", alpha=0.3)
-
-        # C
-        ax3 = fig.add_subplot(gs[1, 0])
-        if not churn_df.empty:
-            years = churn_df["year"].astype(int).tolist()
-            returning_vals = churn_df["returning_company_collaborators"].values
-            new_vals = churn_df["new_company_collaborators"].values
-            ax3.bar(
-                years,
-                returning_vals,
-                color="#345995",
-                alpha=0.9,
-                edgecolor="black",
-                linewidth=0.6,
-                label="Returning",
-            )
-            ax3.bar(
-                years,
-                new_vals,
-                bottom=returning_vals,
-                color="#d4af37",
-                alpha=0.9,
-                edgecolor="black",
-                linewidth=0.6,
-                label="New",
-            )
-            ax3.set_xticks(years)
-            ax3.tick_params(axis="x", rotation=45)
-            legend_c = ax3.legend(frameon=True, loc="upper left")
-            legend_c.get_frame().set_facecolor("white")
-            legend_c.get_frame().set_edgecolor("black")
-        else:
-            ax3.text(0.5, 0.5, "No churn data", ha="center", va="center")
-        set_title(ax3, "c.", loc="left", fontweight="bold")
-        ax3.set_xlabel("")
-        ax3.set_ylabel("Unique company collaborators")
-        ax3.grid(True, linestyle="--", alpha=0.3)
-
-        # D
-        ax4 = fig.add_subplot(gs[1, 1])
-        if not top_company_year_auth_df.empty:
-            matrix = top_company_year_auth_df.drop(columns=["org"]).to_numpy(dtype=float)
-            org_labels_raw = top_company_year_auth_df["org"].tolist()
-            org_labels = [_split_label_mid(_clean_company_label(x)) for x in org_labels_raw]
-            years = top_company_year_auth_df.columns[1:].tolist()
-
-            heatmap_cmap = plt.get_cmap("Spectral_r").copy()
-            heatmap_cmap.set_bad(color="white")
-            masked_matrix = np.ma.masked_where(matrix <= 0, matrix)
-            im = ax4.imshow(masked_matrix, aspect="auto", cmap=heatmap_cmap)
-            ax4.set_xticks(np.arange(len(years)))
-            ax4.set_xticklabels(years, rotation=45, ha="right")
-            ax4.set_yticks(np.arange(len(org_labels)))
-            ax4.set_yticklabels(org_labels)
-            ax4.set_xlabel("")
-            ax4.set_ylabel("")
-            set_title(ax4, "d.", loc="left", fontweight="bold")
-            ax4.grid(False)
-            for spine in ax4.spines.values():
-                spine.set_visible(True)
-                spine.set_linewidth(0.8)
-                spine.set_color("black")
-
-            vmax = np.nanmax(matrix) if matrix.size else 0
-            threshold = 0.55 * vmax if vmax else 1
-            for i in range(matrix.shape[0]):
-                for j in range(matrix.shape[1]):
-                    val = matrix[i, j]
-                    if val <= 0:
-                        continue
-                    color = "white" if val >= threshold else "black"
-                    ax4.text(j, i, f"{int(val)}", ha="center", va="center", fontsize=7, color=color)
-
-            cbar = fig.colorbar(im, ax=ax4, fraction=0.046, pad=0.04)
-            cbar.set_label("Paper-level contributions")
-        else:
-            ax4.text(0.5, 0.5, "No company-year matrix", ha="center", va="center")
-            ax4.set_axis_off()
-
-        set_title(ax4, "d.", loc="left", fontweight="bold")
-
-        # Use tight layout as requested; suppress known colorbar/axes compatibility warning.
-        with warnings.catch_warnings():
-            warnings.filterwarnings(
-                "ignore",
-                message="This figure includes Axes that are not compatible with tight_layout",
-                category=UserWarning,
-            )
-            finalize_figure(plt.gcf())
-            plt.tight_layout(pad=0.6, w_pad=0.5, h_pad=0.5)
-
-        if save_path is not None:
-            base_out = Path(save_path).with_suffix("")
-        else:
-            base_out = _figure_dir() / "non_academic_collab_publication_figure"
-        base_out.parent.mkdir(parents=True, exist_ok=True)
-
-        saved_paths: dict[str, Path] = {}
-        for clean_fmt in figure_export_formats(save_formats):
-            out_path = base_out.with_suffix(f".{clean_fmt}")
-            save_kwargs = {"bbox_inches": "tight"}
-            if clean_fmt == "png":
-                save_kwargs["dpi"] = PNG_DPI
-            finalize_figure(fig)
-            save_figure_file(fig, out_path, **save_kwargs)
-            saved_paths[clean_fmt] = out_path
-        finalize_figure(plt.gcf())
-        show_figures()
-
+    base_out = (Path(save_path).with_suffix("") if save_path is not None
+                else _figure_dir() / "non_academic_collab_publication_figure")
+    base_out.parent.mkdir(parents=True, exist_ok=True)
+    saved_paths: dict[str, Path] = {}
+    for clean_fmt in figure_export_formats(save_formats):
+        out_path = base_out.with_suffix(f".{clean_fmt}")
+        save_kwargs = {"bbox_inches": "tight"}
+        if clean_fmt == "png":
+            save_kwargs["dpi"] = PNG_DPI
+        finalize_figure(fig)
+        save_figure_file(fig, out_path, **save_kwargs)
+        saved_paths[clean_fmt] = out_path
+    finalize_figure(fig)
+    show_figures('collaboration_publication_figure', caption=fig._ukb_caption)
     return saved_paths
 
 

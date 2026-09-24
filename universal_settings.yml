@@ -8,8 +8,8 @@
 #     STYLE = load_style("03_academic_impact")   # base + that notebook's overrides
 #
 # `style.base` is what all notebooks share. `style.notebooks.<notebook stem>`
-# overrides only the keys that notebook genuinely does differently — the clinical
-# trials notebook, for example, deliberately uses the LCDS palette.
+# overrides only the keys that notebook genuinely does differently. All notebooks
+# share the seven-colour palette used by the author analyses.
 #
 # TWO CONVENIENCES THE LOADER APPLIES
 # -----------------------------------
@@ -26,8 +26,9 @@ style:
 
   # ---------------------------------------------------------------- shared base
   base:
-    # four customised colours (the project palette)
-    colors: ["#B80C09", "#D4AF37", "#6E8B3D", "#345995"]
+    # Matches shared_style.PALETTE: red, cream, light blue, blue, steel blue, navy, green.
+    colors: &project_palette ["#E66859", "#FEE7BA", "#75BBD4", "#74ADD1",
+                              "#416FA0", "#274668", "#74D1AF"]
 
     # figure sizes
     figsize:       [12, 7]
@@ -51,7 +52,6 @@ style:
 
     # misc
     dpi: 500  # PNG exports are also enforced by shared_style.PNG_DPI
-    cmap: ocean
     edgecolor: grey
 
     # Dashed gridlines are the project default, on both axes and BOTH tick levels.
@@ -71,27 +71,26 @@ style:
     00_dataset:
       title_fs: 20
       colorbar_label_fs: 16
-      colors: ["#E66859", "#FEE7BA", "#75BBD4", "#74ADD1", "#416FA0", "#274668", "#74D1AF"]
+      colors: *project_palette
       save: true
       formats: [pdf, png]
       savedir: output/figures/data_analysis/00_dataset
 
     01_growth:
-      colors: ["#B80C09", "#D4AF37", "#6E8B3D", "#345995",
-               "#8C5A9E", "#008C95", "#B56A3B", "#4F6D7A"]
+      colors: *project_palette
       metric_colors:
         publications: 3
         patents: 0
-        clinical_trials: 2
+        clinical_trials: 6
         policy_documents: 1
         datasets: 3
-        cross_sector: 4
-        altmetric: 5
-        grants: 6
-        international: 7
-        open_access: 2
+        cross_sector: 5
+        altmetric: 2
+        grants: 4
+        international: 4
+        open_access: 6
         preprints: 3
-      c_primary_light: "#C8D5E8"
+      c_primary_light: "#75BBD4"
       figsize_main:  [16, 9.9]
       figsize_panel: [18, 11.5]
       title_fs: 22
@@ -113,23 +112,23 @@ style:
       formats: [pdf, png]
       savedir: output/figures/data_analysis/01_growth
       roles:
-        c_primary: 3        # blue
+        c_primary: 4        # steel blue
         c_accent:  0        # red
-        c_gold:    1        # gold
-        c_green:   2        # green
+        c_gold:    1        # cream
+        c_green:   6        # green
 
     01_authors:
       figsize_map:     [14, 8]
       figsize_network: [12, 12]
       savedir: output/figures/data_analysis/01_authors
       roles:
-        c_primary: 3        # blue
+        c_primary: 4        # steel blue
         c_accent:  0        # red
-        c_gold:    1        # gold
-        c_green:   2        # green
+        c_gold:    1        # cream
+        c_green:   6        # green
       gender_colors:
         female: 0
-        male:   3
+        male:   4
         unknown: "#BBBBBB"
 
     05_author_characteristics:
@@ -141,8 +140,7 @@ style:
       # why the indexes changed as well as the palette.
       #
       #   0 red  1 cream  2 light_blue  3 blue  4 steel_blue  5 navy  6 green
-      colors: ["#E66859", "#FEE7BA", "#75BBD4", "#74ADD1",
-               "#416FA0", "#274668", "#74D1AF"]
+      colors: *project_palette
       # Domain colours for lines, categorical marks and supplementary sequential maps.
       # The headline map uses Blues; its impact panels use shared blue-cream-red.
       domain_colors:
@@ -202,8 +200,7 @@ style:
 
     02_content: &content_style
       # One content-analysis notebook; shared project palette and publication exports.
-      colors: ["#E66859", "#FEE7BA", "#75BBD4", "#74ADD1",
-               "#416FA0", "#274668", "#74D1AF"]
+      colors: *project_palette
       title_fs: 20
       label_fs: 13
       tick_fs: 11
@@ -233,14 +230,8 @@ style:
     02_content_99_all:
       <<: *content_style
 
-    04_non_academic_03_altmetric:
-      # Was `plt.rcParams['font.family'] = 'Helvetica'` inline, the only notebook that
-      # set a font by hand; it now takes the shared base like everything else.
-      savedir: output/figures/data_analysis/04_non_academic
-
     03_academic_impact: &academic_style
-      colors: ["#E66859", "#FEE7BA", "#75BBD4", "#74ADD1",
-               "#416FA0", "#274668", "#74D1AF"]
+      colors: *project_palette
       title_fs: 20
       panel_label_fs: 20
       label_fs: 13
@@ -284,22 +275,19 @@ style:
       formats: [pdf, png]
       savedir: output/figures/data_analysis/03_academic_impact
 
-    04_non_academic_panels:
-      # The assembled main + SI panels for analysis 04. This section owns the palette the
-      # whole non-academic story is drawn in: seven named colours, listed here in the same
-      # order as shared_style.PALETTE, so an integer role below and a `palette("navy")`
-      # call in the panel module resolve to the same hex.
-      #
-      #   0 red  1 cream  2 light_blue  3 blue  4 steel_blue  5 navy  6 green
-      colors: ["#E66859", "#FEE7BA", "#75BBD4", "#74ADD1",
-               "#416FA0", "#274668", "#74D1AF"]
-      title_fs: 15
-      label_fs: 12
-      tick_fs: 10
-      annot_fs: 9
-      legend_fs: 10
+    04_non_academic_panels: &non_academic_style
+      <<: *academic_style
+      # Analysis 04 uses project blues/reds, retaining explicitly requested yellow.
+      # Slot 6 is a 50% white tint of red, not green; other indices stay unchanged.
+      colors: &non_academic_palette
+        ["#E66859", "#FEE7BA", "#75BBD4", "#74ADD1", "#416FA0", "#274668", "#F2B4AC"]
+      title_fs: 20
+      label_fs: 13
+      tick_fs: 11
+      annot_fs: 10
+      legend_fs: 11
       body_fs: 11
-      panel_label_fs: 15          # the bold A / B / C stamped on each sub-panel
+      panel_label_fs: 20
       # Per-figure type scale. Every font size above is multiplied by the entry for the
       # figure being drawn, so the family can be tuned figure by figure without a second
       # style section that would drift from this one.
@@ -310,9 +298,9 @@ style:
       # size on screen. si2 is 1.30x the base height; si1_patents is back to 1.0x now
       # that the RCDC cluster heatmap has a page of its own.
       fs_scale:
-        main: 1.32
-        si1_patents: 1.15
-        si2_clinical_trials: 1.25
+        main: 1.0
+        si1_patents: 1.0
+        si2_clinical_trials: 1.0
       axes_linewidth: 1.0
       tick_length: 4
       tick_width: 1.0
@@ -332,17 +320,17 @@ style:
         c_secondary: 4            # steel blue
         c_accent:    0            # red
         c_light:     2            # light blue
-        c_green:     6            # green
+        c_red_light: 6            # light red
         c_cream:     1            # cream
       # One colour per evidence stream, held constant across every panel in the figure
       # family: a reader who learns "steel blue = patents" in panel A keeps it in panel F.
       stream_colors:
         publications:    3        # blue
         patents:         4        # steel blue
-        clinical_trials: 5        # navy  — the arm's own notebook draws in LCDS blue
-        policy:          0        # red   #344874; navy #274668 is the palette's nearest
+        clinical_trials: 5        # navy
+        policy:          0        # red
         altmetric:       2        # light blue
-        collaboration:   6        # green — freed when trials took the navy
+        collaboration:   6        # light red
       # The collaborator taxonomy's eight sectors. Company sectors take the warm end of
       # the palette so they separate from the public-sector blues at a glance.
       sector_colors:
@@ -353,21 +341,37 @@ style:
         "Nonprofit/Charity":         1
         "Company (non-UK)":          5
         "UK company":                0
-        "Other/Unknown":             "#BDBDBD"
+        "Other/Unknown":             "white"
 
     04_non_academic_01_clinical_trials:
-      colors: ["#344874",   # LCDS blue
-               "#FFBB00",   # LCDS gold
-               "#2A9D8F",   # teal
-               "#5B8DB8",   # soft blue
-               "#E76F51",   # coral
-               "#8E6C9E",   # muted purple
-               ]
+      <<: *academic_style
+      # Same project palette and typography as the other manuscript figures.
+      colors: *non_academic_palette
+      axes_linewidth: 1.0
+      tick_length: 4
+      tick_width: 1.0
+      tick_pad: 3
+      minor_tick_length: 2.5
+      minor_tick_width: 0.7
       figsize: [10, 7]
       edgecolor: black
       savedir: output/figures/data_analysis/04_non_academic/clinical_trials
       roles:
-        c_accent:  3        # soft blue
-        c_gold:    1        # gold
-        c_green:   2        # teal
-        c_primary: 0        # LCDS blue
+        c_accent:  0
+        c_gold:    1
+        c_red_light: 6
+        c_primary: 4
+      trial_type_colors:
+        Interventional: 4
+        Observational:  0
+
+    04_non_academic_02_patents:
+      <<: *non_academic_style
+      savedir: output/figures/data_analysis/04_non_academic/patents
+
+    04_non_academic_03_altmetric:
+      <<: *non_academic_style
+
+    04_non_academic_04_collaboration:
+      <<: *non_academic_style
+      savedir: output/figures/data_analysis/04_non_academic/collaboration

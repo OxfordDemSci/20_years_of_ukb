@@ -23,7 +23,7 @@ import difflib
 
 from . import shared_paths as P
 from .shared_style import (
-    PNG_DPI, apply_typography, figure_export_formats, finalize_figure,
+    PNG_DPI, apply_typography, figure_export_formats,
     set_figure_title, set_title,
 )
 
@@ -33,7 +33,12 @@ _ROOT = Path(__file__).resolve().parents[2]
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
-from utils.shared_style import show_figures, save_figure_file
+from utils.data_analysis_04_non_academic_figures import (
+    show_figures, save_figure_file, finalize_figure, slug, PATENT_STATUS_COLORS,
+)
+from utils.shared_style import (
+    NON_ACADEMIC_PALETTE, author_geography_colormap, blue_cream_red_colormap, extended_palette, palette,
+)
 import matplotlib.patheffects as path_effects
 from bs4 import BeautifulSoup
 from collections import Counter
@@ -860,13 +865,13 @@ def plot_bar_matplotlib(
     Args:
         counts_df: DataFrame with 'iso2' and 'count' columns
         top_n: Number of top countries to show
-        colors: Bar color (default: '#345995')
+        colors: Bar color (default: '#416FA0')
         figsize: Figure size tuple
         savefile: Path to save figure
     """
     apply_typography()
     if colors is None:
-        colors = '#345995'
+        colors = '#416FA0'
     
     df = counts_df.sort_values('count', ascending=False).head(top_n).copy()
     plt.figure(figsize=figsize)
@@ -887,7 +892,7 @@ def plot_bar_matplotlib(
         save_figure_file(plt.gcf(), _figure_export_path(savefile), dpi=_export_dpi(savefile, 200))
         print(f"Bar chart saved to: {savefile}")
     finalize_figure(plt.gcf())
-    show_figures()
+    show_figures("patents_assignee_countries", caption='Country distribution of patent assignee occurrences. A patent can have assignees in more than one country.')
 
 
 def build_country_count(df_with_iso):
@@ -1012,7 +1017,7 @@ def map_plotting(country_df, column_to_show_counts,figsize=(12, 8),savefigure=Tr
         column='count',
         ax=ax,
         legend=True,
-        cmap='ocean_r',
+        cmap=author_geography_colormap(),
         edgecolor='grey',
         missing_kwds={
             "color": "white",
@@ -1073,15 +1078,7 @@ def plot_filing_status_over_time(df_patent,col,figsize=(10, 6),savefigure=True, 
     
     
     apply_typography()
-    status_colors = {
-        "Application Pending":"#4C72B0" ,        # teal
-        "Application Ceased": "#8172B2",         # purple 
-        "Active":"#55A868"  ,                     # blue 
-        "Application Withdrawn": "#CCB974",      # mustard
-        "Granted Patent Expired": "#DD8452",     # soft orange
-        "Application Granted": "#64B5A7",        # green
-        "Application Abandoned": "#C44E52"       # muted red
-    }
+    status_colors = PATENT_STATUS_COLORS
 
     if col =='legal_status_replaced':
         df_patent['legal_status_replaced'] = df_patent['legal_status'].replace(LEGAL_STATUS_DISPLAY)
@@ -1129,13 +1126,13 @@ def plot_filing_status_over_time(df_patent,col,figsize=(10, 6),savefigure=True, 
             values,
             bottom=bottom,
             label=status,
-            color=status_colors.get(status, None)
+            color=status_colors.get(status, "white"), edgecolor="black", linewidth=.5
             #color=colors_scheme[pivot_df.columns.get_loc(status)+2]
         )
 
         # percentage annotations
         for year, bar, value in zip(pivot_df.index, bars, values):
-            if value > 0 and totals.loc[year] > 2:
+            if value >= totals.max() * .065:
                 pct = value / totals.loc[year] * 100
                 ax.text(
                     bar.get_x() + bar.get_width() / 2,
@@ -1143,8 +1140,8 @@ def plot_filing_status_over_time(df_patent,col,figsize=(10, 6),savefigure=True, 
                     f'{pct:.1f}%',
                     ha='center',
                     va='center',
-                    fontsize=8,
-                    color ='white'
+                    fontsize=10,
+                    color='white' if status in ('Application Pending', 'Application Ceased') else 'black'
                 )
 
         bottom = values if bottom is None else bottom + values
@@ -1201,13 +1198,13 @@ def plot_patent_counts_by_filing_status(
         date_col: Column name for publication date
         year_col: Column name for publication year
         filing_status_col: Column name for filing status
-        colors: List of colors for each filing status (default: ['#6E8B3D', '#345995'])
+        colors: Filing-status colours (defaults to project blue and red).
         figsize: Figure size tuple
         savefile: Path to save figure
     """
     apply_typography()
     if colors is None:
-        colors = ['#6E8B3D', '#345995']
+        colors = palette('steel_blue', 'red')
     
     df = df.copy()
     df[date_col] = pd.to_datetime(df[date_col], errors='coerce')
@@ -1287,7 +1284,7 @@ def plot_patent_countries_map(
     df: pd.DataFrame,
     assignee_countries_col: str = 'assignee_countries',
     shapefile_path: str = None,
-    colors: str = 'ocean_r',
+    colors: Optional[str] = None,
     figsize: Tuple[int, int] = (15, 8),
     savefile: Optional[str] = None
 ):
@@ -1298,7 +1295,7 @@ def plot_patent_countries_map(
         df: DataFrame with patent data including assignee_countries column
         assignee_countries_col: Column name with list of country ISO codes
         shapefile_path: Path to world shapefile
-        colors: Colormap name (default: 'ocean_r')
+        colors: Optional colormap override; defaults to the author geography ramp.
         figsize: Figure size tuple
         savefile: Path to save figure
     """
@@ -1346,7 +1343,7 @@ def plot_patent_countries_map(
         column='count',
         ax=ax,
         legend=True,
-        cmap=colors,
+        cmap=author_geography_colormap() if colors is None else colors,
         edgecolor='black',
         missing_kwds={
             "color": "lightgrey",
@@ -1383,13 +1380,13 @@ def plot_topics_histogram(
     Args:
         df: DataFrame with patent data
         n_topics_col: Column name with number of topics
-        colors: Histogram color (default: '#345995')
+        colors: Histogram color (default: '#416FA0')
         figsize: Figure size tuple
         savefile: Path to save figure
     """
     apply_typography()
     if colors is None:
-        colors = '#345995'
+        colors = '#416FA0'
     
     avg_topics = df[n_topics_col].mean()
     median_topics = df[n_topics_col].median()
@@ -1401,8 +1398,8 @@ def plot_topics_histogram(
         edgecolor='black',
         color=colors[0] if isinstance(colors, (list, tuple)) else colors
     )
-    plt.axvline(avg_topics, linestyle='--', color='red', label=f'Mean = {avg_topics:.2f}')
-    plt.axvline(median_topics, linestyle=':', color='orange', label=f'Median = {median_topics:.0f}')
+    plt.axvline(avg_topics, linestyle='--', color=palette('navy'), label=f'Mean = {avg_topics:.2f}')
+    plt.axvline(median_topics, linestyle=':', color=palette('red'), label=f'Median = {median_topics:.0f}')
     
     plt.xlabel('Number of topics per patent')
     plt.ylabel('Number of patents')
@@ -1415,7 +1412,7 @@ def plot_topics_histogram(
         finalize_figure(plt.gcf())
         save_figure_file(plt.gcf(), _figure_export_path(savefile), dpi=_export_dpi(savefile, 300))
     finalize_figure(plt.gcf())
-    show_figures()
+    show_figures("patents_topic_count_" + slug(n_topics_col), caption='Distribution of the number of field classifications per patent. Dashed reference lines indicate the mean and median; the classification granularity follows the displayed axis label.')
 
 
 def plot_top_topics_horizontal(
@@ -1425,7 +1422,8 @@ def plot_top_topics_horizontal(
     top_n: int = 20,
     colors: Optional[str] = None,
     figsize: Tuple[int, int] = (10, 6),
-    savefile: Optional[str] = None
+    savefile: Optional[str] = None,
+    export_name: str = "patents_topics"
 ):
     """
     Plot horizontal bar chart of top patent topics.
@@ -1435,13 +1433,13 @@ def plot_top_topics_horizontal(
         topic_col: Column name for topic names
         count_col: Column name for counts
         top_n: Number of top topics to show
-        colors: Bar color (default: '#345995')
+        colors: Bar color (default: '#416FA0')
         figsize: Figure size tuple
         savefile: Path to save figure
     """
     apply_typography()
     if colors is None:
-        colors = '#345995'
+        colors = '#416FA0'
     
     plot_df = topic_df.head(top_n)
     
@@ -1458,7 +1456,7 @@ def plot_top_topics_horizontal(
         finalize_figure(plt.gcf())
         save_figure_file(plt.gcf(), _figure_export_path(savefile), dpi=_export_dpi(savefile, 300))
     finalize_figure(plt.gcf())
-    show_figures()
+    show_figures(export_name, caption='Leading field classifications assigned to UK Biobank-linked patents. Patents with multiple classifications contribute to each assigned field.')
 
 
 def plot_collapsed_topics_horizontal(
@@ -1476,13 +1474,13 @@ def plot_collapsed_topics_horizontal(
         agg_df: DataFrame with columns 'top_code', 'count', 'label'
         top_n: Number of top topics to show
         fractional: Whether counts are fractional
-        colors: Bar color (default: '#345995')
+        colors: Bar color (default: '#416FA0')
         figsize: Figure size tuple
         savefile: Path to save figure
     """
     apply_typography()
     if colors is None:
-        colors = '#345995'
+        colors = '#416FA0'
     
     plot_df = agg_df.head(top_n).copy()
     plot_df['bar_label'] = plot_df.apply(
@@ -1542,13 +1540,13 @@ def plot_drug_dev_by_country(
         year_col: Column name for years
         weight_col: Column name for fractional weights
         uk_code: ISO-2 code for UK (default: 'GB')
-        colors: List of colors [UK_color, Others_color] (default: ['#6E8B3D', '#345995'])
+        colors: Colours for UK and other countries (defaults to project blue and red).
         figsize: Figure size tuple
         savefile: Path to save figure
     """
     apply_typography()
     if colors is None:
-        colors = ['#6E8B3D', '#345995']
+        colors = palette('steel_blue', 'red')
     
     df_plot = (
         df.groupby([year_col, country_col])
@@ -1630,13 +1628,13 @@ def plot_development_stage_pies(
         stage_col: Column name for development stages
         weight_col: Column name for weights
         uk_code: ISO-2 code for UK (default: 'GB')
-        colors: List of colors for stages (default: ['#345995', '#6E8B3D', '#D4AF37', '#B80C09'])
+        colors: Stage colours (defaults to project blue/red shades).
         figsize: Figure size tuple
         savefile: Path to save figure
     """
     apply_typography()
     if colors is None:
-        colors = ['#345995', '#6E8B3D', '#D4AF37', '#B80C09']
+        colors = palette('steel_blue', 'light_blue', 'red', 'navy')
     
     stage_order = df_stage[stage_col].dropna().unique().tolist()
     stage_color_map = dict(zip(stage_order, colors[::-1]))
@@ -1716,13 +1714,13 @@ def plot_top_cited_papers(
         title_col: Column name for paper titles
         count_col: Column name for citation counts
         top_n: Number of top papers to show
-        colors: Bar color (default: '#345995')
+        colors: Bar color (default: '#416FA0')
         figsize: Figure size tuple
         savefile: Path to save figure
     """
     apply_typography()
     if colors is None:
-        colors = '#345995'
+        colors = '#416FA0'
     
     top_papers = df_papers.head(top_n)
     top_papers_ordered = top_papers.sort_values(count_col, ascending=True)
@@ -1771,13 +1769,13 @@ def plot_model_agreement_pairwise(
     
     Args:
         df_pairwise: DataFrame with columns 'Model 1', 'Model 2', 'Agreement %', 'Cohen\'s Kappa'
-        colors: Bar color (default: '#345995')
+        colors: Bar color (default: '#416FA0')
         figsize: Figure size tuple
         savefile: Path to save figure
     """
     apply_typography()
     if colors is None:
-        colors = '#345995'
+        colors = '#416FA0'
     
     fig, ax = plt.subplots(figsize=figsize)
     
@@ -1822,13 +1820,13 @@ def plot_model_agreement_distribution(
     Args:
         df_concordance: DataFrame with yes_count column
         yes_count_col: Column name for yes count
-        colors: Bar color (default: '#6E8B3D')
+        colors: Bar colour (defaults to project blue).
         figsize: Figure size tuple
         savefile: Path to save figure
     """
     apply_typography()
     if colors is None:
-        colors = '#6E8B3D'
+        colors = palette('steel_blue')
     
     fig, ax = plt.subplots(figsize=figsize)
     
@@ -2453,55 +2451,190 @@ def plot_topic_cooccurrence_network(
     code_to_label: Optional[Dict[str, str]] = None,
     figsize: Tuple[int, int] = (12, 10),
     savefile: Optional[str] = None,
+    ax=None,
 ):
-    """Plot a topic co-occurrence network."""
+    """Draw a network; embedding in an existing axis never saves or displays it.
+
+    Set the containing figure's final layout before embedding: callout placement
+    uses display coordinates to keep labels clear of nodes and edge counts.
+    """
     apply_typography()
     import networkx as nx
 
     if graph.number_of_nodes() == 0:
         print('No topic pairs found meeting the co-occurrence threshold.')
+        if ax is not None:
+            ax.set_axis_off()
+            return ax.figure, ax
         return None, None
 
     if code_to_label is None:
         code_to_label = {}
 
     pos = nx.spring_layout(graph, seed=42, k=0.7)
-    node_sizes = [400 + 250 * graph.degree(node) for node in graph.nodes()]
-    edge_widths = [0.5 + graph[u][v].get('weight', 1) * 0.4 for u, v in graph.edges()]
+    node_sizes = [300 + 150 * graph.degree(node) for node in graph.nodes()]
+    weights = [graph[u][v].get('weight', 1) for u, v in graph.edges()]
+    edge_widths = [.6 + 5.4 * weight / max(weights) for weight in weights]
 
-    fig, ax = plt.subplots(figsize=figsize)
-    fig._ukb_caption = (
+    created_fig = ax is None
+    if created_fig:
+        fig, ax = plt.subplots(figsize=figsize)
+    else:
+        fig = ax.figure
+    caption = (
         "Topic co-occurrence among UK Biobank-linked patents. Nodes represent topics; "
         "node size increases with the number of connected topics. Edges join topics "
         "occurring in the same patent; widths and edge labels encode joint occurrence "
         "counts. Only topic pairs meeting the configured co-occurrence threshold are shown."
     )
-    nx.draw_networkx_edges(graph, pos, width=edge_widths, alpha=0.35, ax=ax)
+    nx.draw_networkx_edges(graph, pos, width=edge_widths,
+                           edge_color=palette('navy'), alpha=.4, ax=ax)
     nx.draw_networkx_nodes(
         graph,
         pos,
         node_size=node_sizes,
-        node_color='#4C72B0',
-        alpha=0.85,
-        edgecolors='white',
-        linewidths=1.5,
+        node_color=palette('steel_blue'),
+        edgecolors='black',
+        linewidths=.8,
         ax=ax,
     )
-    labels = {node: code_to_label.get(node, str(node)) for node in graph.nodes()}
-    nx.draw_networkx_labels(graph, pos, labels=labels, font_size=8, font_weight='bold', ax=ax)
+    labels = [code_to_label.get(node, str(node)) for node in graph.nodes()]
     edge_labels = {(u, v): graph[u][v].get('weight', 1) for u, v in graph.edges()}
-    nx.draw_networkx_edge_labels(graph, pos, edge_labels=edge_labels, font_size=7, ax=ax)
+    nx.draw_networkx_edge_labels(graph, pos, edge_labels=edge_labels,
+                                font_size=10, font_family='Helvetica', ax=ax)
     ax.axis('off')
-    finalize_figure(plt.gcf())
-    plt.tight_layout()
+    ax.margins(x=.22, y=.22)
+    finalize_figure(fig)
+    if created_fig:
+        fig.tight_layout()
+    from utils.data_analysis_04_non_academic_figures import bubble_callouts
+    points = np.array([pos[node] for node in graph.nodes()])
+    bubble_callouts(ax, points, labels, node_sizes)
 
-    if savefile:
-        finalize_figure(plt.gcf())
-        save_figure_file(plt.gcf(), _figure_export_path(savefile), dpi=_export_dpi(savefile, 200), bbox_inches='tight')
-        print(f'Network plot saved to: {savefile}')
-    finalize_figure(plt.gcf())
-    show_figures()
+    finalize_figure(fig)
+    if created_fig:
+        fig._ukb_caption = caption
+        if savefile:
+            save_figure_file(fig, _figure_export_path(savefile),
+                             dpi=_export_dpi(savefile, 200), bbox_inches='tight')
+        show_figures("patents_topic_cooccurrence", caption=caption)
     return fig, ax
+
+
+PATENT_OVERVIEW_EXPORT = (
+    "patent_counts_by_filing_status_and_year_top_countries_by_assignee_occurrences_"
+    "distribution_of_topics_per_patent_patent_topics_by_country"
+)
+
+
+def plot_patent_overview(df_patent, country_counts, pivot_country_topic, graph,
+                         code_to_label, *, min_cooccurrence=5):
+    """Combine patent activity, geography and topic structure without exporting.
+
+    Three compact distributions sit above two wider topic panels. The supplied
+    graph and country-topic matrix are reused, not recomputed or filtered here.
+    """
+    from textwrap import fill
+    from matplotlib.ticker import MaxNLocator
+
+    apply_typography()
+    fig = plt.figure(figsize=(18, 11), layout='constrained')
+    fig.get_layout_engine().set(w_pad=.10, h_pad=.10, hspace=.08)
+    grid = fig.add_gridspec(2, 1, height_ratios=(1, 1.35))
+    top = grid[0].subgridspec(1, 3, width_ratios=(1.4, 1, 1), wspace=.10)
+    bottom = grid[1].subgridspec(1, 2, width_ratios=(1.12, 1), wspace=.08)
+    axes = [fig.add_subplot(top[i]) for i in range(3)]
+    axes.extend(fig.add_subplot(bottom[i]) for i in range(2))
+    for letter, ax in zip('ABCDE', axes):
+        ax._ukb_title_fs = 26
+        ax._ukb_label_fs = 17
+        ax._ukb_tick_fs = 13
+        ax._ukb_annotation_fs = 12
+        ax._ukb_legend_fs = 13
+        set_title(ax, letter)
+    axes[3].set_xticks([])
+    axes[3].set_yticks([])
+
+    # Work on a copy: the status helper derives publication years and labels.
+    plot_filing_status_over_time(df_patent.copy(), 'legal_status_replaced',
+                                savefigure=False, ax=axes[0], title='A')
+    handles, labels = axes[0].get_legend_handles_labels()
+    short_status = {
+        'Application Pending': 'Pending', 'Application Granted': 'Granted',
+        'Granted Patent Expired': 'Expired', 'Application Ceased': 'Ceased',
+        'Application Withdrawn': 'Withdrawn', 'Application Abandoned': 'Abandoned',
+    }
+    axes[0].legend(handles, [short_status.get(label, label) for label in labels],
+                   loc='upper left', ncol=2, columnspacing=1, handlelength=1.3)
+    axes[0].set(xlabel='Publication year', ylabel='Number of patents')
+    axes[0].xaxis.set_major_locator(MaxNLocator(nbins=5, integer=True))
+
+    countries = country_counts.sort_values('count', ascending=False, kind='stable').head(10)
+    axes[1].bar(countries['iso2'].replace({'GB': 'UK'}), countries['count'],
+                color=palette('steel_blue'), edgecolor='black', linewidth=.6)
+    axes[1].set(xlabel='Assignee country', ylabel='Assignee-country occurrences')
+
+    counts = df_patent['topic_count'].dropna()
+    if len(counts):
+        # Centre bins on integers and retain patents without a classified topic.
+        axes[2].hist(counts, bins=np.arange(0, int(counts.max()) + 2) - .5,
+                     color=palette('steel_blue'), edgecolor='black', linewidth=.6)
+        axes[2].axvline(counts.mean(), linestyle='--', color=palette('navy'),
+                        label=f'Mean: {counts.mean():.2f}')
+        axes[2].axvline(counts.median(), linestyle=':', color=palette('red'),
+                        label=f'Median: {counts.median():.0f}')
+        axes[2].legend(loc='upper right', handlelength=1.7)
+        axes[2].xaxis.set_major_locator(MaxNLocator(nbins=7, integer=True))
+    axes[2].set(xlabel='Topics per patent', ylabel='Number of patents')
+    for ax in axes[:3]:
+        ax.yaxis.set_major_locator(MaxNLocator(nbins=5, integer=True))
+
+    wrapped_labels = {code: fill(str(label), 25, break_long_words=False,
+                                 break_on_hyphens=False)
+                      for code, label in code_to_label.items()}
+    plot_country_topic_heatmap(pivot_country_topic, code_to_label=wrapped_labels,
+                              ax=axes[4], cmap=blue_cream_red_colormap(),
+                              title='E', mask_zeros=True)
+    axes[4].set_ylabel('Patent topic')
+    axes[4].set_xlabel('Assignee country')
+    if axes[4].images:
+        colorbar = axes[4].images[0].colorbar
+        colorbar.ax._ukb_label_fs = 17
+        colorbar.ax._ukb_tick_fs = 13
+    for index, ax in enumerate(axes):
+        for side, spine in ax.spines.items():
+            spine.set_visible(index == 4 or (index < 3 and side in ('left', 'bottom')))
+            spine.set_color('black')
+            spine.set_linewidth(1)
+    # Freeze layout before finding collision-free network callout positions.
+    finalize_figure(fig)
+    fig.canvas.draw()
+    fig.set_layout_engine('none')
+    plot_topic_cooccurrence_network(graph, code_to_label=code_to_label, ax=axes[3])
+    # Keep the network axis active for labels, but without ticks or a frame.
+    axes[3].set_axis_on()
+    axes[3].set_xticks([])
+    axes[3].set_yticks([])
+    finalize_figure(fig)
+    fig._ukb_caption = (
+        'UK Biobank-linked patent activity and topic structure. '
+        '(A) Patent records by publication year and legal status at extraction; '
+        'bar-top labels give annual totals, including records marked N/A. '
+        '(B) The ten leading assignee countries '
+        'by recorded country occurrences. (C) Distribution of collapsed Fields of '
+        'Research topic counts per patent, including zero for patents without a '
+        'classified topic; dashed and dotted lines mark the mean and median. '
+        '(D) Topic co-occurrence network. Nodes are topics, with node area increasing '
+        'with the number of connected topics. Edge widths increase with joint patent '
+        'counts, which are also labelled; only pairs occurring together in at least '
+        f'{min_cooccurrence} patent records are retained. '
+        '(E) Topic composition for the selected leading assignee countries and topics. '
+        "Each patent's unit country weight is divided equally across its recorded "
+        'assignee countries, then credited to each distinct topic. Percentages are '
+        'normalised within country over the displayed topics, not all patent topics. '
+        'Zero cells are white. Patent records are not deduplicated into patent families.'
+    )
+    return fig
 
 
 def analyze_country_topics(
@@ -2570,6 +2703,7 @@ def plot_country_topic_heatmap(
     ax=None,
     cmap=None,
     title: Optional[str] = None,
+    mask_zeros: bool = False,
 ):
     """Plot a normalized country-topic heatmap."""
 
@@ -2589,10 +2723,14 @@ def plot_country_topic_heatmap(
         fig = ax.figure
 
     if cmap is None:
-        from matplotlib.colors import LinearSegmentedColormap
-        cmap = LinearSegmentedColormap.from_list('custom_cmap', ['#F5F7FA', '#4C72B0'])
+        cmap = blue_cream_red_colormap()
 
-    im = ax.imshow(pivot_normalized.values, cmap=cmap, aspect='auto', vmin=0, vmax=100)
+    values = pivot_normalized.values
+    if mask_zeros:
+        values = np.ma.masked_equal(values, 0)
+        cmap = plt.get_cmap(cmap).copy()
+        cmap.set_bad('white')
+    im = ax.imshow(values, cmap=cmap, aspect='auto')
     ax.set_xticks(range(len(pivot_normalized.columns)))
     ax.set_yticks(range(len(pivot_normalized.index)))
     ax.set_xticklabels([('UK' if col == 'GB' else col) for col in pivot_normalized.columns], rotation=0, ha='center')
@@ -2609,7 +2747,8 @@ def plot_country_topic_heatmap(
     set_title(ax, title, fontsize=10, fontweight='bold')
     ax.set_xlabel('Country')
     ax.set_ylabel('Topic Division')
-    plt.colorbar(im, ax=ax, orientation='vertical', pad=0.02, fraction=0.046)
+    plt.colorbar(im, ax=ax, orientation='vertical', pad=0.02, fraction=0.046,
+                 label="Share of country-field assignments (%)")
     finalize_figure(fig)
     if created_fig:
         plt.tight_layout()
@@ -2620,7 +2759,7 @@ def plot_country_topic_heatmap(
         print(f'Heatmap saved to: {savefile}')
     finalize_figure(fig)
     if created_fig:
-        show_figures()
+        show_figures("patents_country_topics", caption='Field composition of patents by assignee country, using fractional country contributions. Cell values are percentages within each country; multi-field patents can contribute to several fields.')
     return fig, ax
 
 
@@ -2630,6 +2769,7 @@ def plot_country_dominant_topics(
     code_to_label: Optional[Dict[str, str]] = None,
     figsize: Tuple[int, int] = (8, 6),
     savefile: Optional[str] = None,
+    ax=None,
 ):
     """Plot the dominant topic per country as a horizontal bar chart."""
     apply_typography()
@@ -2653,29 +2793,132 @@ def plot_country_dominant_topics(
         return None, None
 
     dominant_df = pd.DataFrame(dominant_rows).sort_values('count', ascending=True)
-    fig, ax = plt.subplots(figsize=figsize)
-    bars = ax.barh(dominant_df['country'], dominant_df['count'], color='#4C72B0', edgecolor='black', linewidth=1)
-    for bar, topic_code, count in zip(bars, dominant_df['topic_code'], dominant_df['count']):
-        topic_label = code_to_label.get(topic_code, topic_code)
-        if len(topic_label) > 30:
-            topic_label = topic_label[:30] + '...'
-        ax.text(count + 0.5, bar.get_y() + bar.get_height() / 2, f'{topic_label} ({count:.2f})', va='center', fontsize=8)
+    created_fig = ax is None
+    if created_fig:
+        fig, ax = plt.subplots(figsize=figsize)
+    else:
+        fig = ax.figure
+    from textwrap import fill
+    labels = [('UK' if country == 'GB' else country) + ": "
+              + fill(code_to_label.get(code, str(code)), 27,
+                     break_long_words=False, break_on_hyphens=False)
+              for country, code in zip(dominant_df['country'], dominant_df['topic_code'])]
+    bars = ax.barh(labels, dominant_df['count'], color=palette('steel_blue'),
+                   edgecolor='black', linewidth=.6)
+    ax.bar_label(bars, labels=[f'{count:.2f}' for count in dominant_df['count']],
+                 padding=5, fontsize=12)
+    ax.set_xlim(0, max(float(dominant_df['count'].max()) * 1.18, 1.))
     ax.set_xlabel('Fractional Patent Count in Dominant Topic')
     ax.set_ylabel('Country')
     set_title(ax, 'Dominant Topic per Country (Fractional)', fontsize=10, fontweight='bold')
     ax.invert_yaxis()
     ax.spines['top'].set_visible(False)
     ax.spines['right'].set_visible(False)
-    finalize_figure(plt.gcf())
+    finalize_figure(fig)
+    if not created_fig:
+        return fig, ax
     plt.tight_layout()
 
     if savefile:
-        finalize_figure(plt.gcf())
-        save_figure_file(plt.gcf(), _figure_export_path(savefile), dpi=_export_dpi(savefile, 200), bbox_inches='tight')
+        finalize_figure(fig)
+        save_figure_file(fig, _figure_export_path(savefile), dpi=_export_dpi(savefile, 200), bbox_inches='tight')
         print(f'Dominant-topic plot saved to: {savefile}')
-    finalize_figure(plt.gcf())
-    show_figures()
+    finalize_figure(fig)
+    show_figures("patents_country_dominant_topics", caption='The most frequent patent field within each assignee country, based on fractionally allocated country contributions.')
     return fig, ax
+
+
+PATENT_COUNTRY_TOPICS_EXPORT = 'patents_country_topics_dominant_topics_and_legal_status'
+
+
+def plot_country_topic_summary(pivot_country_topic, topic_by_country, top_countries,
+                               code_to_label=None, *, df_patent=None):
+    """Pair country-topic panels, optionally above annual legal-status counts."""
+    from textwrap import fill
+    from matplotlib.ticker import MaxNLocator
+
+    if (pivot_country_topic.empty or topic_by_country.empty) and df_patent is None:
+        print('No country-topic data available for visualization.')
+        return None
+    code_to_label = code_to_label or {}
+    apply_typography()
+    with_status = df_patent is not None
+    fig = plt.figure(figsize=(20, 15 if with_status else 7.5), layout='constrained')
+    grid = fig.add_gridspec(2 if with_status else 1, 2, width_ratios=(1.25, 1))
+    axes = [fig.add_subplot(grid[0, 0]), fig.add_subplot(grid[0, 1])]
+    if with_status:
+        axes.append(fig.add_subplot(grid[1, :]))
+    fig.get_layout_engine().set(w_pad=.10, h_pad=.10, wspace=.06, hspace=.10)
+    for letter, ax in zip('ABC', axes):
+        ax._ukb_label_fs = 17
+        ax._ukb_tick_fs = 13
+        ax._ukb_annotation_fs = 12
+        ax._ukb_legend_fs = 12
+        set_title(ax, letter)
+        ax.grid(False, which='both')
+
+    wrapped_labels = {code: fill(str(label), 29, break_long_words=False,
+                                 break_on_hyphens=False)
+                      for code, label in code_to_label.items()}
+    plot_country_topic_heatmap(pivot_country_topic, code_to_label=wrapped_labels,
+                              ax=axes[0], title='A', mask_zeros=True)
+    axes[0].set(xlabel='Assignee country', ylabel='Patent topic division')
+    for spine in axes[0].spines.values():
+        spine.set_visible(True)
+        spine.set_color('black')
+        spine.set_linewidth(1)
+    if axes[0].images:
+        colorbar = axes[0].images[0].colorbar
+        colorbar.ax._ukb_label_fs = 15
+        colorbar.ax._ukb_tick_fs = 12
+        colorbar.set_label('Share of country-field assignments (%)')
+    else:
+        axes[0].text(.5, .5, 'No country-topic data', transform=axes[0].transAxes,
+                     ha='center', va='center')
+
+    plot_country_dominant_topics(topic_by_country, top_countries,
+                                 code_to_label=code_to_label, ax=axes[1])
+    axes[1].set(xlabel='Fractional patent count\nin dominant topic',
+                ylabel='Assignee country and dominant topic')
+    axes[1].xaxis.set_major_locator(MaxNLocator(nbins=5))
+    set_title(axes[1], 'B')
+    if not axes[1].patches:
+        axes[1].text(.5, .5, 'No dominant-topic data', transform=axes[1].transAxes,
+                     ha='center', va='center')
+    if with_status:
+        ax = axes[2]
+        if pd.to_datetime(df_patent['publication_date'], errors='coerce').notna().any():
+            plot_filing_status_over_time(df_patent.copy(), 'legal_status_replaced',
+                                         ax=ax, savefigure=False, title='C')
+            ax.legend(title='Legal status', loc='lower center',
+                      bbox_to_anchor=(.5, 1.025), ncol=4, frameon=True,
+                      columnspacing=1.6, handlelength=1.6, labelspacing=.7)
+        else:
+            ax.text(.5, .5, 'No dated patent records', transform=ax.transAxes,
+                    ha='center', va='center')
+        ax.set(xlabel='Publication year', ylabel='Number of patents')
+        ax.xaxis.set_major_locator(MaxNLocator(integer=True))
+        set_title(ax, 'C')
+    fig._ukb_caption = (
+        'Patent fields by assignee country. (A) Field composition for the selected '
+        'leading countries and topic divisions. Each patent contributes unit weight '
+        'divided equally among its recorded assignee countries, with that country '
+        'weight credited to each distinct topic. Percentages are normalised within '
+        'country over the displayed topics, not all patent topics; empty or zero '
+        'cells are white. (B) The highest-weight topic in each selected country, '
+        'identified using all recorded topics, and its fractional patent count. '
+        'Bar-end labels give those counts. Patent records are not deduplicated '
+        'into patent families.'
+    )
+    if with_status:
+        fig._ukb_caption += (
+            ' (C) Patent records by publication year, stacked by legal status as '
+            'recorded at extraction. Bar-top labels give annual totals; labels '
+            'within larger segments give their percentage of that year\'s records. '
+            'Colours and legend keys are shared with the other patent figures.'
+        )
+    finalize_figure(fig)
+    return fig
 
 
 def plot_two_level_hierarchy(
@@ -2703,7 +2946,7 @@ def plot_two_level_hierarchy(
     parent_order = parent_totals[parent_code_col].tolist()
 
     fig, ax = plt.subplots(figsize=figsize)
-    colors_palette = plt.cm.Set3(range(len(parent_order)))
+    colors_palette = extended_palette(len(parent_order), style={"colors": NON_ACADEMIC_PALETTE})
     parent_colors = dict(zip(parent_order, colors_palette))
 
     y_spacing = 1.5
@@ -2930,7 +3173,7 @@ def plot_rcdc_macro_hierarchy(
     macro_order = macro_totals['macro_code'].tolist()
 
     fig, ax = plt.subplots(figsize=figsize)
-    colors = plt.cm.Set3(range(len(macro_order)))
+    colors = extended_palette(len(macro_order), style={"colors": NON_ACADEMIC_PALETTE})
     macro_colors = dict(zip(macro_order, colors))
 
     y_spacing = 1.5
@@ -3091,8 +3334,8 @@ def plot_rcdc_macro_heatmap(
     )
 
     macro_topic_totals = {label: int(sum(macro_topic_counts[str(code)].values())) for code, label in macro_cluster_names.items()}
-    #cmap = LinearSegmentedColormap.from_list('rcdc_macro_cmap', ['#345995', '#B80C09'])
-    cmap="YlGnBu"
+    cmap = blue_cream_red_colormap()
+    cmap.set_bad("white")
     fig, ax = plt.subplots(figsize=figsize)
     dis_df = sorted_df.copy()
     if normalize:
