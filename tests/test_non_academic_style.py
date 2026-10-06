@@ -509,7 +509,7 @@ def test_clinical_and_patent_semantic_colours_are_shared():
     assert F.SECTOR_COLORS["Other/Unknown"] == "white"
 
 
-def test_clinical_status_and_annual_bars_use_shared_palette_with_matching_legends():
+def test_clinical_status_is_full_width_with_original_size_and_shared_palette():
     from utils import data_analysis_04_non_academic_panels as panels
     style = S.load_style("04_non_academic_01_clinical_trials")
     expected = {"Interventional": S.palette("steel_blue"), "Observational": S.palette("red")}
@@ -539,7 +539,8 @@ def test_clinical_status_and_annual_bars_use_shared_palette_with_matching_legend
         exec(by_id["7d4d906b"], namespace)
         fig = namespace["fig"]
         assert set(plt.get_fignums()) - before == {fig.number}
-        assert len(fig.axes) == 2
+        assert len(fig.axes) == 1
+        assert tuple(fig.get_size_inches()) == (10, 5)
         save.assert_called_once_with(fig, "ct_combined_figure", style)
         show.assert_called_once_with()
         display.assert_called_once()
@@ -548,16 +549,19 @@ def test_clinical_status_and_annual_bars_use_shared_palette_with_matching_legend
         pd.testing.assert_series_equal(table["Total"], table.drop(columns="Total").sum(axis=1),
                                        check_names=False)
     F.finalize_figure(fig)
+    fig.canvas.draw()
     ax = fig.axes[0]
+    assert ax.get_title(loc="left") == "A"
+    assert ax.get_position().width > .75
+    assert "(B)" not in F.CAPTIONS["ct_combined_figure"]
+    assert "bracketed totals" in F.CAPTIONS["ct_combined_figure"]
     for container in ax.containers:
         assert all(to_hex(bar.get_facecolor()).upper() == expected[container.get_label()]
                    for bar in container.patches)
     legend = ax.get_legend()
     for handle, text in zip(legend.legend_handles, legend.get_texts()):
         assert to_hex(handle.get_facecolor()).upper() == expected[text.get_text()]
-    annual = fig.axes[1].patches
-    assert all(to_hex(bar.get_facecolor()).upper() == S.palette("cream") for bar in annual)
-    assert sum(bar.get_height() for bar in annual) == len(frame)
+    assert sum(bar.get_width() for bar in ax.patches) == len(frame)
     source = "\n".join(by_id.values())
     assert "ct_status_stage" not in source
     assert source.count("def plot_grouped_status(") == 1
@@ -642,9 +646,11 @@ def test_trial_comparisons_replace_standalone_displays_without_losing_categories
         assert f'savefig(fig, "{obsolete}")' not in code
 
 
-def test_trial_geography_maps_share_author_ramp_and_have_no_country_callouts():
+def test_trial_geography_maps_match_author_supplement_without_duplicate_panel():
     import geopandas as gpd
     from shapely.geometry import box
+    from matplotlib.colors import LogNorm
+    from utils import data_analysis_05_author_plots as geography
     world = gpd.GeoDataFrame({
         "ADMIN": ["United States", "United Kingdom", "No data", "Antarctica"],
         "ISO_A3": ["USA", "-99", "XXX", "ATA"],
@@ -654,26 +660,32 @@ def test_trial_geography_maps_share_author_ramp_and_have_no_country_callouts():
     trials = pd.Series({"USA": 49, "GBR": 19})
     papers = pd.Series({"USA": 80, "GBR": 110})
     fig = F.trial_geography_figure([
-        (trials, "Number of trials"), (trials, "Number of trials"),
+        (trials, "Number of trials"),
         (papers, "Number of papers"),
     ], style=S.load_style("04_non_academic_01_clinical_trials"), world=world)
     fig.canvas.draw()
     maps = [ax for ax in fig.axes if not hasattr(ax, "_colorbar")]
-    assert len(maps) == 3
-    assert [ax.get_title(loc="left") for ax in maps] == list("ABC")
+    assert len(maps) == 2
+    assert [ax.get_title(loc="left") for ax in maps] == list("AB")
     assert not any(ax.texts for ax in maps)
     assert not any(ax.lines for ax in maps)  # no callout leader lines
-    assert all(len(ax.collections) == 2 for ax in maps)  # base + values, no highlighted borders
-    for ax, expected in zip(maps, ([49, 19], [49, 19], [80, 110])):
-        base, measured = ax.collections
-        np.testing.assert_array_equal(base.get_facecolors(), [[1., 1., 1., 1.]])
+    reference = geography._map_colormap(S.load_style("05_author_characteristics", activate=False))
+    for ax, expected in zip(maps, ([49, 19], [80, 110])):
+        measured = next(item for item in ax.collections if item.get_array() is not None)
+        missing = next(item for item in ax.collections if item.get_hatch())
+        assert missing.get_hatch() == "///"
+        assert to_hex(missing.get_facecolors()[0]) == "#efefef"
         np.testing.assert_array_equal(measured.get_array(), expected)
+        assert isinstance(measured.norm, LogNorm)
         np.testing.assert_allclose(measured.cmap(np.linspace(0, 1, 256)),
-                                   S.author_geography_colormap()(np.linspace(0, 1, 256)))
-        assert measured.cmap.name == "Blues"
-        assert ax.get_ylim() == (-58, 90)
+                                   reference(np.linspace(0, 1, 256)))
+        assert ax.get_ylim() == (-58, 88)
+        colorbar = ax.child_axes[0]
+        assert colorbar._colorbar.orientation == "horizontal"
+        assert "log scale" in colorbar.get_xlabel()
+        assert colorbar.get_position().y1 < ax.get_position().y0
     assert maps[0].get_position().y0 > maps[1].get_position().y1
-    assert maps[1].get_position().y0 > maps[2].get_position().y1
+    assert maps[0].collections[0].norm.vmax != maps[1].collections[0].norm.vmax
     assert world.iloc[-1]["ADMIN"] == "Antarctica"  # caller data was not mutated
     plt.close(fig)
 
@@ -685,5 +697,7 @@ def test_geography_notebook_exports_only_the_combined_map():
     assert "annotate_top" not in cells["40571432"]
     assert "show_figures()" not in cells["40571432"]
     assert "trial_geography_figure([" in cells["8365c642"]
-    assert cells["8365c642"].count('(iso_counts, "Number of trials")') == 2
-    assert "same country counts" in cells["f92ef5ce"]
+    assert cells["8365c642"].count('(iso_counts, "Number of trials")') == 1
+    assert cells["8365c642"].count('(paper_iso_counts, "Number of papers")') == 1
+    assert "Supplementary Figure 4" in cells["f92ef5ce"]
+    assert "(A, B)" not in F.CAPTIONS["ct_country_maps_trials_vs_papers"]

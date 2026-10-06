@@ -1388,12 +1388,12 @@ def _draw_country_diversity(ax, core: A.CoreTables, style):
 
 
 def plot_geography_metrics_supplement(core: A.CoreTables, style):
-    """Four quantitative views of geographic reach, composition, and diversity."""
+    """A square 2x2 page of geographic reach, composition, and diversity."""
     fig, axes = panel_grid(
         2,
         2,
         style,
-        figsize=(14.5, 9.5),
+        figsize=(14.5, 14.5),
         adjust={
             "left": 0.105,
             "right": 0.98,
@@ -1422,6 +1422,7 @@ def plot_geography_metrics_supplement(core: A.CoreTables, style):
         fig,
         "05_05_supplementary_figure_04_geography_metrics",
         style,
+        bbox_inches=None,  # Tight cropping would undo the square export canvas.
     )
 
 

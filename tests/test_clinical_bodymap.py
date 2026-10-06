@@ -28,7 +28,7 @@ def trial_data():
     plt.close("all")
 
 
-def test_clinical_figure_palette_and_left_shift_preserve_body_geometry(trial_data):
+def test_clinical_figure_deduplication_preserves_data_palette_and_body_geometry(trial_data):
     trial_data["trials"].update({
         "stage_by_type": pd.DataFrame({"Interventional": [6, 41], "Observational": [7, 39]},
                                         index=["Planned", "Ongoing"]),
@@ -37,25 +37,29 @@ def test_clinical_figure_palette_and_left_shift_preserve_body_geometry(trial_dat
         "country_sector": pd.DataFrame({"Academia": [20, 10], "Industry": [4, 2]},
                                          index=["United States", "United Kingdom"]),
     })
-    with patch.object(N, "savefig") as save:
+    with patch.object(N, "savefig") as save, patch.object(N, "draw_trial_stage") as stage:
         fig = N.figure_si_trials(trial_data)
     save.assert_called_once_with(fig, "04_03_supplementary_figure_02_clinical_trials")
+    stage.assert_not_called()
     for _ in range(2):
         F.finalize_figure(fig)
         fig.canvas.draw()
-    a, b, c, d, e = fig.axes
-    assert {to_hex(bar.get_facecolor()).upper() for bar in a.patches} == set(S.palette("steel_blue", "red"))
-    assert {to_hex(bar.get_facecolor()).upper() for bar in c.patches} == {S.palette("steel_blue")}
-    assert {to_hex(bar.get_facecolor()).upper() for bar in d.patches} == {S.palette("cream")}
-    original = b.get_subplotspec().get_position(fig)
-    shifted = b.get_position(original=True)
-    assert shifted.x0 == pytest.approx(original.x0 - .04)
-    np.testing.assert_allclose([shifted.y0, shifted.width, shifted.height],
-                               [original.y0, original.width, original.height])
-    assert b.get_aspect() == 1
-    assert b.get_xlim() == (-.3, 10.3)
-    assert b.get_ylim() == (.05, 14.25)
-    np.testing.assert_array_equal(sorted(bar.get_width() for bar in c.patches), [39, 57])
+    a, b, c, d = fig.axes
+    assert {to_hex(bar.get_facecolor()).upper() for bar in b.patches} == {S.palette("steel_blue")}
+    assert {to_hex(bar.get_facecolor()).upper() for bar in c.patches} == {S.palette("cream")}
+    assert a.get_aspect() == 1
+    assert a.get_xlim() == (-.3, 10.3)
+    assert a.get_ylim() == (.05, 14.25)
+    renderer = fig.canvas.get_renderer()
+    labels = [text for text in a.texts if isinstance(text, Annotation)]
+    boxes = [Text.get_window_extent(text, renderer) for text in labels]
+    for index, box in enumerate(boxes):
+        assert not any(box.overlaps(other) for other in boxes[index + 1:])
+    assert a.get_legend().get_window_extent(renderer).y1 < a.transData.transform((5, 2))[1]
+    np.testing.assert_array_equal(sorted(bar.get_width() for bar in b.patches), [39, 57])
+    assert list(N.SI_CAPTIONS["trials"]) == list("ABCD")
+    assert "ICD-10" in N.SI_CAPTIONS["trials"]["A"]
+    assert "lifecycle" not in " ".join(N.SI_CAPTIONS["trials"].values()).lower()
 
 
 @pytest.mark.parametrize("figsize", [(6.2, 8), (8, 9)])

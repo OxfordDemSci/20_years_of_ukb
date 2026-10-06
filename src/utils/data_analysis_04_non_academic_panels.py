@@ -432,8 +432,8 @@ def load_patents() -> pd.DataFrame:
         pat = pd.read_csv(export)
     else:
         pat = endpoint_records("patents", PATENT_ENDPOINT_FIELDS)
-        # Dimensions writes "N/A" where a status is unknown; the panels drop missing rows
-        # rather than drawing a category for them.
+        # Preserve missingness in the source fields. The legal-status aggregation
+        # explicitly retains these records in an Unknown category.
         for column in ("legal_status", "filing_status"):
             pat[column] = pat[column].replace({"N/A": None})
         pat["legal_status_replaced"] = pat["legal_status"].replace(U.LEGAL_STATUS_DISPLAY)
@@ -686,6 +686,18 @@ def _sector_count(label: str) -> str:
 
 
 # ---------------------------------------------------------------- patents ----
+def patent_legal_status_by_year(patents: pd.DataFrame) -> pd.DataFrame:
+    """Count every dated patent, retaining unavailable legal statuses as Unknown."""
+    frame = patents.dropna(subset=["publication_year"]).copy()
+    frame["publication_year"] = frame["publication_year"].astype(int)
+    frame["legal_status_replaced"] = (
+        frame["legal_status_replaced"].astype("string").str.strip()
+        .replace({"": pd.NA, "N/A": pd.NA}).fillna("Unknown")
+    )
+    return (frame.groupby(["publication_year", "legal_status_replaced"]).size()
+            .unstack(fill_value=0).sort_index())
+
+
 def build_patent_aggregates(patents: pd.DataFrame, corpus: pd.DataFrame) -> dict:
     """Everything the patent panels draw."""
     out = {}
@@ -698,18 +710,16 @@ def build_patent_aggregates(patents: pd.DataFrame, corpus: pd.DataFrame) -> dict
     out["n_patents_outside_window"] = int(patents.attrs.get("n_outside_window", 0))
 
     # (a) filing status by publication year. `filing_status` is the two-way split
-    # (Application / Grant); `legal_status_replaced` is the seven-way outcome.
+    # (Application / Grant); legal status has seven recorded categories plus Unknown.
     status = (patents.dropna(subset=["publication_year", "filing_status"])
               .astype({"publication_year": int})
               .groupby(["publication_year", "filing_status"]).size()
               .unstack(fill_value=0).sort_index())
     out["status_by_year"] = status
 
-    legal = (patents.dropna(subset=["publication_year", "legal_status_replaced"])
-             .astype({"publication_year": int})
-             .groupby(["publication_year", "legal_status_replaced"]).size()
-             .unstack(fill_value=0).sort_index())
+    legal = patent_legal_status_by_year(patents)
     out["legal_status_by_year"] = legal
+    out["legal_status_counts"] = legal.sum().rename("n").rename_axis("legal_status")
 
     # (b) assignee countries. `assignee_countries` is a list of ISO-2 codes; a patent with
     # assignees in two countries counts once in each, which is why the total exceeds 513.
@@ -1498,6 +1508,8 @@ def draw_reach(ax, D):
 def draw_reach_by_year(ax, D):
     """Cumulative UK Biobank papers with each linkage, dated by the paper's own year."""
     frame = D["reach_by_year"].replace(0, np.nan)
+    labels = dict(STREAM_LABELS, altmetric="News mentions",
+                  collaboration="Company affiliations")
     # No grid at all, and the legend bottom-right. Every series rises to the top-right, so
     # the lower right is the one empty quadrant; and on a log axis spanning four decades
     # even a major-only grid competes with five lines for the same space.
@@ -1505,7 +1517,7 @@ def draw_reach_by_year(ax, D):
     # two points under the family size: at the family size the box is wide enough that the
     # patent and trial lines run behind it on their way to the top right.
     _lines(ax, frame, _stream_colors(), "Publication year",
-           "Cumulative publications (log)", labels=STREAM_LABELS,
+           "Cumulative publications (log)", labels=labels,
            legend_loc="lower right", grid=False, legend_fs=_style()["legend_fs"] - 2)
     ax.set_yscale("log")
     _year_axis(ax)
@@ -1596,29 +1608,35 @@ def draw_patent_country_topics(ax, D):
 
 
 def draw_patent_legal_status(ax, D):
-    """The seven-way legal outcome, by publication year."""
+    """Seven recorded legal statuses plus Unknown, by publication year."""
     frame = D["patents"]["legal_status_by_year"]
     order = [c for c in ["Active", "Application Pending", "Application Granted",
                          "Granted Patent Expired", "Application Ceased",
-                         "Application Withdrawn", "Application Abandoned"]
+                         "Application Withdrawn", "Application Abandoned", "Unknown"]
              if c in frame.columns]
+    if set(frame.columns) != set(order):
+        raise ValueError(f"Unrecognised patent statuses: {set(frame.columns) - set(order)}")
     colors = PATENT_STATUS_COLORS
     _stacked_bars(ax, frame[order], colors, "Patent publication year", "Patents",
                   legend_title="Legal status", annotate=True, segment_labels=False)
+    for container in ax.containers:
+        if container.get_label() == "Unknown":
+            for bar in container:
+                bar.set_hatch("///")
     st = _style()
-    # Seven categories in a half-width panel: two columns of four, which is five rows of
-    # legend once the title is counted. Three columns would run past the axes' right edge
-    # at this width, and the single row the full-page version used needs a width this
-    # panel does not have. The headroom is made above the bars rather than taken from
-    # them, and it has to clear the per-year totals as well as the bars themselves — the
-    # tallest bar is 124 patents, its total sits just above that, and the axis opens to
-    # ~1.9x so the legend starts well clear of both.
+    # Two columns of four categories fit above the annual totals without overlap.
     ax.set_ylim(0, frame.sum(axis=1).max() * 1.92)
     ax.legend(loc="upper left", ncol=2, columnspacing=1.0, handlelength=1.2,
               handletextpad=0.5, fontsize=st["legend_fs"],
                    title="Legal status", title_fontsize=st["legend_fs"])
     ax.tick_params(axis="x", labelrotation=0)
     ax.set_xticklabels([str(i) for i in frame.index], rotation=0, ha="center")
+    total = int(frame.to_numpy().sum())
+    unknown = int(frame["Unknown"].sum()) if "Unknown" in frame else 0
+    note = f"Panel B includes {total:,} patent records, including {unknown:,} with unknown legal status."
+    notes = getattr(ax.figure, "_ukb_caption_notes", [])
+    if note not in notes:
+        ax.figure._ukb_caption_notes = [*notes, note]
     return ax
 
 
@@ -2074,6 +2092,9 @@ def _attention_paper_label(row):
     author = row.get("first_author")
     author = str(author).strip() if pd.notna(author) and str(author).strip() else "Author"
     year = row.get("year")
+    # Bibliographic issue year for this callout; retain the 2020 online date in data.
+    if str(row.get("doi_clean", "")).lower() == "10.1016/j.clnu.2020.12.018":
+        year = 2021
     return f"{author} et al." + (f" ({int(year)})" if pd.notna(year) else "")
 
 
@@ -2486,19 +2507,23 @@ def draw_collab_citations(ax, D):
 # are written in the same place and cannot drift apart.
 
 MAIN_CAPTION = {
-    "A": "Cumulative UK Biobank publications with non-academic linkages, dated by publication "
-         "year (log scale). Patent, trial and policy links use Dimensions' publication index, "
+    "A": "Cumulative UK Biobank publications linked to patents, trials or policy documents, "
+         "with news mentions, or with company affiliations, dated by publication year "
+         "(log scale). Patent, trial and policy links use Dimensions' publication index, "
          "restricted to outcomes published or started between 1 January 2013 and 31 December 2025.",
     "B": "Legal status of citing patent records from the corpus's endpoint block, by patent "
-         "publication year (2013-2025). Bar labels show annual totals; records lacking status "
-         "are omitted. Unlike A, this panel counts patents rather than distinct linked publications.",
+         "publication year (2013-2025). Bar labels show annual totals, including records lacking "
+         "legal status, shown as Unknown (hatched). Unlike A, this panel counts patents rather "
+         "than distinct linked publications.",
     "C": "Citing clinical trials by start year and study type, covering each year from 2013 to 2025.",
     "D": "Share of each year's publications with at least one collaborator in each "
          "non-academic sector.",
     "E": "Altmetric Attention Score versus news and policy mentions for 2013-2025 publications "
          "with positive values on both axes. Both axes are logarithmic; each uniform small point "
          "is a publication. Counts are source-snapshot totals. Upper callouts identify the two "
-         "most-mentioned publications.",
+         "most-mentioned publications. News and policy activity contribute to the score, "
+         "so this association is descriptive, not independent validation of impact "
+         "(Altmetric score definition: https://help.altmetric.com/en/articles/9800513).",
     "F": "Row-normalised affiliation-sector overlap: the percentage of publications in each "
          "row's sector also represented in each column's sector. Read across rows; denominators "
          "appear on the axis.",
@@ -2512,17 +2537,15 @@ SI_CAPTIONS = {
         "D": "Research-division mix within each of the eight largest assignee countries.",
     },
     "trials": {
-        "A": "Trial lifecycle stage, by study type (nine registry statuses folded into "
-             "five).",
-        "B": "Trials per ICD-10 chapter on a schematic body outline; marker area is "
+        "A": "Trials per ICD-10 chapter on a schematic body outline; marker area is "
              "directly proportional to the trial count, using the displayed size key. "
              "Positions indicate broad body systems, not precise organ locations. "
              "Neoplasms and infectious disease are systemic and sit off the body. "
              "A trial counts once per chapter it touches.",
-        "C": "RCDC disease categories, with cross-cutting research-area tags removed.",
-        "D": "Planned enrollment per trial (log scale).",
-        "E": "Where the trials are run and who runs them: fractional trial weight by "
-             "country and organisation sector.",
+        "B": "RCDC disease categories, with cross-cutting research-area tags removed.",
+        "C": "Planned enrollment per trial (log scale).",
+        "D": "Fractional trial weight by recorded research-organisation country and "
+             "sector; these affiliations do not establish recruitment locations.",
     },
     "policy": {
         "A": "Policy documents citing UK Biobank research, by year and publisher origin.",
@@ -2654,7 +2677,7 @@ def figure_main(D, save=True):
     st = _style()
     figsize = st["figsize_main"]
     with _font_scale(_fs_scale("main")):
-        return _assemble(
+        fig = _assemble(
             [draw_reach_by_year,            # A
              draw_patent_legal_status,      # B
              draw_trials_by_year,           # C
@@ -2662,10 +2685,22 @@ def figure_main(D, save=True):
              draw_altmetric_scatter,        # E - bottom row, left
              draw_collab_flag_overlap],     # F - bottom row, right
             3, 2, (figsize[0], figsize[1] * 1.30),
-            D, P.MAIN_FIGURE_STEMS[6], save=save,
+            D, P.MAIN_FIGURE_STEMS[6], save=False,
             slots=[(0, 0), (0, 1), (1, 0), (1, 1), (2, 0), (2, 1)],
             hspace=0.40, wspace=0.34, height_ratios=[1.0, 1.0, 1.55],
         )
+        # One major-tick grid across A-E, including decades on log axes. F already
+        # has heatmap cell boundaries and must not receive a second grid.
+        for ax in fig.axes:
+            ax.grid(False, which="both")
+        for ax in fig.axes[:5]:
+            grid_on(ax, axis="both", which="major", log=True)
+        from .shared_figure_captions import panel_caption
+        fig._ukb_caption = panel_caption(MAIN_CAPTION)
+        finalize_figure(fig)
+        if save:
+            savefig(fig, P.MAIN_FIGURE_STEMS[6])
+        return fig
 
 
 def figure_si_patents(D, save=True):
@@ -2694,31 +2729,19 @@ def figure_si_patents(D, save=True):
 
 
 def figure_si_trials(D, save=True):
-    """Five trial panels, with the body map spanning the right column's top two rows.
-
-    The body map is equal-aspect, so height is what it needs: given two rows it draws a
-    body rather than a squashed one, and its eleven labels have room to sit beside their
-    dots. The paper-to-trial lag came out — it is the least load-bearing of the six, and
-    the space buys the body map its rows.
-    """
+    """Four trial panels; lifecycle stages are retained only in Supplementary Fig. 22."""
     st = _style()
     width, height = st["figsize_si"]
     with _font_scale(_fs_scale("si2_clinical_trials")):
         name = "04_03_supplementary_figure_02_clinical_trials"
         fig = _assemble(
-            [draw_trial_stage,              # A  row 0, left
-             draw_trial_bodymap,            # B  rows 0-1, right
-             draw_trial_rcdc,               # C  row 1, left
-             draw_trial_enrollment,         # D  row 2, left
-             draw_trial_country_sector],    # E  row 2, right
-            3, 2, (width, height * 1.30), D, name,
-            save=False, slots=[(0, 0), (slice(0, 2), 1), (1, 0), (2, 0), (2, 1)],
-            hspace=0.40, wspace=0.42, height_ratios=[1.0, 1.0, 1.05],
+            [draw_trial_bodymap,            # A
+             draw_trial_rcdc,               # B
+             draw_trial_enrollment,         # C
+             draw_trial_country_sector],    # D
+            2, 2, (width, height * 1.35), D, name,
+            save=False, hspace=0.28, wspace=0.42, height_ratios=[1.8, 1.0],
         )
-        # Translate the complete schematic, preserving its equal-aspect anatomy.
-        body = fig.axes[1]
-        bounds = body.get_position(original=True)
-        body.set_position([bounds.x0 - .04, bounds.y0, bounds.width, bounds.height])
         finalize_figure(fig)
         if save:
             savefig(fig, name)

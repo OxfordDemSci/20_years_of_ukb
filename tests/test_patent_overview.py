@@ -68,18 +68,22 @@ def test_patent_overview_layout_counts_styles_and_inputs_are_preserved():
     S.load_style("04_non_academic_02_patents")
     frame, countries, pivot, graph, labels = patent_inputs()
     original = frame.copy(deep=True)
-    original_pivot = pivot.copy(deep=True)
     edges = list(graph.edges(data=True))
-    with patch.object(P, "show_figures") as show, patch.object(P, "save_figure_file") as save:
-        fig = P.plot_patent_overview(frame, countries, pivot, graph, labels)
+    with patch.object(P, "show_figures") as show, patch.object(P, "save_figure_file") as save, \
+            patch.object(P, "plot_filing_status_over_time") as status, \
+            patch.object(P, "plot_country_topic_heatmap") as heatmap:
+        fig = P.plot_patent_overview(frame, countries, graph, labels)
+    status.assert_not_called()
+    heatmap.assert_not_called()
     show.assert_not_called()
     save.assert_not_called()
     for _ in range(2):
         P.finalize_figure(fig)
         fig.canvas.draw()
-    a, b, c, d, e, colorbar = fig.axes
-    assert [ax.get_title(loc="left") for ax in (a, b, c, d, e)] == list("ABCDE")
-    for ax in (a, b, c, d, e):
+    b, c, d = fig.axes
+    assert [ax.get_title(loc="left") for ax in (b, c, d)] == list("ABC")
+    assert not any(ax.images for ax in fig.axes)
+    for ax in (b, c, d):
         assert ax._left_title.get_size() == 26
         assert ax.xaxis.label.get_size() == ax.yaxis.label.get_size() == 17
         assert all(text.get_size() == 13 for text in ax.get_xticklabels() + ax.get_yticklabels())
@@ -88,28 +92,22 @@ def test_patent_overview_layout_counts_styles_and_inputs_are_preserved():
         assert all(spine.get_linewidth() == 1
                    and to_hex(spine.get_edgecolor()) == "#000000"
                    for spine in ax.spines.values())
-    for ax in (a, b, c):
+    for ax in (b, c):
         assert {side: spine.get_visible() for side, spine in ax.spines.items()} == {
             "left": True, "bottom": True, "top": False, "right": False}
     assert not any(spine.get_visible() for spine in d.spines.values())
-    assert all(spine.get_visible() for spine in e.spines.values())
     assert not len(d.get_xticks()) and not len(d.get_yticks())
-    assert all(text.get_size() == 13 for ax in (a, c) for text in ax.get_legend().get_texts())
+    assert all(text.get_size() == 13 for text in c.get_legend().get_texts())
     assert [text.get_text() for text in c.get_legend().get_texts()] == ["Mean: 2.25", "Median: 2"]
-    # Three distributions above a wider network and heatmap, with no overlap.
-    assert d.get_position().width > b.get_position().width
-    assert e.get_position().width > c.get_position().width
-    assert d.get_position().y1 < a.get_position().y0
-    assert e.get_position().x0 > d.get_position().x1
-    assert sum(bar.get_height() for bar in a.patches) == len(frame)
+    # Two stacked distributions beside a full-height network, with no overlap.
+    assert c.get_position().y1 < b.get_position().y0
+    assert max(b.get_position().x1, c.get_position().x1) < d.get_position().x0
+    assert d.get_position().height > b.get_position().height + c.get_position().height
     assert [bar.get_height() for bar in b.patches] == [8, 6, 2]
     assert sum(bar.get_height() for bar in c.patches) == len(frame)
     assert c.patches[0].get_height() == 1  # unclassified patents are not dropped
     for ax in (b, c):
         assert {to_hex(bar.get_facecolor()) for bar in ax.patches} == {S.palette("steel_blue").lower()}
-    for handle, text in zip(a.get_legend().legend_handles, a.get_legend().get_texts()):
-        expected = {"Active": "Active", "Pending": "Application Pending", "Ceased": "Application Ceased"}
-        assert to_hex(handle.get_facecolor()).upper() == P.PATENT_STATUS_COLORS[expected[text.get_text()]]
 
     nodes = next(collection for collection in d.collections if isinstance(collection, PathCollection))
     links = next(collection for collection in d.collections if isinstance(collection, LineCollection))
@@ -124,23 +122,15 @@ def test_patent_overview_layout_counts_styles_and_inputs_are_preserved():
         box = text.get_bbox_patch().get_window_extent(fig.canvas.get_renderer())
         assert d.bbox.contains(*box.p0) and d.bbox.contains(*box.p1)
 
-    image = e.images[0]
-    expected = pivot.div(pivot.sum(axis=0), axis=1).to_numpy() * 100
-    np.testing.assert_allclose(image.get_array().data, expected)
-    np.testing.assert_array_equal(image.get_array().mask, expected == 0)
-    np.testing.assert_array_equal(image.cmap(image.norm(image.get_array()))[expected == 0], np.ones((3, 4)))
-    assert image.get_clim() == (expected[expected > 0].min(), expected.max())
-    assert image.cmap.name == "blue_cream_red"
-    assert colorbar.yaxis.label.get_size() == 17
-    assert all(text.get_size() == 13 for text in colorbar.get_yticklabels())
     renderer = fig.canvas.get_renderer()
     for ax in fig.axes:
         box = ax.get_tightbbox(renderer)
         assert fig.bbox.contains(*box.p0) and fig.bbox.contains(*box.p1)
     assert "at least 5 patent records" in fig._ukb_caption
-    assert "over the displayed topics" in fig._ukb_caption
+    assert "(D)" not in fig._ukb_caption
+    assert "legal status" not in fig._ukb_caption
+    assert "(E)" not in fig._ukb_caption
     pd.testing.assert_frame_equal(frame, original)
-    pd.testing.assert_frame_equal(pivot, original_pivot)
     assert list(graph.edges(data=True)) == edges
     plt.close(fig)
 
@@ -161,14 +151,14 @@ def test_embedded_network_never_creates_another_figure_or_overwrites_caption():
     plt.close(fig)
 
 
-def test_overview_handles_no_network_edges_or_country_topics():
+def test_overview_handles_no_network_edges():
     S.load_style("04_non_academic_02_patents")
     frame, countries, _, _, labels = patent_inputs()
-    fig = P.plot_patent_overview(frame, countries, pd.DataFrame(), nx.Graph(), labels)
-    assert len(fig.axes) == 5
-    assert not fig.axes[3].collections
-    assert fig.axes[3].axison
-    assert not any(spine.get_visible() for spine in fig.axes[3].spines.values())
+    fig = P.plot_patent_overview(frame, countries, nx.Graph(), labels)
+    assert len(fig.axes) == 3
+    assert not fig.axes[2].collections
+    assert fig.axes[2].axison
+    assert not any(spine.get_visible() for spine in fig.axes[2].spines.values())
     plt.close(fig)
 
 
@@ -179,10 +169,10 @@ def test_notebook_renders_network_once_in_overview_with_stable_export_name():
     assert "build_topic_cooccurrence_network(" in code["44aa8574"]
     assert "plot_topic_cooccurrence_network(" not in code["44aa8574"]
     assert "plot_patent_overview(" in code["f1bd2b23"]
+    assert "pivot_country_topic" not in code["f1bd2b23"]
     assert "show_figures(patent.PATENT_OVERVIEW_EXPORT, caption=fig._ukb_caption)" in code["f1bd2b23"]
     assert P.PATENT_OVERVIEW_EXPORT == (
-        "patent_counts_by_filing_status_and_year_top_countries_by_assignee_occurrences_"
-        "distribution_of_topics_per_patent_patent_topics_by_country"
+        "patents_assignee_geography_and_topic_structure"
     )
 
 
@@ -205,6 +195,9 @@ def test_country_topic_summary_preserves_counts_and_uses_requested_styles():
         P.finalize_figure(fig)
         fig.canvas.draw()
     heatmap, bars, colorbar = fig.axes
+    assert tuple(fig.get_size_inches()) == (20, 7.5)
+    assert '(C)' not in fig._ukb_caption
+    assert 'Research fields of UK Biobank-linked patents by assignee country.' in fig._ukb_caption
     assert [ax.get_title(loc="left") for ax in (heatmap, bars)] == list("AB")
     assert heatmap.get_subplotspec().rowspan.start == bars.get_subplotspec().rowspan.start == 0
     assert heatmap.get_subplotspec().colspan.start == 0
@@ -336,8 +329,8 @@ def test_notebook_displays_country_topic_summary_once():
     assert "plot_country_dominant_topics(" not in source
     assert source.count("show_figures(") == 1
     assert "show_figures(patent.PATENT_COUNTRY_TOPICS_EXPORT, caption=fig._ukb_caption)" in source
-    assert "df_patent=df_with_iso" in source
-    assert P.PATENT_COUNTRY_TOPICS_EXPORT == "patents_country_topics_dominant_topics_and_legal_status"
+    assert "df_patent=" not in source
+    assert P.PATENT_COUNTRY_TOPICS_EXPORT == "patents_country_topics_and_dominant_topics"
     duplicate = next(cell for cell in nb["cells"] if cell["id"] == "073c11ce")
     assert "show_figures" not in "".join(duplicate["source"])
     assert "plot_filing_status_over_time" not in "".join(duplicate["source"])

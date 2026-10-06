@@ -75,17 +75,30 @@ def test_field_legend_sits_close_below_axis_labels_with_equal_columns(figure_fun
     fig = figure_function(context)
     fig.canvas.draw()
     renderer = fig.canvas.get_renderer()
-    label_bottom = min(ax.xaxis.label.get_window_extent(renderer).y0 for ax in fig.axes)
-    legend_bounds = fig.legends[0].get_window_extent(renderer)
-    assert all(text.get_fontsize() == legend_fontsize for text in fig.legends[0].get_texts())
+    if figure_function is figures.activity_over_time:
+        assert not fig.legends
+        assert fig.axes[0].get_legend() is None
+        legend = fig.axes[1].get_legend()
+        label_bottom = fig.axes[1].xaxis.label.get_window_extent(renderer).y0
+        bounds = legend.get_window_extent(renderer)
+        panel = fig.axes[1].get_window_extent(renderer)
+        assert bounds.x0 >= panel.x0
+        assert bounds.x1 <= panel.x1
+        assert bounds.y0 >= fig.bbox.y0
+        assert legend._ncols == 2
+    else:
+        legend = fig.legends[0]
+        label_bottom = min(ax.xaxis.label.get_window_extent(renderer).y0 for ax in fig.axes)
+    legend_bounds = legend.get_window_extent(renderer)
+    assert all(text.get_fontsize() == legend_fontsize for text in legend.get_texts())
     assert fig.bbox.x0 < legend_bounds.x0 < legend_bounds.x1 < fig.bbox.x1
     legend_top = legend_bounds.y1
     gap_points = (label_bottom - legend_top) * 72 / fig.dpi
     assert 6 <= gap_points <= 18
-    columns = fig.legends[0]._legend_handle_box.get_children()
+    columns = legend._legend_handle_box.get_children()
     heights = [column.get_window_extent(renderer).height for column in columns]
     assert max(heights) - min(heights) < .01
-    for row_index in range(2):
+    for row_index in range(len(columns[0].get_children())):
         positions = [column.get_children()[row_index].get_window_extent(renderer).y0
                      for column in columns]
         assert max(positions) - min(positions) < .01
@@ -273,7 +286,57 @@ def test_combined_concentration_and_cohorts_preserves_both_analyses(papers):
     np.testing.assert_array_equal(left.lines[0].get_xydata(), concentration.axes[0].lines[0].get_xydata())
     assert [t.get_text() for t in right.get_xticklabels()] == [
         t.get_text() for t in cohorts.axes[0].get_xticklabels()]
-    assert combined._ukb_caption == f"(A) {concentration._ukb_caption} (B) {cohorts._ukb_caption}"
+    assert combined._ukb_caption == (
+        "Citation concentration and publication-cohort distributions. "
+        f"(A) {concentration._ukb_caption} (B) {cohorts._ukb_caption}"
+    )
+
+
+def test_citation_cohorts_include_2025_without_annualising_counts(papers):
+    latest = pd.DataFrame({"id": ["recent-zero", "recent-cited", "outside-window"],
+                           "year": [2025, 2025, 2026], "times_cited": [0, 100, 999]})
+    data = pd.concat([papers, latest], ignore_index=True).drop(columns="citations_per_year")
+    fig = figures.citation_cohorts(data)
+    summary = fig._ukb_tables["fig06_snapshot_citation_cohorts.csv"].set_index("cohort")
+    assert summary.papers.sum() == len(papers) + 2
+    assert summary.loc["2025", "papers"] == 2
+    assert summary.loc["2025", "median_citations"] == 50
+    assert summary.loc["2025", "uncited_percent"] == 50
+    assert list(summary.index) == ["2013-2015", "2016-2018", "2019-2021", "2022-2024", "2025"]
+    assert fig.axes[0].get_xticklabels()[-1].get_text() == "2025\nn = 2"
+    assert "Snapshot citations per publication" in fig.axes[0].get_ylabel()
+    assert "not annualised" in fig._ukb_caption
+    assert "2025 retained as a separate partial cohort" in fig._ukb_caption
+    assert "less time to accumulate citations" in fig._ukb_caption
+    assert "fig06_age_adjusted_citation_cohorts.csv" not in fig._ukb_tables
+    # Changing the observation year cannot change this descriptive, raw-count table.
+    later = figures.citation_cohorts(data, CITATION_SNAPSHOT_YEAR=2027)
+    pd.testing.assert_frame_equal(
+        summary, later._ukb_tables["fig06_snapshot_citation_cohorts.csv"].set_index("cohort"))
+    combined = figures.citation_concentration_and_cohorts(data)
+    assert len(combined._ukb_tables["fig05_citation_concentration_curve.csv"]) == len(papers) + 2
+    colors = [to_hex(body.get_facecolor()[0]) for body in fig.axes[0].collections]
+    assert colors == [to_hex(c) for c in
+                      style.palette("red", "cream", "steel_blue", "light_blue", "navy")]
+
+
+def test_citation_cohorts_keep_singletons_and_uncited_publications():
+    data = pd.DataFrame({"id": ["a", "b", "c"], "year": [2022, 2022, 2025],
+                         "times_cited": [0, 0, 0]})
+    fig = figures.citation_cohorts(data)
+    fig.canvas.draw()
+    summary = fig._ukb_tables["fig06_snapshot_citation_cohorts.csv"]
+    assert summary.papers.tolist() == [2, 1]
+    assert (summary.median_citations == 0).all()
+    assert (summary.uncited_percent == 100).all()
+    assert fig.axes[0].get_ylim()[1] > 0
+
+
+def test_citation_cohorts_reject_empty_or_invalid_windows(papers):
+    with pytest.raises(ValueError, match="publication window"):
+        figures.citation_cohorts(papers, MIN_YEAR=2025, MAX_YEAR=2024)
+    with pytest.raises(ValueError, match="No publications"):
+        figures.citation_cohorts(papers.iloc[:0])
 
 
 def test_citation_overview_preserves_all_four_analyses_in_a_two_by_two_grid(papers):
@@ -336,7 +399,8 @@ def test_cohort_violins_use_distinct_project_palette_colours(papers, figure_func
     fig = figure_function(papers)
     bodies = fig.axes[panel].collections
     colors = [to_hex(body.get_facecolor()[0]) for body in bodies]
-    assert colors == [to_hex(color) for color in style.palette("red", "cream", "steel_blue", "green")]
+    assert colors == [to_hex(color) for color in
+                      style.palette("red", "cream", "steel_blue", "light_blue")]
     assert all(body.get_alpha() == 1 for body in bodies)
     assert all(to_hex(body.get_edgecolor()[0]) == "#000000" for body in bodies)
     assert all(to_hex(box.get_facecolor()) == "#ffffff" for box in fig.axes[panel].patches)

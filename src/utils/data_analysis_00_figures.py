@@ -234,6 +234,8 @@ def plot_candidate_text(category_summary, tfidf_terms):
 
 def plot_semantic_diagnostics(data):
     """Show the same cached projection by consensus group and publication year."""
+    if not data.year_int.between(2013, 2025).all():
+        raise ValueError("Semantic coordinates must describe the 2013–2025 analysis window.")
     style = load_style("00_dataset")
     fig, axes = plt.subplots(1, 2, figsize=(12, 5.3), sharex=True, sharey=True, layout="constrained")
     fig.get_layout_engine().set(w_pad=.12, h_pad=.1, wspace=.10)
@@ -256,24 +258,22 @@ def plot_semantic_diagnostics(data):
     return fig
 
 
-def plot_consensus_validation(model_summary, yearly, category_summary,
-                              semantic_data=None, semantic_metrics=None):
-    """Restore the four-panel annual/text/semantic diagnostic from the manuscript.
-
-    A missing semantic cache is labelled explicitly rather than silently dropping
-    panel D or substituting coordinates from an older candidate pool.
-    """
+def plot_consensus_validation(model_summary, yearly, category_summary):
+    """Three consensus diagnostics; semantic projections are shown separately."""
     style = load_style("00_dataset")
-    fig, axes = panel_grid(2, 2, style, figsize=(14, 10.2), layout="constrained")
+    fig = plt.figure(figsize=(14, 10.2), layout="constrained")
+    grid = fig.add_gridspec(2, 2, height_ratios=[1, 1.35])
+    axes = [fig.add_subplot(grid[0, 0]), fig.add_subplot(grid[0, 1]),
+            fig.add_subplot(grid[1, :])]
     fig.get_layout_engine().set(w_pad=.12, h_pad=.14, wspace=.09, hspace=.12)
-    label_panels(axes, "ABCD", style)
-    for ax, grid_axis in zip(axes.flat, ("both", "both", "x", "both")):
+    label_panels(axes, "ABC", style)
+    for ax, grid_axis in zip(axes, ("both", "both", "x")):
         style_axis(ax, style, grid_axis=grid_axis,
                    grid_kws={"which": "major", "log": True})
         ax.minorticks_off()
     series = yearly.set_index("year_int").reindex(range(2013, 2026))
 
-    ax = axes[0, 0]
+    ax = axes[0]
     for model, color, label in zip(model_summary.model, MODEL_COLORS, model_summary.display_name):
         ax.plot(series.index, series[f"{model}_TRUE"], marker="o", markersize=4,
                 linewidth=1.7, color=color, label=label)
@@ -283,7 +283,7 @@ def plot_consensus_validation(model_summary, yearly, category_summary,
     _years(ax, style)
     black_legend(ax, style, loc="upper left")
 
-    ax = axes[0, 1]
+    ax = axes[1]
     for column, color, label in zip(
             ("three_model_TRUE_agreement", "rest_NOT_three_model_TRUE_agreement"),
             GROUP_COLORS, GROUP_LABELS):
@@ -298,7 +298,7 @@ def plot_consensus_validation(model_summary, yearly, category_summary,
     _years(ax, style)
     black_legend(ax, style, loc="upper left")
 
-    ax = axes[1, 0]
+    ax = axes[2]
     pivot = category_summary.pivot(index="category", columns="binary_split", values="percent_with_category")
     pivot = pivot.sort_values(TRUE_GROUP, ascending=False)
     sizes = category_summary.groupby("binary_split").n_group.first()
@@ -312,43 +312,21 @@ def plot_consensus_validation(model_summary, yearly, category_summary,
     _percent(ax, axis="x")
     black_legend(ax, style, loc="lower right")
 
-    ax = axes[1, 1]
-    if semantic_data is None or semantic_metrics is None:
-        ax.grid(False)
-        ax.set_xticks([])
-        ax.set_yticks([])
-        ax.text(.5, .58, "SEMANTIC PANEL UNAVAILABLE", transform=ax.transAxes,
-                ha="center", va="center", fontsize=style["label_fs"],
-                fontweight="bold", color=palette("navy"))
-        ax.text(.5, .43, "No matching coordinates and metrics.\nPanels A–C use the current candidate data;\nthis four-panel figure is incomplete.",
-                transform=ax.transAxes, ha="center", va="center",
-                fontsize=style["annot_fs"], linespacing=1.5)
-        return fig
-
-    if not semantic_data.year_int.between(2013, 2025).all():
-        plt.close(fig)
-        raise ValueError("Semantic coordinates must describe the 2013–2025 analysis window.")
-    metrics = semantic_metrics.set_index("metric").value
-    silhouette = float(metrics["SI_silhouette_index_cosine"])
-    if not np.isfinite(silhouette):
-        plt.close(fig)
-        raise ValueError("The semantic silhouette index must be finite.")
-    # Draw the majority/background category first, preserving the group's colour
-    # identity used by panel C and the other diagnostic figures.
-    for group, label, color in reversed(list(zip(GROUPS, GROUP_LABELS, GROUP_COLORS))):
-        subset = semantic_data.loc[semantic_data.binary_split.eq(group)]
-        ax.scatter(subset.semantic_x, subset.semantic_y, s=9, alpha=.6, color=color,
-                   linewidths=0, rasterized=True, label=label.replace(" ", "\n", 1))
-    ax.set(xlabel="Embedding principal component 1", ylabel="Embedding principal component 2")
-    ax.margins(x=.08, y=.25)
-    ax.xaxis.set_major_locator(MaxNLocator(nbins=4))
-    ax.yaxis.set_major_locator(MaxNLocator(nbins=4))
-    black_legend(ax, style, loc="lower right", fontsize=style["legend_fs"] - 2,
-                 handlelength=1, handletextpad=.4, borderpad=.4, labelspacing=.5)
-    ax.text(.02, .97, f"Cosine silhouette index = {silhouette:.4f}", transform=ax.transAxes,
-            ha="left", va="top", fontsize=style["annot_fs"],
-            bbox=dict(facecolor="white", edgecolor="none", alpha=.9, pad=3))
     return fig
+
+
+def consensus_validation_caption(count):
+    """Caption for the three-panel figure, independent of semantic-cache availability."""
+    return (
+        f"Three-model consensus and candidate characteristics, 2013–2025 (n={count:,} candidates). "
+        "A, Annual TRUE predictions from Qwen, Llama3-8B and Mistral-7B. "
+        "B, Annual numbers with unanimous TRUE predictions versus all other candidates "
+        "(log scale; zero counts are omitted and missing years left blank). "
+        "C, Prevalence of prespecified keyword cues in titles or abstracts, by consensus group; "
+        "cues are not mutually exclusive. "
+        "These post-hoc contrasts describe model-defined groups, not independent validation accuracy. "
+        "Other candidates include disagreements and unparsed responses as well as unanimous FALSE predictions."
+    )
 
 
 def plot_consensus_groups(group_distribution):
@@ -433,6 +411,8 @@ def render_agreement_figures(*, model_summary, vote_distribution, agreement_matr
         metrics = semantic_metrics.set_index("metric").value
         method = metrics.get("embedding_method", "saved embeddings")
         silhouette = float(metrics["SI_silhouette_index_cosine"])
+        if not np.isfinite(silhouette):
+            raise ValueError("The semantic silhouette index must be finite.")
         caption = (
             f"Semantic diagnostics of candidate publications, 2013–2025 (n={len(semantic_data):,}). "
             f"A,B, The same two-dimensional principal-component projection of {method} representations, "
@@ -444,30 +424,9 @@ def render_agreement_figures(*, model_summary, vote_distribution, agreement_matr
         files.extend(export(plot_semantic_diagnostics(semantic_data), figure_dir,
                               "00_05_figure_semantic_diagnostics", caption, show=show_figures))
 
-    complete = semantic_data is not None and semantic_metrics is not None
-    caption = (
-        f"Three-model consensus and candidate characteristics, 2013–2025 (n={count:,} candidates). "
-        "A, Annual TRUE predictions from Qwen, Llama3-8B and Mistral-7B. "
-        "B, Annual numbers with unanimous TRUE predictions versus all other candidates "
-        "(log scale; zero counts are omitted and missing years left blank). "
-        "C, Prevalence of prespecified keyword cues in titles or abstracts, by consensus group; "
-        "cues are not mutually exclusive. "
-    )
-    if complete:
-        caption += (
-            f"D, Principal-component projection of {method} representations for "
-            f"{len(semantic_data):,} sampled candidates, coloured by consensus group. "
-            f"The cosine silhouette index in the full representation is {silhouette:.4f}. "
-        )
-    else:
-        caption += "D is unavailable because matching semantic coordinates and metrics are missing; this figure is incomplete. "
-    caption += (
-        "These post-hoc contrasts describe model-defined groups, not independent validation accuracy. "
-        "Other candidates include disagreements and unparsed responses as well as unanimous FALSE predictions."
-    )
-    stem = "00_06_figure_consensus_validation" + ("" if complete else "_incomplete")
-    files.extend(export(plot_consensus_validation(model_summary, yearly, category_summary,
-                                                   semantic_data, semantic_metrics),
+    caption = consensus_validation_caption(count)
+    stem = "00_06_figure_consensus_validation"
+    files.extend(export(plot_consensus_validation(model_summary, yearly, category_summary),
                           figure_dir, stem, caption, show=show_figures))
     if group_distribution is not None:
         caption = (

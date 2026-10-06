@@ -177,7 +177,8 @@ class ContentFigureTests(unittest.TestCase):
         self.assertAlmostEqual(boxes[0].height, boxes[1].height)
         self.assertAlmostEqual(boxes[0].y0, boxes[1].y0)
         for ax, box, names in zip((A, B), boxes, (fields, categories)):
-            self.assertLessEqual(box.x1, ax.get_window_extent().x1)
+            self.assertAlmostEqual(box.x0, ax.get_window_extent().x0)
+            self.assertAlmostEqual(box.x1, ax.get_window_extent().x1)
             self.assertGreater(box.y0, C.get_tightbbox().y1)
             self.assertLess(box.y0 - C.get_tightbbox().y1, .04 * fig.bbox.height)
             texts = ax.get_legend().get_texts()
@@ -185,8 +186,34 @@ class ContentFigureTests(unittest.TestCase):
             self.assertEqual([' '.join(t.get_text().split()) for t in texts[:-1]],
                              names[:-1])
 
+    def test_main_right_edges_align_with_topic_legend_at_export_dpis(self):
+        D = self.fixture()
+        labels = list(panels.TOPIC_DISPLAY_LABELS)[:12]
+        topic_long = pd.DataFrame({'id': [str(i) for i in range(len(labels))],
+                                   'year': [2025] * len(labels),
+                                   'topic_label': labels})
+        D['topics'] = panels._flow_block(topic_long, 'topic_label', 'topics')
+        fig = panels.figure_main(D, save=False)
+        finalize_figure(fig)
+        A, B, C = fig.axes
+        for dpi in (72, 150, 300):
+            with self.subTest(dpi=dpi):
+                fig.set_dpi(dpi)
+                fig.canvas.draw()
+                legend = C.get_legend().get_window_extent()
+                right = B.get_window_extent().x1
+                self.assertAlmostEqual(B.get_legend().get_window_extent().x1, right)
+                self.assertAlmostEqual(legend.x1, right)
+                self.assertGreater(legend.x0 - C.get_window_extent().x1,
+                                   .01 * fig.bbox.width)
+                self.assertAlmostEqual(C.get_window_extent().x0,
+                                       A.get_window_extent().x0)
+
     def test_category_heatmap_headings_are_letters_only(self):
         fig = panels.figure_si_category_changes(self.fixture(), save=False)
+        width, height = panels._style().get('figsize_si', (15, 10))
+        self.assertAlmostEqual(fig.get_figwidth(), width)
+        self.assertAlmostEqual(fig.get_figheight(), height * 1.2)
         finalize_figure(fig)
         fig.canvas.draw()
         self.assertEqual([ax.get_title(loc='left') for ax in fig.axes], ['A', 'B'])

@@ -53,6 +53,9 @@ EXPECTED_REWRITTEN_CELL_IDS = {
     "7eba14c7",
     "3cbeffa1",  # Figure display helper moved into utils.
     "fb4b07e5",  # Relative paths in the final figure inventory.
+    "ad6c3d37",  # Consensus figure no longer duplicates the standalone semantic map.
+    "0a70acb8",  # Semantic metrics now accompany the dedicated projection figure.
+    "7885218a",  # Dedicated semantic figure displays its retained metric table.
 }
 
 

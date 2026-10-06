@@ -1922,31 +1922,32 @@ def top_level_code_from_leading(leading_code):
 # For each patent, turn its categories into a list of (top_level_code, top_level_label)
 # -----------------------
 def collapse_to_top_level(cat_parsed):
-    """
-    Input: list of topic dicts
-    Output: list of tuples (top_code, top_label) possibly with duplicates
-    """
-    results = []
+    """Return distinct FoR divisions, never relabelling a division as a child group."""
+    division_labels = {
+        '30': 'Agricultural, Veterinary and Food Sciences',
+        '31': 'Biological Sciences', '32': 'Biomedical and Clinical Sciences',
+        '33': 'Built Environment and Design', '34': 'Chemical Sciences',
+        '35': 'Commerce, Management, Tourism and Services',
+        '36': 'Creative Arts and Writing', '37': 'Earth Sciences',
+        '38': 'Economics', '39': 'Education', '40': 'Engineering',
+        '41': 'Environmental Sciences', '42': 'Health Sciences',
+        '43': 'History, Heritage and Archaeology', '44': 'Human Society',
+        '45': 'Indigenous Studies', '46': 'Information and Computing Sciences',
+        '47': 'Language, Communication and Culture', '48': 'Law and Legal Studies',
+        '49': 'Mathematical Sciences', '50': 'Philosophy and Religious Studies',
+        '51': 'Physical Sciences', '52': 'Psychology',
+    }
+    results = {}
     for d in cat_parsed:
         leading_code, name_rest = extract_name_and_leading_code(d)
         top_code = top_level_code_from_leading(leading_code)
-        # build a provisional label: prefer the broad-level name if available
         if top_code is None:
-            # fallback: use full name if no numeric code
-            label = d.get('name') or None
-        else:
-            # try to find a "top-level" label: if the topic name already begins with top_code text
-            # name_rest may be the fine-grained label (e.g., 'Clinical Sciences')
-            label = None
-            if name_rest:
-                label = name_rest
-            else:
-                # if no rest, fallback to the full 'name' without numeric prefix
-                full = d.get('name', '')
-                m2 = re.match(r'^\s*\d+\s*(.*)$', full)
-                label = m2.group(1).strip() if m2 and m2.group(1) else full
-        results.append((top_code, label))
-    return results
+            continue
+        label = division_labels.get(top_code)
+        if label is None:
+            label = name_rest if leading_code == top_code else f'FoR division {top_code}'
+        results.setdefault(top_code, label)
+    return list(results.items())
 
 
 
@@ -2419,7 +2420,7 @@ def _normalize_topic_code_list(topics: Any) -> List[str]:
 def analyze_topic_diversity(df_patent: pd.DataFrame, topics_col: str = 'top_level_topics') -> pd.DataFrame:
     """Return a copy of the dataframe with a topic_count column."""
     out = df_patent.copy()
-    out['topic_count'] = out[topics_col].apply(lambda x: len(_normalize_topic_code_list(x)))
+    out['topic_count'] = out[topics_col].apply(lambda x: len(set(_normalize_topic_code_list(x))))
     return out
 
 
@@ -2522,117 +2523,82 @@ def plot_topic_cooccurrence_network(
 
 
 PATENT_OVERVIEW_EXPORT = (
-    "patent_counts_by_filing_status_and_year_top_countries_by_assignee_occurrences_"
-    "distribution_of_topics_per_patent_patent_topics_by_country"
+    "patents_assignee_geography_and_topic_structure"
 )
 
 
-def plot_patent_overview(df_patent, country_counts, pivot_country_topic, graph,
+def plot_patent_overview(df_patent, country_counts, graph,
                          code_to_label, *, min_cooccurrence=5):
-    """Combine patent activity, geography and topic structure without exporting.
+    """Combine patent geography and topic structure without exporting.
 
-    Three compact distributions sit above two wider topic panels. The supplied
-    graph and country-topic matrix are reused, not recomputed or filtered here.
+    Two distributions sit beside a full-height network. The supplied graph is
+    reused, not recomputed or filtered here.
     """
-    from textwrap import fill
     from matplotlib.ticker import MaxNLocator
 
     apply_typography()
-    fig = plt.figure(figsize=(18, 11), layout='constrained')
+    fig = plt.figure(figsize=(18, 9), layout='constrained')
     fig.get_layout_engine().set(w_pad=.10, h_pad=.10, hspace=.08)
-    grid = fig.add_gridspec(2, 1, height_ratios=(1, 1.35))
-    top = grid[0].subgridspec(1, 3, width_ratios=(1.4, 1, 1), wspace=.10)
-    bottom = grid[1].subgridspec(1, 2, width_ratios=(1.12, 1), wspace=.08)
-    axes = [fig.add_subplot(top[i]) for i in range(3)]
-    axes.extend(fig.add_subplot(bottom[i]) for i in range(2))
-    for letter, ax in zip('ABCDE', axes):
+    grid = fig.add_gridspec(2, 2, width_ratios=(1, 1.25), wspace=.08)
+    axes = [fig.add_subplot(grid[0, 0]), fig.add_subplot(grid[1, 0]),
+            fig.add_subplot(grid[:, 1])]
+    for letter, ax in zip('ABC', axes):
         ax._ukb_title_fs = 26
         ax._ukb_label_fs = 17
         ax._ukb_tick_fs = 13
         ax._ukb_annotation_fs = 12
         ax._ukb_legend_fs = 13
         set_title(ax, letter)
-    axes[3].set_xticks([])
-    axes[3].set_yticks([])
-
-    # Work on a copy: the status helper derives publication years and labels.
-    plot_filing_status_over_time(df_patent.copy(), 'legal_status_replaced',
-                                savefigure=False, ax=axes[0], title='A')
-    handles, labels = axes[0].get_legend_handles_labels()
-    short_status = {
-        'Application Pending': 'Pending', 'Application Granted': 'Granted',
-        'Granted Patent Expired': 'Expired', 'Application Ceased': 'Ceased',
-        'Application Withdrawn': 'Withdrawn', 'Application Abandoned': 'Abandoned',
-    }
-    axes[0].legend(handles, [short_status.get(label, label) for label in labels],
-                   loc='upper left', ncol=2, columnspacing=1, handlelength=1.3)
-    axes[0].set(xlabel='Publication year', ylabel='Number of patents')
-    axes[0].xaxis.set_major_locator(MaxNLocator(nbins=5, integer=True))
+    axes[2].set_xticks([])
+    axes[2].set_yticks([])
 
     countries = country_counts.sort_values('count', ascending=False, kind='stable').head(10)
-    axes[1].bar(countries['iso2'].replace({'GB': 'UK'}), countries['count'],
+    axes[0].bar(countries['iso2'].replace({'GB': 'UK'}), countries['count'],
                 color=palette('steel_blue'), edgecolor='black', linewidth=.6)
-    axes[1].set(xlabel='Assignee country', ylabel='Assignee-country occurrences')
+    axes[0].set(xlabel='Assignee country', ylabel='Assignee-country occurrences')
 
     counts = df_patent['topic_count'].dropna()
     if len(counts):
         # Centre bins on integers and retain patents without a classified topic.
-        axes[2].hist(counts, bins=np.arange(0, int(counts.max()) + 2) - .5,
+        axes[1].hist(counts, bins=np.arange(0, int(counts.max()) + 2) - .5,
                      color=palette('steel_blue'), edgecolor='black', linewidth=.6)
-        axes[2].axvline(counts.mean(), linestyle='--', color=palette('navy'),
+        axes[1].axvline(counts.mean(), linestyle='--', color=palette('navy'),
                         label=f'Mean: {counts.mean():.2f}')
-        axes[2].axvline(counts.median(), linestyle=':', color=palette('red'),
+        axes[1].axvline(counts.median(), linestyle=':', color=palette('red'),
                         label=f'Median: {counts.median():.0f}')
-        axes[2].legend(loc='upper right', handlelength=1.7)
-        axes[2].xaxis.set_major_locator(MaxNLocator(nbins=7, integer=True))
-    axes[2].set(xlabel='Topics per patent', ylabel='Number of patents')
-    for ax in axes[:3]:
+        axes[1].legend(loc='upper right', handlelength=1.7)
+        axes[1].xaxis.set_major_locator(MaxNLocator(nbins=7, integer=True))
+    axes[1].set(xlabel='Distinct FoR divisions per patent', ylabel='Number of patents')
+    for ax in axes[:2]:
         ax.yaxis.set_major_locator(MaxNLocator(nbins=5, integer=True))
 
-    wrapped_labels = {code: fill(str(label), 25, break_long_words=False,
-                                 break_on_hyphens=False)
-                      for code, label in code_to_label.items()}
-    plot_country_topic_heatmap(pivot_country_topic, code_to_label=wrapped_labels,
-                              ax=axes[4], cmap=blue_cream_red_colormap(),
-                              title='E', mask_zeros=True)
-    axes[4].set_ylabel('Patent topic')
-    axes[4].set_xlabel('Assignee country')
-    if axes[4].images:
-        colorbar = axes[4].images[0].colorbar
-        colorbar.ax._ukb_label_fs = 17
-        colorbar.ax._ukb_tick_fs = 13
     for index, ax in enumerate(axes):
         for side, spine in ax.spines.items():
-            spine.set_visible(index == 4 or (index < 3 and side in ('left', 'bottom')))
+            spine.set_visible(index < 2 and side in ('left', 'bottom'))
             spine.set_color('black')
             spine.set_linewidth(1)
     # Freeze layout before finding collision-free network callout positions.
     finalize_figure(fig)
     fig.canvas.draw()
     fig.set_layout_engine('none')
-    plot_topic_cooccurrence_network(graph, code_to_label=code_to_label, ax=axes[3])
+    plot_topic_cooccurrence_network(graph, code_to_label=code_to_label, ax=axes[2])
     # Keep the network axis active for labels, but without ticks or a frame.
-    axes[3].set_axis_on()
-    axes[3].set_xticks([])
-    axes[3].set_yticks([])
+    axes[2].set_axis_on()
+    axes[2].set_xticks([])
+    axes[2].set_yticks([])
     finalize_figure(fig)
     fig._ukb_caption = (
-        'UK Biobank-linked patent activity and topic structure. '
-        '(A) Patent records by publication year and legal status at extraction; '
-        'bar-top labels give annual totals, including records marked N/A. '
-        '(B) The ten leading assignee countries '
-        'by recorded country occurrences. (C) Distribution of collapsed Fields of '
-        'Research topic counts per patent, including zero for patents without a '
+        'Assignee geography and topic structure of UK Biobank-linked patents. '
+        '(A) The ten leading assignee countries by country-entry occurrences, '
+        'using structured assignee countries and the existing name-based fallback. '
+        '(B) Distribution of distinct two-digit Fields of '
+        'Research divisions per patent, including zero for patents without a '
         'classified topic; dashed and dotted lines mark the mean and median. '
-        '(D) Topic co-occurrence network. Nodes are topics, with node area increasing '
-        'with the number of connected topics. Edge widths increase with joint patent '
+        '(C) Division co-occurrence network. Nodes are divisions, with node area increasing '
+        'with the number of connected divisions. Edge widths increase with joint patent '
         'counts, which are also labelled; only pairs occurring together in at least '
         f'{min_cooccurrence} patent records are retained. '
-        '(E) Topic composition for the selected leading assignee countries and topics. '
-        "Each patent's unit country weight is divided equally across its recorded "
-        'assignee countries, then credited to each distinct topic. Percentages are '
-        'normalised within country over the displayed topics, not all patent topics. '
-        'Zero cells are white. Patent records are not deduplicated into patent families.'
+        'Patent records are not deduplicated into patent families.'
     )
     return fig
 
@@ -2828,7 +2794,7 @@ def plot_country_dominant_topics(
     return fig, ax
 
 
-PATENT_COUNTRY_TOPICS_EXPORT = 'patents_country_topics_dominant_topics_and_legal_status'
+PATENT_COUNTRY_TOPICS_EXPORT = 'patents_country_topics_and_dominant_topics'
 
 
 def plot_country_topic_summary(pivot_country_topic, topic_by_country, top_countries,
@@ -2900,10 +2866,13 @@ def plot_country_topic_summary(pivot_country_topic, topic_by_country, top_countr
         ax.xaxis.set_major_locator(MaxNLocator(integer=True))
         set_title(ax, 'C')
     fig._ukb_caption = (
-        'Patent fields by assignee country. (A) Field composition for the selected '
-        'leading countries and topic divisions. Each patent contributes unit weight '
-        'divided equally among its recorded assignee countries, with that country '
-        'weight credited to each distinct topic. Percentages are normalised within '
+        'Research fields of UK Biobank-linked patents by assignee country. '
+        '(A) Research-field composition for the selected leading countries and topic '
+        'divisions. Each patent contributes unit weight divided equally among its '
+        'non-missing assignee-country entries, retaining repeated countries; '
+        'country weights are credited in full to every distinct division assigned '
+        'to that patent. Countries use structured metadata and the existing name-based '
+        'fallback. Percentages are normalised within '
         'country over the displayed topics, not all patent topics; empty or zero '
         'cells are white. (B) The highest-weight topic in each selected country, '
         'identified using all recorded topics, and its fractional patent count. '

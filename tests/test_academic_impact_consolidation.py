@@ -85,7 +85,9 @@ class AcademicImpactConsolidationTests(unittest.TestCase):
         self.assertNotIn('"fig06_age_adjusted_citation_cohorts"', self.source)
         merged = self.notebook["metadata"]["ukb_consolidation"]["refinement"]
         self.assertEqual(merged["combined_figures_replaced_by"]["_wMswquSRHhM"], "sgMydPt1RHhM")
-        self.assertIn("Panel B shows age-adjusted citation impact", self.source)
+        self.assertIn("Panel B describes raw snapshot citation distributions", self.source)
+        self.assertIn("separate 2025 cohort", self.source)
+        self.assertNotIn("Panel B shows age-adjusted citation impact", self.source)
 
     def test_four_citation_diagnostics_are_published_as_one_overview(self):
         self.assertEqual(self.source.count("Q.citation_overview("), 1)

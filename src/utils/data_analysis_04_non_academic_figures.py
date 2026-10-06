@@ -33,6 +33,7 @@ PATENT_STATUS_COLORS = dict(zip(
     [S.NON_ACADEMIC_PALETTE[6],
      *S.palette("steel_blue", "blue", "light_blue", "navy", "cream", "red")],
 ))
+PATENT_STATUS_COLORS["Unknown"] = "white"
 
 TRIAL_SECTOR_COLORS = dict(zip(
     ["Academia", "Healthcare", "Industry", "Government", "Nonprofit", "Other"],
@@ -46,43 +47,43 @@ CAPTIONS = {
     "ct_mesh_rcdc_categories": "Broad classifications of UK Biobank-linked clinical trials using Dimensions MeSH tags (A, B) and all RCDC tags (C, D). Each panel shows the 15 highest-ranked categories for its measure. Left panels count trials carrying each category; right panels divide each trial's unit weight equally across its distinct tags before aggregation. Categories can therefore differ between the raw and fractional rankings. Dimensions MeSH includes tree ancestors and intervention-related terms; RCDC includes research areas and methods as well as diseases. These are classification portfolios, not disease-only rankings.",
     "ct_disease_classifications": "Disease-focused classifications of UK Biobank-linked clinical trials using RCDC (A, B) and registry condition-leaf MeSH terms (C, D). The explicit stop lists documented in the notebook remove cross-cutting RCDC tags and non-disease MeSH leaf terms before counting. Each panel shows the 15 highest-ranked categories for its measure: numbers of trials on the left and fractional trial weights on the right. Fractional weights divide each trial's unit weight equally across all its distinct retained tags before selecting the top 15. Different disease vocabularies and coverage mean that the RCDC and MeSH counts are not interchangeable.",
     "ct_diseases_mesh_ancestors": "MeSH tree-ancestor categories recorded for UK Biobank-linked clinical trials, after the documented exclusions of non-disease terms. The 15 highest-ranked ancestors are shown by trial count (A) and fractional trial weight (B). Each trial's unit weight is divided equally across its distinct retained ancestor tags before aggregation. Ancestors describe the classification hierarchy and should not be interpreted as directly matched disease terms.",
-    "ct_combined_figure": "(A) Lifecycle stages of UK Biobank-linked clinical trials, split by study type. (B) Number of linked trials by start year. Counts refer to trial records, not publications.",
+    "ct_combined_figure": "(A) Lifecycle stages of UK Biobank-linked clinical trials with start dates in 2013-2025, by study type. Bar-end labels show trial counts; bracketed totals combine interventional and observational trials within each stage. Stopped early includes terminated, withdrawn and suspended trials. Statuses are those recorded at the data snapshot. Counts refer to trial records, not publications.",
     "ct_icd_bodymap": "Clinical-trial disease coverage mapped to ICD-10 chapters using the keyword mapping documented above. On the schematic body outline, marker area is directly proportional to the number of trials touching a chapter, using the displayed size key. Positions indicate broad body systems, not precise organ locations; neoplasms and infectious disease are shown separately as systemic conditions. A trial may map to more than one chapter.",
     "ct_rcdc_icd": "Clinical-trial coverage by ICD-10 chapter using the documented keyword rules. (A) Counts mapped from disease-focused RCDC tags, with percentages of all included trials. (B) Counts mapped from MeSH terms (blue) and disease-focused RCDC tags (red), using the same mapping rules. Both panels share chapter order and count scale; chapters found by either vocabulary are retained, including those with zero RCDC counts. Each trial is counted once per chapter it touches, so chapters are not mutually exclusive.",
     "ct_where_sector": "Location and organisation sectors of UK Biobank-linked clinical trials. Each trial's unit weight is divided equally across its distinct country-sector pairs before aggregation.",
-    "ct_country_maps_trials_vs_papers": "Geographical distribution of UK Biobank-linked clinical trials and the publications they cite, based on recorded research-organisation countries. (A, B) Trial-level country counts, with each country counted once per trial; these two panels repeat the same distribution. (C) Countries of the cited UK Biobank publications, counting each country once per publication. All panels use the same Blues colourmap. Trials and publications have separate count scales. White countries have no matched observations in the corresponding data.",
+    "ct_country_maps_trials_vs_papers": "Geographical distribution of UK Biobank-linked clinical trials and the publications they cite, based on recorded research-organisation countries. (A) Trial counts, with each country counted once per trial. (B) Counts of cited UK Biobank publications, with each country counted once per publication. Records involving multiple countries contribute to each country's count. Both panels use the same white-to-navy palette with separate logarithmic count scales. Hatching indicates countries without matched records in the corresponding dataset.",
     "ct_ukbb_papers_impact_and_timeliness": "Characteristics of UK Biobank publications cited by clinical trials. (A) Raw citation counts of the cited publications on a logarithmic axis; counts below one are displayed at one, and the median is calculated from the original counts. (B) Number of distinct UK Biobank publications cited per trial, with the most-linked trial identified. (C) Publication years of the cited papers. (D) Positive paper-to-trial lags, calculated as trial start year minus publication year for each trial-paper link; same-year and negative lags are excluded and reported below. The median positive lag is marked. (E) The ten leading journals by number of cited UK Biobank papers. Paper-level distributions count each publication once, whereas panel D counts trial-paper links. These are descriptive citation links, not evidence that a publication caused a trial to start.",
     "ct_ukbb_paper_titles": "Terms in the titles of UK Biobank publications cited by clinical trials. Word size reflects frequency after the documented stop-word filtering.",
 }
 
 
 def trial_geography_figure(rows, *, style, world=None):
-    """Stack count maps with the author main-map ramp and no country callouts."""
+    """Use the publication/authorship geography supplement's map styling."""
+    from . import data_analysis_05_author_plots as geography
+
     if world is None:
-        import geopandas as gpd
-        from . import shared_paths as P
-        world = gpd.read_file(P.WORLD_SHP)
+        world = geography.load_world_geometries()
     world = world.copy()
     world.columns = [column.lower() for column in world.columns]
-    world = world.loc[world["admin"] != "Antarctica"].copy()
-    world["iso_key"] = world["iso_a3"].where(world["iso_a3"] != "-99", world["adm0_a3"])
-    fig, axes = plt.subplots(len(rows), 1, figsize=(11, 4.2 * len(rows)),
-                             squeeze=False, layout="constrained")
-    fig.get_layout_engine().set(h_pad=.08, hspace=.04)
-    cmap = S.author_geography_colormap()
+    admin = "admin" if "admin" in world else "name"
+    world = world.loc[world[admin] != "Antarctica"].copy()
+    if "iso3" not in world:
+        iso = next(column for column in ("iso_a3_eh", "iso_a3", "adm0_a3")
+                   if column in world)
+        world["iso3"] = world[iso]
+        if "adm0_a3" in world:
+            world["iso3"] = world["iso3"].where(world["iso3"] != "-99", world["adm0_a3"])
+    fig, axes = plt.subplots(len(rows), 1, figsize=(11.5, 4.25 * len(rows)), squeeze=False)
+    fig.subplots_adjust(left=.04, right=.98, bottom=.07, top=.95, hspace=.34)
+    map_style = S.load_style("05_author_characteristics", activate=False)
+    cmap = geography._map_colormap(map_style)
     for index, (ax, (counts, label)) in enumerate(zip(axes.flat, rows)):
-        merged = world.merge(counts.rename_axis("iso3").reset_index(name="value"),
-                             how="left", left_on="iso_key", right_on="iso3")
-        measured = merged.loc[merged["value"].gt(0)]
-        merged.plot(color="white", ax=ax, edgecolor=style["edgecolor"], linewidth=.3)
-        if not measured.empty:
-            measured.plot(column="value", cmap=cmap, ax=ax, edgecolor=style["edgecolor"],
-                          linewidth=.3, legend=True,
-                          legend_kwds={"label": label, "shrink": .65, "pad": .02})
-        ax.set_xlim(-180, 180)
-        ax.set_ylim(-58, 90)
+        values = counts.loc[counts.gt(0)].rename_axis("iso3").reset_index(name="value")
+        geography._draw_country_map(
+            ax, world, values, style, value_col="value", cmap=cmap,
+            colorbar_label=f"{label} (log scale)", colorbar_orientation="horizontal",
+        )
         S.set_title(ax, chr(65 + index), fontsize=20, pad=8)
-        ax.set_axis_off()
     finalize_figure(fig)
     return fig
 

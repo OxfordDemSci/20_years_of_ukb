@@ -17,6 +17,7 @@ import numpy as np
 import pandas as pd
 
 from . import shared_style as S
+from .shared_analysis_window import ANALYSIS_END_YEAR, ANALYSIS_START_YEAR
 from . import data_analysis_03_academic_impact_panels as P
 
 
@@ -133,7 +134,9 @@ def annual_growth_speed(D):
 
 def activity_over_time(D):
     fig, axes = plt.subplots(1, 2, figsize=(17, 9.6), gridspec_kw={"width_ratios": [1, 1.15]})
-    fig.subplots_adjust(left=.20, right=.98, bottom=.19, top=.95, wspace=.3)
+    fig.subplots_adjust(left=.20, right=.98, bottom=.30, top=.95, wspace=.3)
+    left = axes[0].get_position()
+    axes[0].set_position([left.x0, .12, left.width, left.y1 - .12])
     P.draw_activity_index(axes[0], D, top_m=20)
     annual = pd.DataFrame({y: D["activity_index"]((y, y))
                            for y in sorted(D["whole"].year.unique())}).T
@@ -151,7 +154,18 @@ def activity_over_time(D):
     axes[1].yaxis.set_major_formatter(mticker.FuncFormatter(lambda v, _: f"{v:g}x"))
     S.style_axis(axes[1], grid_kws={"which": "major", "alpha": .25})
     S.label_panels(axes, "AB")
-    S.align_legend_rows(_legend(fig, _field_handles(D), fontsize=14))
+    legend = S.black_legend(axes[1], handles=_field_handles(D), ncol=2,
+                            loc="upper center", borderaxespad=0, fontsize=14,
+                            columnspacing=1, handletextpad=.5, handlelength=1.8)
+    S.align_legend_rows(legend)
+    S.finalize_figure(fig)
+    fig.draw_without_rendering()
+    # This key describes B alone; keep a fixed 10-point gap below its x-axis label.
+    label = axes[1].xaxis.label.get_window_extent().transformed(fig.transFigure.inverted())
+    right = axes[1].get_position()
+    legend.set_bbox_to_anchor((right.x0 + right.width / 2,
+                               label.y0 - 10 / (72 * fig.get_figheight())),
+                              transform=fig.transFigure)
     ranking = (D["ukbb"].loc[D["ukbb"].year >= P.ANALYSIS_MIN]
                .groupby(["code", "for_label"])[D["VALUE"]].sum()
                .nlargest(20).rename("publications").reset_index())
@@ -579,19 +593,30 @@ def citation_concentration(analysis_papers, *, ax=None):
                    "represents equal citation counts across papers.")
 
 
-def citation_cohorts(analysis_papers, CITATION_SNAPSHOT_YEAR=2026, MIN_YEAR=2013, *, ax=None):
-    IMPACT_MAX_YEAR = CITATION_SNAPSHOT_YEAR - 2
-    cohort_papers = analysis_papers[analysis_papers["year"].le(IMPACT_MAX_YEAR)].copy()
-    cohort_papers["log_citations_per_year"] = np.log10(
-        cohort_papers["citations_per_year"] + 1
-    )
+def citation_cohorts(analysis_papers, CITATION_SNAPSHOT_YEAR=2026,
+                     MIN_YEAR=ANALYSIS_START_YEAR, *, MAX_YEAR=ANALYSIS_END_YEAR, ax=None):
+    """Describe raw snapshot citations, without treating annualisation as age adjustment."""
+    if MIN_YEAR > MAX_YEAR or MAX_YEAR > CITATION_SNAPSHOT_YEAR:
+        raise ValueError("The publication window must end no later than the citation snapshot.")
+    cohort_papers = analysis_papers.loc[
+        analysis_papers["year"].between(MIN_YEAR, MAX_YEAR)
+    ].copy()
+    if cohort_papers.empty:
+        raise ValueError("No publications fall within the requested cohort window.")
+    cohort_papers["times_cited"] = pd.to_numeric(
+        cohort_papers["times_cited"], errors="coerce"
+    ).fillna(0).clip(lower=0)
+    cohort_papers["log_citations"] = np.log10(cohort_papers["times_cited"] + 1)
 
-    cohort_edges = list(range(MIN_YEAR, IMPACT_MAX_YEAR + 2, 3))
-    if cohort_edges[-1] <= IMPACT_MAX_YEAR:
-        cohort_edges.append(IMPACT_MAX_YEAR + 1)
+    # Keep the final partial cohort, including the single 2025 publication year.
+    cohort_edges = [*range(MIN_YEAR, MAX_YEAR + 1, 3), MAX_YEAR + 1]
     cohort_labels = [
-        f"{start}-{end - 1}" for start, end in zip(cohort_edges[:-1], cohort_edges[1:])
+        str(start) if end == start + 1 else f"{start}-{end - 1}"
+        for start, end in zip(cohort_edges[:-1], cohort_edges[1:])
     ]
+    cohort_note = "Three-year publication cohorts are shown"
+    if cohort_edges[-1] - cohort_edges[-2] < 3:
+        cohort_note += f", with {cohort_labels[-1]} retained as a separate partial cohort"
     cohort_papers["cohort"] = pd.cut(
         cohort_papers["year"],
         bins=cohort_edges,
@@ -600,15 +625,16 @@ def citation_cohorts(analysis_papers, CITATION_SNAPSHOT_YEAR=2026, MIN_YEAR=2013
         include_lowest=True,
     )
 
-    top_decile_threshold = cohort_papers["citations_per_year"].quantile(0.90)
     cohort_summary = (
         cohort_papers.dropna(subset=["cohort"])
         .groupby("cohort", observed=True)
         .agg(
             papers=("id", "nunique"),
-            median_citations_per_year=("citations_per_year", "median"),
-            p90_citations_per_year=("citations_per_year", lambda values: values.quantile(0.90)),
-            top_decile_share=("citations_per_year", lambda values: 100 * values.ge(top_decile_threshold).mean()),
+            median_citations=("times_cited", "median"),
+            q25_citations=("times_cited", lambda values: values.quantile(0.25)),
+            q75_citations=("times_cited", lambda values: values.quantile(0.75)),
+            p90_citations=("times_cited", lambda values: values.quantile(0.90)),
+            uncited_percent=("times_cited", lambda values: 100 * values.eq(0).mean()),
         )
         .reset_index()
     )
@@ -617,7 +643,7 @@ def citation_cohorts(analysis_papers, CITATION_SNAPSHOT_YEAR=2026, MIN_YEAR=2013
     plot_values = [
         cohort_papers.loc[
             cohort_papers["cohort"].astype(str).eq(label),
-            "log_citations_per_year",
+            "log_citations",
         ].dropna().to_numpy()
         for label in plot_labels
     ]
@@ -625,41 +651,57 @@ def citation_cohorts(analysis_papers, CITATION_SNAPSHOT_YEAR=2026, MIN_YEAR=2013
 
 
     fig, ax = _single(size=(10, 6.5), bottom=.19, ax=ax)
-    violins = ax.violinplot(plot_values, positions=positions, widths=.75,
-                           showmeans=False, showmedians=False, showextrema=False)
-    colors = S.palette("red", "cream", "steel_blue", "green")
-    for index, body in enumerate(violins["bodies"]):
-        body.set(facecolor=colors[index % len(colors)], edgecolor="black", linewidth=.7, alpha=1)
+    colors = S.palette("red", "cream", "steel_blue", "light_blue", "navy")
+    density_positions = [i for i, values in enumerate(plot_values)
+                         if len(values) > 1 and np.ptp(values) > 0]
+    if density_positions:
+        violins = ax.violinplot([plot_values[i] for i in density_positions],
+                               positions=density_positions, widths=.75,
+                               showmeans=False, showmedians=False, showextrema=False)
+        for index, body in zip(density_positions, violins["bodies"]):
+            body.set(facecolor=colors[index % len(colors)], edgecolor="black",
+                     linewidth=.7, alpha=1)
+    for index in set(positions) - set(density_positions):
+        ax.plot([index - .25, index + .25], [plot_values[index][0]] * 2,
+                color=colors[index % len(colors)], lw=3)
     ax.boxplot(plot_values, positions=positions, widths=.18, patch_artist=True, showfliers=False,
                medianprops={"color": "black", "linewidth": 1.5},
                boxprops={"facecolor": "white", "edgecolor": "black"})
     ax.set_xticks(positions, [f"{r.cohort}\nn = {r.papers:,}" for r in cohort_summary.itertuples()])
-    raw_ticks = np.array([0, .5, 1, 2, 5, 10, 20, 50, 100, 250, 500, 1000])
-    upper = max(np.nanmax(v) for v in plot_values) * 1.08
+    raw_ticks = np.array([0, 1, 5, 10, 50, 100, 500, 1000, 5000, 10000, 50000, 100000])
+    upper = max(1, max(np.nanmax(v) for v in plot_values) * 1.08)
     keep = np.log10(raw_ticks + 1) <= upper
-    ax.set_yticks(np.log10(raw_ticks[keep] + 1), [f"{v:g}" for v in raw_ticks[keep]])
+    ax.set_yticks(np.log10(raw_ticks[keep] + 1), [f"{v:,}" for v in raw_ticks[keep]])
     ax.set(ylim=(0, upper), xlabel="Publication cohort",
-           ylabel="Citations per year since publication\n(log-transformed scale)")
-    _table(fig, "fig06_age_adjusted_citation_cohorts.csv", cohort_summary)
-    return _finish(fig, f"Citation-rate distributions by publication cohort through "
-                   f"{IMPACT_MAX_YEAR}. Snapshot citations are divided by "
-                   f"{CITATION_SNAPSHOT_YEAR} minus publication year plus one. Violins show "
-                   "log10(1 + annualised citations); boxes show the median and interquartile "
-                   "range, with whiskers extending to 1.5 interquartile ranges. Tick labels "
-                   "are on the original citation-rate scale. Annualisation is not field "
-                   "normalisation and does not remove all citation-age differences.")
+           ylabel="Snapshot citations per publication\n(log-transformed scale)")
+    _table(fig, "fig06_snapshot_citation_cohorts.csv", cohort_summary)
+    return _finish(fig, f"Raw citation-count distributions at the {CITATION_SNAPSHOT_YEAR} "
+                   f"snapshot for publications from {MIN_YEAR}-{MAX_YEAR}. {cohort_note}. "
+                   "Violins show log10(1 + citations); boxes show the median "
+                   "and interquartile range, with whiskers extending to 1.5 interquartile "
+                   "ranges on the plotted scale. Tick labels report untransformed citation "
+                   "counts; missing counts are treated as zero. Counts are not annualised "
+                   "or adjusted for field or publication age. Newer publications have had "
+                   "less time to accumulate citations, so cohort differences should not "
+                   "be interpreted as differences in research quality.")
 
 
-def citation_concentration_and_cohorts(analysis_papers, CITATION_SNAPSHOT_YEAR=2026, MIN_YEAR=2013):
-    """Combine concentration and cohort distributions without changing either analysis."""
+def citation_concentration_and_cohorts(analysis_papers, CITATION_SNAPSHOT_YEAR=2026,
+                                      MIN_YEAR=ANALYSIS_START_YEAR, *, MAX_YEAR=ANALYSIS_END_YEAR):
+    """Show citation concentration and unequal accumulation across publication cohorts."""
+    analysis_papers = analysis_papers.loc[
+        analysis_papers["year"].between(MIN_YEAR, MAX_YEAR)
+    ]
     fig, axes = plt.subplots(1, 2, figsize=(16, 6.5))
     fig.subplots_adjust(left=.07, right=.98, bottom=.18, top=.92, wspace=.30)
     citation_concentration(analysis_papers, ax=axes[0])
     concentration_caption = fig._ukb_caption
-    citation_cohorts(analysis_papers, CITATION_SNAPSHOT_YEAR, MIN_YEAR, ax=axes[1])
+    citation_cohorts(analysis_papers, CITATION_SNAPSHOT_YEAR, MIN_YEAR,
+                     MAX_YEAR=MAX_YEAR, ax=axes[1])
     cohort_caption = fig._ukb_caption
     S.label_panels(axes, "AB")
-    return _finish(fig, f"(A) {concentration_caption} (B) {cohort_caption}")
+    return _finish(fig, "Citation concentration and publication-cohort distributions. "
+                   f"(A) {concentration_caption} (B) {cohort_caption}")
 
 
 def citation_survival(analysis_papers, *, ax=None):

@@ -100,7 +100,7 @@ class DatasetAgreementTests(unittest.TestCase):
             self.assertEqual([Path(path).name for path in result["figures"]], [
                 "00_01_figure_candidate_agreement.png", "00_01_figure_candidate_agreement.pdf",
                 "00_02_figure_candidate_text.png", "00_02_figure_candidate_text.pdf",
-                "00_06_figure_consensus_validation_incomplete.png", "00_06_figure_consensus_validation_incomplete.pdf",
+                "00_06_figure_consensus_validation.png", "00_06_figure_consensus_validation.pdf",
                 "00_07_figure_consensus_groups.png", "00_07_figure_consensus_groups.pdf",
             ])
             self.assertEqual(savefig.call_count, 8)

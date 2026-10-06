@@ -180,6 +180,10 @@ data/**
 !data/**/*.md
 # Generated analysis figures, tables, and paper text.
 /output/
+# Local manuscript audits and extracted manuscript content.
+/output/manuscript_audit/
+# Local LCDS/DSU slide deck, build scripts, template, assets and previews.
+/output/presentations/ukb_research_footprint/
 output_temp/*
 .idea/*
 logging/*

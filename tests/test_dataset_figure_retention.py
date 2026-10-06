@@ -53,11 +53,11 @@ class DatasetFigureRetentionTests(unittest.TestCase):
     def tearDown(self):
         plt.close("all")
 
-    def test_manuscript_panels_retain_data_and_current_semantic_metric(self):
+    def test_manuscript_panels_retain_data_without_duplicate_semantic_map(self):
         models, yearly, categories, _, semantics, metrics, _ = inputs()
-        fig = F.plot_consensus_validation(models, yearly, categories, semantics, metrics)
-        self.assertEqual(len(fig.axes), 4)
-        annual, counts, keywords, semantic = fig.axes
+        fig = F.plot_consensus_validation(models, yearly, categories)
+        self.assertEqual(len(fig.axes), 3)
+        annual, counts, keywords = fig.axes
         self.assertEqual(len(annual.lines), 3)
         self.assertEqual(annual.lines[0].get_xdata().tolist(), list(range(2013, 2026)))
         self.assertEqual(annual.lines[0].get_ydata()[-1], 80)
@@ -65,23 +65,21 @@ class DatasetFigureRetentionTests(unittest.TestCase):
         self.assertEqual(counts.get_yscale(), "log")
         self.assertTrue(np.isnan(counts.lines[0].get_ydata()[0]))  # Log axis omits zero.
         self.assertEqual(len(keywords.patches), len(categories))
-        self.assertEqual(sum(len(points.get_offsets()) for points in semantic.collections), len(semantics))
-        self.assertIn("0.1235", " ".join(text.get_text() for text in semantic.texts))
-        self.assertNotIn("0.0386", " ".join(text.get_text() for text in semantic.texts))
+        self.assertEqual(list(keywords.get_subplotspec().colspan), [0, 1])
+        self.assertTrue(all(not ax.collections for ax in fig.axes))
 
-    def test_missing_semantic_panel_is_explicit_and_never_simulated(self):
-        models, yearly, categories, *_ = inputs()
-        fig = F.plot_consensus_validation(models, yearly, categories)
-        semantic = fig.axes[3]
-        self.assertEqual(len(semantic.collections), 0)
-        self.assertIn("incomplete", " ".join(text.get_text() for text in semantic.texts))
-        self.assertEqual(len(fig.axes[0].lines), 3)
+    def test_semantic_projection_retained_in_dedicated_figure(self):
+        _, _, _, _, semantics, _, _ = inputs()
+        fig = F.plot_semantic_diagnostics(semantics)
+        for ax in fig.axes[:2]:
+            self.assertEqual(sum(len(points.get_offsets()) for points in ax.collections), len(semantics))
+            self.assertIn("principal component", ax.get_xlabel())
 
     def test_semantic_data_outside_window_cannot_use_current_metric(self):
         models, yearly, categories, _, semantics, metrics, _ = inputs()
         semantics.loc[0, "year_int"] = 2026
         with self.assertRaisesRegex(ValueError, "2013–2025"):
-            F.plot_consensus_validation(models, yearly, categories, semantics, metrics)
+            F.plot_semantic_diagnostics(semantics)
 
     def test_original_25_term_views_and_detailed_consensus_groups_are_retained(self):
         _, _, categories, terms, _, _, groups = inputs()
@@ -93,7 +91,7 @@ class DatasetFigureRetentionTests(unittest.TestCase):
                                 sorted(groups.n_candidates, reverse=True))
         self.assertTrue(any("some labels unparsed" in tick.get_text() for tick in group_ax.get_yticklabels()))
 
-    def test_exports_distinguish_complete_from_incomplete_and_keep_existing_figures(self):
+    def test_consensus_export_is_complete_without_semantics_and_keeps_existing_figures(self):
         models, yearly, categories, terms, semantics, metrics, groups = inputs()
         votes = pd.DataFrame({"n_true_votes": [0, 1, 2, 3], "n_candidates": [401, 25, 14, 72]})
         agreement = pd.DataFrame(np.eye(3), index=models.model, columns=models.model)
@@ -113,11 +111,15 @@ class DatasetFigureRetentionTests(unittest.TestCase):
                 self.assertIn("00_02_figure_candidate_text", stems)
                 self.assertIn("00_07_figure_consensus_groups", stems)
                 self.assertEqual("00_05_figure_semantic_diagnostics" in stems, complete)
-                suffix = "" if complete else "_incomplete"
-                stem = "00_06_figure_consensus_validation" + suffix
+                stem = "00_06_figure_consensus_validation"
                 self.assertIn(stem, stems)
                 caption = captions[stem]
-                self.assertIn("test embeddings" if complete else "incomplete", caption)
+                self.assertNotIn("D,", caption)
+                self.assertNotIn("silhouette", caption)
+                self.assertNotIn("incomplete", caption)
+                self.assertIn("not independent validation accuracy", caption)
+                if complete:
+                    self.assertIn("test embeddings", captions["00_05_figure_semantic_diagnostics"])
                 self.assertFalse(list(Path(directory).glob("*_caption.txt")))
                 self.assertTrue(all(call.kwargs["dpi"] == 500 for call in save.call_args_list))
                 self.assertEqual({path.suffix for path in files}, {".png", ".pdf"})

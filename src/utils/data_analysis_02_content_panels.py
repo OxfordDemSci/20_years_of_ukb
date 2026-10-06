@@ -505,7 +505,8 @@ def _topic_legend_labels(labels, width=36):
 
 def _composition_legend(ax, handles, *, labelspacing=.4):
     return black_legend(
-        ax, _style(), handles=handles, loc="upper left", bbox_to_anchor=(0, -.20),
+        ax, _style(), handles=handles, loc="upper left", bbox_to_anchor=(0, -.20, 1, 0),
+        mode="expand",
         ncol=3, borderaxespad=0, handlelength=1.25, columnspacing=.9,
         labelspacing=labelspacing, fontsize=_style()["legend_fs"])
 
@@ -523,6 +524,22 @@ def _align_legend_heights(*axes):
             font_pixels = legend.get_texts()[0].get_fontsize() * fig.dpi / 72
             spacing = legend.labelspacing + (target - height) / ((rows - 1) * font_pixels)
             _composition_legend(ax, legend.get_patches(), labelspacing=spacing)
+
+
+def _align_topic_legend(ax, right, *, gap=.016):
+    """Reserve measured legend space while sharing the upper row's right edge."""
+    legend = ax.get_legend()
+    if legend is None:
+        return
+    fig = ax.figure
+    position = ax.get_position()
+    legend.set_loc("center right")
+    legend.set_bbox_to_anchor((right, position.y0 + position.height / 2),
+                              transform=fig.transFigure)
+    fig.draw_without_rendering()
+    box = legend.get_window_extent().transformed(fig.transFigure.inverted())
+    ax.set_position([position.x0, position.y0,
+                     box.x0 - gap - position.x0, position.height])
 
 
 def _missing_panel(ax, title, note):
@@ -629,6 +646,7 @@ def figure_main(D, save=True):
         _heading(ax, letter, title)
     panel_label(ax_topic, "C", _style())
     _align_legend_heights(ax_for, ax_rcdc)
+    _align_topic_legend(ax_topic, ax_rcdc.get_position().x1)
     from .shared_figure_captions import panel_caption
     captions = dict(MAIN_CAPTION)
     if not D["topics"]["available"]:
@@ -751,8 +769,8 @@ def draw_category_heatmap(ax, block, title, *, n_categories=12):
 
 def figure_si_category_detail(D, save=True):
     """Supplement 1: the leading twelve fields and tags without stacked-band occlusion."""
-    figsize = _style().get("figsize_si", (15, 10))
-    fig, axes = plt.subplots(2, 1, figsize=figsize)
+    width, height = _style().get("figsize_si", (15, 10))
+    fig, axes = plt.subplots(2, 1, figsize=(width, height * 1.2))
     fig.subplots_adjust(left=.27, right=.88, top=.95, bottom=.115, hspace=.48)
     draw_category_heatmap(axes[0], D["for"], "A  Fields of Research, Level 4")
     draw_category_heatmap(axes[1], D["rcdc"], "B  RCDC categories")
@@ -809,7 +827,8 @@ def figure_si_coverage(D, save=True):
 def draw_rank_flow(ax, block, title):
     """Draw annual ranks for the same leading categories used in the main figure."""
     share, keep = block["share"], list(block["keep"])
-    ranks = share[keep].rank(axis=1, ascending=False, method="first")
+    ranks = share[keep].where(share[keep] > 0).rank(
+        axis=1, ascending=False, method="first")
     colors = dict(zip(keep, _colors(len(keep))))
     mean_share = share[keep].mean()
     scale = max(float(mean_share.max()), 1e-9)
@@ -817,8 +836,8 @@ def draw_rank_flow(ax, block, title):
 
     _axes(ax, grid=False)
     for category in keep:
-        values = ranks[category].dropna()
-        if values.empty:
+        values = ranks[category]
+        if values.notna().sum() == 0:
             continue
         color = colors[category]
         width = 1.2 + 2.2 * float(mean_share[category]) / scale
@@ -835,20 +854,19 @@ def draw_rank_flow(ax, block, title):
             solid_capstyle="round",
             zorder=3,
         )
-        label = _short_label(category, 30)
-        first_rank, last_rank = int(values.iloc[0]), int(values.iloc[-1])
-        ax.text(
-            -0.015,
-            first_rank,
-            f"#{first_rank}  {label}",
-            transform=outside,
-            ha="right",
-            va="center",
-            fontsize=_style()["annot_fs"] - 0.5,
-            color=color,
-            fontweight="bold",
-            clip_on=False,
-        )
+        label = _legend_label(category, 26)
+        # A category absent in the first year must not receive a starting rank.
+        if pd.notna(values.iloc[0]):
+            first_rank = int(values.iloc[0])
+            ax.text(
+                -0.015, first_rank, f"#{first_rank}  {label}",
+                transform=outside, ha="right", va="center",
+                fontsize=_style()["annot_fs"] - 0.5, color="black",
+                fontweight="bold", clip_on=False,
+            )
+        if pd.isna(values.iloc[-1]):
+            continue
+        last_rank = int(values.iloc[-1])
         ax.text(
             1.015,
             last_rank,
@@ -857,7 +875,7 @@ def draw_rank_flow(ax, block, title):
             ha="left",
             va="center",
             fontsize=_style()["annot_fs"] - 0.5,
-            color=color,
+            color="black",
             fontweight="bold",
             clip_on=False,
         )
