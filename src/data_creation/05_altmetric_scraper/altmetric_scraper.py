@@ -3,14 +3,27 @@
 """Collect Altmetric Explorer data for the showcase_plus publication PIDs.
 
 The Explorer API accepts up to 25,000 scholarly identifiers in a reusable
-identifier list. This collector selects one PID per source row (DOI, then PMID,
+identifier list. This collector submits one PID per source row (DOI, then PMID,
 arXiv ID, then ISBN), creates as many lists as required, downloads every result
-page, and writes the five-column CSV consumed by the non-academic-impact
-analysis.
+page, and writes the CSV consumed by the non-academic-impact analysis: the five
+Explorer columns plus `id`, the corpus Dimensions id each row belongs to.
 
-The repository stores Explorer credentials separately. The API key identifies
-the account, while the API secret signs each request and is never transmitted.
-Both can also be overridden on the command line with file paths; credential
+PID FALLBACK ROUNDS. A row whose submitted PID Altmetric does not recognise is
+resubmitted on its NEXT PID in a further round (a DOI miss is asked again by
+PMID, then arXiv, then ISBN), until no unmatched row has an untried PID or
+`--max-pid-rounds` is reached. Every round is its own cached identifier list, so
+an interrupted run resumes. `--max-pid-rounds 1` submits exactly what the
+single-round collector did. The audit records the round and the PID type that
+matched.
+
+The join key is `id`, not DOI: a paper matched by PMID or arXiv may have no DOI
+at all, and two corpus rows can share one Altmetric record. With `id` present,
+`--allow-missing-doi` keeps those DOI-less matches joinable.
+
+Credentials come from the environment, ALTMETRIC_API_KEY and
+ALTMETRIC_API_SECRET (the repository secrets). The API key identifies the
+account, while the API secret signs each request and is never transmitted.
+`--api-key-file` / `--api-secret-file` override them with file paths; credential
 values themselves are deliberately not accepted as arguments.
 
 Example::
@@ -19,7 +32,7 @@ Example::
 
 Default inputs and outputs::
 
-    input:   data/showcase/showcase_plus/showcase_plus_all_endpoints_wide.parquet
+    input:   data/showcase/showcase+/showcase_plus_all_endpoints_wide.parquet
     output:  data/altmetric/altmetric.csv
     audit:   data/altmetric/altmetric_explorer_audit.csv
     cache:   data/altmetric/altmetric_explorer_cache.jsonl
@@ -71,30 +84,24 @@ if str(ROOT / "src") not in sys.path:
     sys.path.insert(0, str(ROOT / "src"))
 
 from utils import shared_paths as P
+from utils.data_creation_runtime import install_keyed_api_guard
 
 
 EXPLORER_API_BASE_URL = "https://www.altmetric.com/explorer/api"
 DEFAULT_AUDIT = P.ALTMETRIC_CSV.parent / "altmetric_explorer_audit.csv"
 DEFAULT_CACHE = P.ALTMETRIC_CSV.parent / "altmetric_explorer_cache.jsonl"
-DEFAULT_KEY_FILE = next(
-    (
-        path
-        for path in (
-            ROOT / "keys" / "altmetric.txt",
-            ROOT / "keys" / "altmetric_key.txt",
-        )
-        if path.is_file()
-    ),
-    ROOT / "keys" / "altmetric.txt",
-)
-DEFAULT_SECRET_FILE = ROOT / "keys" / "altmetric_secret.txt"
+API_KEY_ENV = "ALTMETRIC_API_KEY"
+API_SECRET_ENV = "ALTMETRIC_API_SECRET"
 
+# The five Explorer columns keep their order and names, so a reader written against the
+# single-round export still works; `id` is appended, never inserted.
 OUTPUT_COLUMNS = (
     "DOI",
     "Altmetric Attention Score",
     "News mentions",
     "Policy mentions",
     "Publication Date",
+    "id",
 )
 
 DEFAULT_PID_SPECS = (
@@ -632,13 +639,46 @@ def prepare_assignments(
             ),
             "_pid_key": choice.key if choice else "",
             "_all_pid_keys": tuple(item.key for item in choices),
+            "_choices": tuple((item.key, item.submitted_value) for item in choices),
             "_source_doi": source_doi,
+            "_source_id": scalar_text(row.get("id")) if "id" in row.index else "",
         }
         audit_rows.append(audit_row)
         if choice is not None:
             unique_tokens.setdefault(choice.key, choice.submitted_value)
 
     return pd.DataFrame(audit_rows), list(unique_tokens.values())
+
+
+def matched_rows(assignments: pd.DataFrame, found_keys: set[str]) -> set[int]:
+    """Source rows any of whose PIDs appears in a fetched Altmetric record."""
+    return {
+        int(index)
+        for index, keys in assignments["_all_pid_keys"].items()
+        if any(key in found_keys for key in keys)
+    }
+
+
+def next_round_tokens(
+    assignments: pd.DataFrame, found_keys: set[str], round_number: int
+) -> list[str]:
+    """PIDs for the next fallback round: each still-unmatched row's next untried PID.
+
+    `_tried` counts how many of a row's ordered choices have been submitted. A row is
+    retried only while it is unmatched AND has a choice left, so a row with a single PID
+    drops out after round 1 and the loop ends when nothing is left to ask.
+    """
+    matched = matched_rows(assignments, found_keys)
+    tokens: dict[str, str] = {}
+    for index, choices in assignments["_choices"].items():
+        tried = int(assignments.at[index, "_tried"])
+        if int(index) in matched or tried >= len(choices):
+            continue
+        key, submitted = choices[tried]
+        assignments.at[index, "_tried"] = tried + 1
+        assignments.at[index, "_last_round"] = round_number
+        tokens.setdefault(key, submitted)
+    return list(tokens.values())
 
 
 def chunked(values: Sequence[str], size: int) -> list[list[str]]:
@@ -805,9 +845,10 @@ def build_outputs(
     altmetric_ids_by_assignment: dict[int, set[str]] = {}
     output_rows: list[dict[str, Any]] = []
     included_altmetric_ids: set[str] = set()
-    seen_dois: set[str] = set()
+    seen_keys: set[tuple[str, str]] = set()
     records_without_doi = 0
     unmapped_records = 0
+    keyed_on_id = "_source_id" in assignments.columns and assignments["_source_id"].astype(bool).any()
 
     for record in unique_records.values():
         altmetric_id = scalar_text(record.get("id"))
@@ -830,49 +871,55 @@ def build_outputs(
         if not isinstance(mentions, Mapping):
             mentions = {}
         api_doi = first_response_doi(record)
-        source_dois = list(
-            dict.fromkeys(
-                str(assignments.at[index, "_source_doi"])
-                for index in sorted(matched_assignment_indices)
-                if assignments.at[index, "_source_doi"]
-            )
-        )
-        doi = api_doi if api_doi in source_dois or not source_dois else source_dois[0]
-        if not doi and not allow_missing_doi:
-            records_without_doi += 1
-            continue
-        if doi and doi in seen_dois:
-            duplicate_api_records += 1
-            continue
-
         publication_date = scalar_text(attributes.get("publication-date"))
-        if not publication_date:
-            publication_date = next(
-                (
-                    str(assignments.at[index, "source_date_fallback"])
-                    for index in sorted(matched_assignment_indices)
-                    if assignments.at[index, "source_date_fallback"]
-                ),
-                "",
+
+        # Keyed on the corpus id when the source has one: one output row per (corpus
+        # row, Altmetric record), so two corpus rows sharing a record both survive and a
+        # DOI-less PMID/arXiv match still joins. Without an id column, the original
+        # one-row-per-DOI rule applies.
+        if keyed_on_id:
+            targets = sorted(matched_assignment_indices)
+        else:
+            targets = [min(matched_assignment_indices)]
+        for index in targets:
+            source_id = str(assignments.at[index, "_source_id"]) if keyed_on_id else ""
+            if keyed_on_id:
+                doi = str(assignments.at[index, "_source_doi"]) or api_doi
+            else:
+                source_dois = list(
+                    dict.fromkeys(
+                        str(assignments.at[i, "_source_doi"])
+                        for i in sorted(matched_assignment_indices)
+                        if assignments.at[i, "_source_doi"]
+                    )
+                )
+                doi = api_doi if api_doi in source_dois or not source_dois else source_dois[0]
+            if not doi and not allow_missing_doi:
+                records_without_doi += 1
+                continue
+            dedup_key = (source_id, altmetric_id) if keyed_on_id else (doi, "")
+            if dedup_key in seen_keys:
+                duplicate_api_records += 1
+                continue
+            row_date = publication_date or str(assignments.at[index, "source_date_fallback"] or "")
+            output_rows.append(
+                {
+                    "DOI": doi,
+                    "Altmetric Attention Score": safe_float(attributes.get("altmetric-score")),
+                    "News mentions": safe_nonnegative_int(mentions.get("msm")),
+                    "Policy mentions": safe_nonnegative_int(mentions.get("policy")),
+                    "Publication Date": row_date,
+                    "id": source_id,
+                }
             )
-        output_rows.append(
-            {
-                "DOI": doi,
-                "Altmetric Attention Score": safe_float(attributes.get("altmetric-score")),
-                "News mentions": safe_nonnegative_int(mentions.get("msm")),
-                "Policy mentions": safe_nonnegative_int(mentions.get("policy")),
-                "Publication Date": publication_date,
-            }
-        )
-        if altmetric_id:
-            included_altmetric_ids.add(altmetric_id)
-        if doi:
-            seen_dois.add(doi)
+            seen_keys.add(dedup_key)
+            if altmetric_id:
+                included_altmetric_ids.add(altmetric_id)
 
     output = pd.DataFrame(output_rows, columns=OUTPUT_COLUMNS)
     if not output.empty:
         output = output.sort_values(
-            ["Publication Date", "DOI"], kind="stable", na_position="last"
+            ["Publication Date", "DOI", "id"], kind="stable", na_position="last"
         ).reset_index(drop=True)
 
     audit = assignments.copy()
@@ -895,7 +942,20 @@ def build_outputs(
             value in included_altmetric_ids for value in str(values).split(";") if value
         )
     )
-    audit = audit.drop(columns=["_pid_key", "_all_pid_keys", "_source_doi"])
+    found_keys = set().union(*(response_pid_keys(r) for r in unique_records.values())) \
+        if unique_records else set()
+    audit["matched_pid_type"] = [
+        next((key.split("\u001f", 1)[0] for key in keys if key in found_keys), "")
+        for keys in audit["_all_pid_keys"]
+    ]
+    if "_last_round" in audit.columns:
+        audit["lookup_round"] = [
+            int(r) if status == "found" else 0
+            for r, status in zip(audit["_last_round"], audit["lookup_status"])
+        ]
+    audit = audit.drop(columns=[c for c in ("_pid_key", "_all_pid_keys", "_choices",
+                                            "_source_doi", "_source_id", "_tried",
+                                            "_last_round") if c in audit.columns])
 
     counters = {
         "raw_api_records": len(fetched),
@@ -928,6 +988,21 @@ def read_credential(path: Path, label: str) -> str:
     return value
 
 
+def resolve_credential(path: Path | None, env_name: str, label: str) -> str:
+    """The credential from an explicit file if one was given, else from `env_name`.
+
+    The error names the variable, never a value.
+    """
+    if path is not None:
+        return read_credential(path, label)
+    value = os.environ.get(env_name, "").strip()
+    if not value:
+        raise AltmetricAuthorizationError(
+            f"Set {env_name} (the Altmetric {label}) or pass its --api-*-file override."
+        )
+    return value
+
+
 def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description=(
@@ -951,14 +1026,12 @@ def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
     parser.add_argument(
         "--api-key-file",
         type=Path,
-        default=DEFAULT_KEY_FILE,
-        help=f"Explorer API key file (default: {P.raw_path(DEFAULT_KEY_FILE)}).",
+        help=f"Explorer API key file, overriding ${API_KEY_ENV}.",
     )
     parser.add_argument(
         "--api-secret-file",
         type=Path,
-        default=DEFAULT_SECRET_FILE,
-        help=f"Explorer API secret file (default: {P.raw_path(DEFAULT_SECRET_FILE)}).",
+        help=f"Explorer API secret file, overriding ${API_SECRET_ENV}.",
     )
     parser.add_argument(
         "--pid",
@@ -996,7 +1069,19 @@ def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
     parser.add_argument(
         "--allow-missing-doi",
         action="store_true",
-        help="Include API records without a DOI in the final CSV.",
+        help=(
+            "Include API records without a DOI in the final CSV. They join on `id`, so "
+            "this is what keeps PMID/arXiv-only matches."
+        ),
+    )
+    parser.add_argument(
+        "--max-pid-rounds",
+        type=int,
+        default=len(DEFAULT_PID_SPECS),
+        help=(
+            "PID fallback rounds: unmatched rows are resubmitted on their next PID "
+            f"(default {len(DEFAULT_PID_SPECS)}, every PID type; 1 = no fallback)."
+        ),
     )
     parser.add_argument(
         "--refresh",
@@ -1022,11 +1107,14 @@ def validate_args(args: argparse.Namespace) -> None:
         raise ValueError("--retries cannot be negative.")
     if args.progress_every < 0:
         raise ValueError("--progress-every cannot be negative.")
+    if args.max_pid_rounds < 1:
+        raise ValueError("--max-pid-rounds must be at least 1.")
 
 
 def main(argv: Sequence[str] | None = None) -> int:
     args = parse_args(argv)
     validate_args(args)
+    install_keyed_api_guard()
     input_path = args.input.expanduser().resolve()
     if not input_path.is_file():
         raise FileNotFoundError(f"Input file not found: {input_path}")
@@ -1060,8 +1148,8 @@ def main(argv: Sequence[str] | None = None) -> int:
     if not identifiers:
         raise ValueError("No valid Explorer-supported PIDs were found in the input.")
 
-    api_key = read_credential(args.api_key_file, "API key")
-    api_secret = read_credential(args.api_secret_file, "API secret")
+    api_key = resolve_credential(args.api_key_file, API_KEY_ENV, "API key")
+    api_secret = resolve_credential(args.api_secret_file, API_SECRET_ENV, "API secret")
     client = ExplorerClient(
         api_key,
         api_secret,
@@ -1071,35 +1159,46 @@ def main(argv: Sequence[str] | None = None) -> int:
         retries=args.retries,
     )
     cache = JsonlCache(args.cache)
-    batches = chunked(identifiers, args.identifier_batch_size)
 
-    print("input:", input_path)
+    print("input:", P.raw_path(input_path))
     print("source rows:", f"{len(source):,}")
-    print("unique submitted PIDs:", f"{len(identifiers):,}")
+    print("unique round-1 PIDs:", f"{len(identifiers):,}")
     print("PID fallback order:", " -> ".join(f"{s.pid_type}={s.column}" for s in specs))
-    print("identifier-list batches:", len(batches))
-    print("output:", args.output)
-    print("cache:", args.cache)
+    print("PID rounds, at most:", args.max_pid_rounds)
+    print("output:", P.raw_path(args.output))
+    print("cache:", P.raw_path(args.cache))
 
     fetched: list[dict[str, Any]] = []
     recognized_counts: dict[str, int] = {}
     list_ids: list[str] = []
-    for batch_number, batch in enumerate(batches, start=1):
-        list_data = cached_identifier_list(
-            client, cache, batch, refresh=args.refresh
-        )
-        list_id = str(list_data["id"])
-        list_ids.append(list_id)
-        counts = list_data.get("counts")
-        if isinstance(counts, Mapping):
-            for key, value in counts.items():
-                recognized_counts[str(key)] = recognized_counts.get(str(key), 0) + safe_nonnegative_int(value)
-        print(
-            f"batch {batch_number}/{len(batches)}: {len(batch):,} PIDs, list {list_id}",
-            flush=True,
-        )
-        fetched.extend(
-            fetch_identifier_list(
+    rounds: list[dict[str, int]] = []
+    assignments["_tried"] = assignments["_choices"].map(lambda c: 1 if c else 0)
+    assignments["_last_round"] = 1
+    found_keys: set[str] = set()
+    tokens = identifiers
+    batch_number = 0
+    for round_number in range(1, args.max_pid_rounds + 1):
+        if round_number > 1:
+            tokens = next_round_tokens(assignments, found_keys, round_number)
+            if not tokens:
+                break
+        before = len(matched_rows(assignments, found_keys))
+        batches = chunked(tokens, args.identifier_batch_size)
+        print(f"\nround {round_number}: {len(tokens):,} PIDs in {len(batches)} list(s)",
+              flush=True)
+        for batch in batches:
+            batch_number += 1
+            list_data = cached_identifier_list(
+                client, cache, batch, refresh=args.refresh
+            )
+            list_id = str(list_data["id"])
+            list_ids.append(list_id)
+            counts = list_data.get("counts")
+            if isinstance(counts, Mapping):
+                for key, value in counts.items():
+                    recognized_counts[str(key)] = recognized_counts.get(str(key), 0) + safe_nonnegative_int(value)
+            print(f"batch {batch_number}: {len(batch):,} PIDs, list {list_id}", flush=True)
+            page_records = fetch_identifier_list(
                 client,
                 cache,
                 list_id,
@@ -1108,7 +1207,14 @@ def main(argv: Sequence[str] | None = None) -> int:
                 progress_every=args.progress_every,
                 refresh=args.refresh,
             )
-        )
+            fetched.extend(page_records)
+            for wrapped in page_records:
+                record = wrapped.get("record")
+                if isinstance(record, Mapping):
+                    found_keys |= response_pid_keys(record)
+        recovered = len(matched_rows(assignments, found_keys)) - before
+        rounds.append({"round": round_number, "submitted": len(tokens), "rows_matched": recovered})
+        print(f"round {round_number}: {recovered:,} source rows newly matched", flush=True)
 
     output, audit, output_summary = build_outputs(
         fetched,
@@ -1121,7 +1227,8 @@ def main(argv: Sequence[str] | None = None) -> int:
     summary: dict[str, Any] = {
         "input_rows": len(source),
         "unique_submitted_pids": len(identifiers),
-        "identifier_list_batches": len(batches),
+        "pid_rounds": rounds,
+        "identifier_list_batches": batch_number,
         "identifier_list_ids": list_ids,
         "recognized_identifiers": recognized_counts,
         "cache_hits": cache.hits,
@@ -1130,8 +1237,8 @@ def main(argv: Sequence[str] | None = None) -> int:
     }
     print("\ncollection summary")
     print(json.dumps(summary, indent=2, sort_keys=True))
-    print("saved:", args.output)
-    print("saved:", args.audit_output)
+    print("saved:", P.raw_path(args.output))
+    print("saved:", P.raw_path(args.audit_output))
     return 0
 
 

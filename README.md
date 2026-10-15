@@ -153,7 +153,8 @@ totals as of December 2025.
 Part IV of `04_non_academic.ipynb` analyses saved organisation classifications. It can
 rebuild the labelled table from a complete cache without credentials. Missing
 classifications are reported as missing data; paid classification requires explicitly
-setting `UKB_ALLOW_CLASSIFICATION=1` and configuring Anthropic separately.
+setting `UKB_ALLOW_CLASSIFICATION=1` and `ANTHROPIC_API_KEY`; stage 08 of the
+data-creation runner is the intended way to (re)build it.
 
 ### Run all analysis notebooks
 
@@ -293,8 +294,42 @@ columns are recalculated. Clinical-trial and policy CSVs can be recovered from t
 complete fetched records embedded in Showcase+, with strict array-alignment and
 duplicate checks. Each recovered CSV has a `.provenance.json` sidecar. Unfetched
 linked IDs are excluded, so these are snapshot records, not an additional data pull.
-The clinical MeSH section still requires an enriched `mesh_leaf_ids` column and
-`mesh_tree_numbers.pkl`; it does not fetch this enrichment automatically.
+The clinical MeSH section reads `mesh_leaf_ids` and `mesh_tree_numbers.pkl`, which
+stage 06 of the data-creation runner (below) writes; the notebook never fetches them.
+
+### Rebuild the data
+
+`src/data_creation/run_data_creation.py` rebuilds every input the notebooks read, from the
+all-endpoints corpus onward, in one run. It first **moves** every existing output (and its
+caches) to `data/archive/<snapshot>/`, so each stage pulls fresh, then runs:
+
+| stage | writes |
+|---|---|
+| 01 | the all-endpoints wide corpus (`dimensions_endpoint_pipeline.py`, unmodified) and the trials/policy CSVs |
+| 05 | the Altmetric export, with PID fallback rounds and a corpus `id` column |
+| 06 | clinical-trial MeSH terms, into the corpus's `clinical_trials__` block |
+| 07 | field citation thresholds (`for_counts_api/`) and refreshed UK Biobank citation counts in the corpus |
+| 08 | the collaborator classification — paid; only with `--allow-classification`; always last |
+
+```bash
+python src/data_creation/run_data_creation.py --list
+python src/data_creation/run_data_creation.py --dry-run                 # archive plan, keys; changes nothing
+UKB_DATA_ROOT=/scratch/copy/of/data python src/data_creation/run_data_creation.py --offline
+python src/data_creation/run_data_creation.py --allow-classification   # the live run
+python src/data_creation/run_data_creation.py --publications <00-04 output>.parquet
+python src/data_creation/run_data_creation.py --resume <run id>        # after a failure
+python src/data_creation/run_data_creation.py --restore <snapshot>     # undo a run
+```
+
+Keys come from the environment only, under the repository-secret names `DIMENSION_KEY`,
+`ALTMETRIC_API_KEY`, `ALTMETRIC_API_SECRET` and `ANTHROPIC_API_KEY`; only the selected stages'
+keys are required. `--offline` blocks those keyed services in every stage and replays the
+archived caches, so the whole chain can be tested without spending a call. Without
+`--publications`, step 01's input is the archived corpus's own publication columns (the same
+ids): endpoints are re-pulled, publication fields are not, apart from the citation counts
+stage 07 refreshes. The showcase scraper, deduplication, string matching and GPU tagging
+(00, 02–04) are upstream and not run. Each run writes per-stage logs, `summary.csv` and
+`changes.csv` (headline counts, new against the archive) to `output/data_creation_runs/<run>/`.
 
 ## Documentation
 
@@ -316,7 +351,7 @@ until proven otherwise.
 ## Layout
 
 ```
-src/data_creation/    acquisition, dedup, matching, LLM tagging
+src/data_creation/    acquisition, dedup, matching, LLM tagging; run_data_creation.py rebuilds the analysis inputs
 src/data_analysis/    the numbered analysis notebooks
 src/utils/            shared_paths (registry), shared_style, shared_<domain>, per-analysis modules
 config/               credentials — *.ini gitignored, *.ini.example committed

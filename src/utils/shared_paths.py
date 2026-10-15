@@ -34,7 +34,11 @@ DATA_ANALYSIS = SRC / "data_analysis"
 DATA_CREATION = SRC / "data_creation"
 UTILS = SRC / "utils"
 
-DATA = ROOT / "data"
+# `UKB_DATA_ROOT` points the whole data tree somewhere else. It exists for the
+# data-creation smoke test, which runs every stage end to end inside a scratch copy so
+# that development never archives, moves or overwrites the real `data/`. Unset, it is
+# `data/` as it always was.
+DATA = Path(os.environ["UKB_DATA_ROOT"]).resolve() if os.environ.get("UKB_DATA_ROOT") else ROOT / "data"
 VALIDATION = DATA / "validation"
 VALIDATION_POSITIVE = VALIDATION / "ukb_ground_truth_positive_labelled.csv"
 VALIDATION_NEGATIVE = VALIDATION / "ukb_negative_pre2013_labelled_final.csv"
@@ -60,6 +64,13 @@ SHOWCASE_PLUS = next(
     (path for path in SHOWCASE_PLUS_CANDIDATES if path.exists()),
     SHOWCASE_PLUS_CANDIDATES[0],
 )
+
+# The endpoint pipeline's relational tables and resumable API checkpoints (its
+# `--data-dir`). Named after the wide file the way the pipeline names it by default, and
+# kept beside it so an interrupted pull resumes instead of starting over.
+ENDPOINT_TABLES = SHOWCASE / "showcase+" / "showcase_plus_all_endpoints_wide_tables"
+# The pipeline's collection/merge statistics, written beside its output.
+ENDPOINT_STATS = SHOWCASE_PLUS_CANDIDATES[0].with_suffix(".stats.json")
 
 # -- raw Dimensions pulls: per-endpoint caches + the flattened exports --------------
 DIMENSION = DATA / "dimension"
@@ -106,6 +117,11 @@ FIELD_TOTALS = FOR_COUNTS / "field_totals.parquet"
 FIELD_COVERAGE = FOR_COUNTS / "field_coverage.parquet"
 CT_CSV = CLINICAL_TRIALS / "clinical_trials.csv"
 CT_UKBB_PAPERS = CLINICAL_TRIALS / "ct_ukbb_papers.csv"
+# Raw-response caches of the two MeSH lookups behind the trials arm: ClinicalTrials.gov's
+# condition/intervention browse modules per NCT id, and NLM's descriptor -> tree numbers.
+# They used to be named only inside their modules; the data-creation archive needs them.
+CTGOV_CACHE = CLINICAL_TRIALS / "ctgov_browse.pkl"
+MESH_TREE_CACHE = CLINICAL_TRIALS / "mesh_tree_numbers.pkl"
 # The legacy export contains the original full patent records plus derived columns.
 # Prefer the canonical source when present; notebook analyses recompute derivations.
 _PATENT_SOURCE_CANDIDATES = (
@@ -151,6 +167,27 @@ COLLAB_FLAGGED = COLLABORATION / "non_academic_flagged_full_company.csv"
 # batch. It is what makes a re-run free, so it is named here rather than in the notebook.
 COLLAB_CACHE = COLLABORATION / "collab_classifier_cache.jsonl"
 
+# -- data creation: one runner rebuilds everything above that it owns -----------------
+# `src/data_creation/run_data_creation.py` archives each of these, then pulls them fresh.
+# This tuple IS the list of what the pipeline produces: the archive step moves exactly
+# these paths, and nothing else, so an input the runner does not own (the VM pathway's
+# FOR_COUNTS, the BERTopic caches, the validation sets) is never touched by it.
+DATA_ARCHIVE = DATA / "archive"
+DATA_CREATION_MANIFEST = DATA / "data_creation_manifest.json"
+DATA_CREATION_OUTPUTS = (
+    SHOWCASE_PLUS,
+    ENDPOINT_STATS,
+    ENDPOINT_TABLES,
+    CT_CSV,
+    CTGOV_CACHE,
+    MESH_TREE_CACHE,
+    POLICY_CSV,
+    ALTMETRIC_DIR,
+    FOR_COUNTS_API,
+    COLLAB_FLAGGED,
+    COLLAB_CACHE,
+)
+
 # -- static reference data ----------------------------------------------------------
 # Natural Earth 110m admin-0 countries, v5.1.1. The old constant named a directory that
 # has never existed on this machine, so every choropleth raised; the shapefile is in
@@ -165,6 +202,10 @@ FOR_2020_CODES = ROOT / "doc" / "category_for_2020_codes.csv"
 # itself is never committed, config/anthropic.ini.example shows the section and key names.
 # Read only by the collaboration classifier, and only when ANTHROPIC_API_KEY is unset.
 ANTHROPIC_INI = ROOT / "config" / "anthropic.ini"
+# The other two credential files, read by the data-creation runner when the environment
+# does not carry the key. Shapes are in the committed *.ini.example beside each.
+DSL_INI = ROOT / "config" / "dsl.ini"
+ALTMETRIC_INI = ROOT / "config" / "altmetric.ini"
 
 # -- deliverables: everything a notebook exports lands under output/ -----------------
 # The notebooks' savedirs are configured in universal_settings.yml; these constants are
@@ -181,6 +222,8 @@ FIG_DATA_CREATION = OUTPUT_FIGURES / "data_creation"
 FIG_MANUSCRIPT = OUTPUT_FIGURES / "manuscript"
 OUTPUT_TABLES = OUTPUT / "tables"
 TABLE_DATA_ANALYSIS = OUTPUT_TABLES / "data_analysis"
+# One directory per data-creation run: a log per stage, summary.csv, changes.csv.
+DATA_CREATION_RUNS = OUTPUT / "data_creation_runs"
 
 FIG_GROWTH = FIG_DATA_ANALYSIS / "01_growth"
 TABLE_GROWTH = TABLE_DATA_ANALYSIS / "01_growth"

@@ -493,7 +493,8 @@ def load_policy() -> pd.DataFrame:
 
 
 def load_altmetric(corpus: pd.DataFrame) -> pd.DataFrame:
-    """The Altmetric Explorer export joined to the corpus on a cleaned DOI.
+    """The Altmetric Explorer export joined to the corpus — on `id` when the export carries
+    it (the multi-round collector), otherwise on a cleaned DOI.
 
     D18: this is the *real* pull, so `News mentions` is a measurement. The rebuilt-from-
     corpus substitute at `P.ALTMETRIC_DERIVED` carries a news column that is 0 for every
@@ -516,15 +517,28 @@ def load_altmetric(corpus: pd.DataFrame) -> pd.DataFrame:
         alt[col] = pd.to_numeric(alt[col], errors="coerce").fillna(0)
     alt["substantive"] = alt["News mentions"] + alt["Policy mentions"]
 
-    # One corpus row per DOI before the join. Four DOIs appear twice in the corpus
-    # (the same paper indexed under two Dimensions ids); left unhandled they duplicate
-    # the Altmetric row and inflate every count taken off the merge. Keep the most-cited,
-    # which is the same rule the source notebook applies on its side of the join.
-    corpus_doi = (corpus[["id", "year", "doi_clean", "times_cited"]]
-                  .dropna(subset=["doi_clean"])
-                  .sort_values("times_cited", ascending=False)
-                  .drop_duplicates(subset="doi_clean", keep="first"))
-    joined = alt.merge(corpus_doi, on="doi_clean", how="inner")
+    if "id" in alt.columns and alt["id"].notna().any():
+        # The multi-round export carries the corpus id of every row it matched, by DOI,
+        # PMID or arXiv. Join on it: a DOI-less match joins, and two corpus ids sharing
+        # a DOI each keep their own row. One row per id — a paper matched to two
+        # Altmetric records (preprint and article, say) keeps the higher score.
+        alt = (alt.dropna(subset=["id"])
+               .sort_values("Altmetric Attention Score", ascending=False)
+               .drop_duplicates(subset="id", keep="first")
+               .drop(columns=["doi_clean"]))
+        joined = alt.merge(corpus[["id", "year", "doi_clean", "times_cited"]],
+                           on="id", how="inner")
+    else:
+        # A single-round export has DOI only. One corpus row per DOI before the join.
+        # Four DOIs appear twice in the corpus (the same paper indexed under two
+        # Dimensions ids); left unhandled they duplicate the Altmetric row and inflate
+        # every count taken off the merge. Keep the most-cited, which is the same rule
+        # the source notebook applies on its side of the join.
+        corpus_doi = (corpus[["id", "year", "doi_clean", "times_cited"]]
+                      .dropna(subset=["doi_clean"])
+                      .sort_values("times_cited", ascending=False)
+                      .drop_duplicates(subset="doi_clean", keep="first"))
+        joined = alt.merge(corpus_doi, on="doi_clean", how="inner")
     # Only eligible corpus papers enter the analysis; attention/citation totals remain
     # snapshot totals because per-event dates are not available.
     joined["year"] = joined["year"].fillna(joined["alt_year"])

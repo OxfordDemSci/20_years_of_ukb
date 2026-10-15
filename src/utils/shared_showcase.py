@@ -273,3 +273,50 @@ def endpoint_records(prefix: str,
                 record[column[len(prefix) + 2:]] = cell
             out[record_id] = record
     return pd.DataFrame.from_dict(out, orient="index").reset_index(drop=True)
+
+
+def write_corpus_columns(values: dict, path=None) -> None:
+    """Replace (or add) whole columns of the corpus parquet, atomically, in place.
+
+    `values` maps a column name to a sequence ALIGNED TO THE FILE'S ROW ORDER — read `id`
+    with `pd.read_parquet(path, columns=["id", ...])` first, which preserves that order,
+    and build each new column against it. An existing column keeps its Arrow type (the
+    new values are cast to it); a new one takes the type its values infer to.
+
+    This is how the data-creation stages put what they fetch INTO the corpus — trial MeSH
+    columns into the `clinical_trials__` block, refreshed citation counts into the
+    publication columns — so that every analysis input stays on one file and one loader
+    (D44) rather than drifting into side CSVs. The write goes to a temporary file beside
+    the corpus and replaces it with `os.replace` only after the row count and the id
+    column have been checked against the original, so a failure leaves the corpus as it
+    was.
+    """
+    import os
+
+    import pyarrow as pa
+    import pyarrow.parquet as pq
+
+    path = Path(path or P.SHOWCASE_PLUS)
+    table = pq.read_table(path)
+    ids = table.column("id")
+    for name, column in values.items():
+        column = list(column)
+        if len(column) != table.num_rows:
+            raise ValueError(f"{name}: {len(column):,} values for {table.num_rows:,} rows")
+        if name == "id":
+            raise ValueError("the id column is the join key and is never rewritten")
+        if name in table.column_names:
+            index = table.column_names.index(name)
+            array = pa.array(column, from_pandas=True).cast(table.schema.field(index).type)
+            table = table.set_column(index, name, array)
+        else:
+            table = table.append_column(name, pa.array(column, from_pandas=True))
+
+    temporary = path.with_name(f".{path.name}.{os.getpid()}.tmp")
+    pq.write_table(table, temporary, compression="zstd")
+    written = pq.read_table(temporary, columns=["id"])
+    if written.num_rows != ids.length() or not written.column("id").equals(ids):
+        temporary.unlink(missing_ok=True)
+        raise RuntimeError(f"rewrite of {P.raw_path(path)} changed its rows; left unchanged")
+    os.replace(temporary, path)
+

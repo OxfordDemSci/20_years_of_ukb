@@ -173,7 +173,9 @@ def ensure_policy_csv() -> Path:
 #: Part I of `04_non_academic.ipynb` turns into ICD chapters through
 #: `data_analysis_04_non_academic_clinical_trials_mesh_tree.py`; the corpus block carries
 #: `mesh_leaf` / `mesh_ancestors` / `mesh_intervention` but not the ids, and no other file
-#: can supply them.
+#: can supply them. Since D53, stage 06 of the data-creation runner writes `mesh_leaf_ids`
+#: INTO the corpus block, and `endpoint_frame` then finds it there and merges nothing; the
+#: entry stays only so a corpus built before that stage still reads.
 LOCAL_ONLY_FIELDS = {"clinical_trials": ("mesh_leaf_ids",)}
 
 

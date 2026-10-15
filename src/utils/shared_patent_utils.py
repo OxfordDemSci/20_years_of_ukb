@@ -17,6 +17,7 @@ import ast
 import re
 import json
 from collections import Counter, defaultdict
+from functools import lru_cache
 from pathlib import Path
 from typing import Any, Optional, List, Dict, Tuple, Callable
 import difflib
@@ -746,78 +747,6 @@ def parse_patent_topics(
     )
     df['n_topics'] = df['topics_list'].apply(len)
     return df
-
-
-def _extract_name_and_leading_code(topic_dict: Dict) -> Tuple[Optional[str], Optional[str]]:
-    """
-    Extract leading code and display name from topic dict.
-    
-    Args:
-        topic_dict: Dictionary with 'name' field
-        
-    Returns:
-        Tuple of (leading_code, display_name)
-    """
-    if not isinstance(topic_dict, dict):
-        return None, None
-    name = topic_dict.get('name') or ''
-    if not isinstance(name, str) or not name.strip():
-        return None, None
-    name = name.strip()
-    
-    m = re.match(r'^\s*(\d+)\s*(.*)$', name)
-    if m:
-        leading_code = m.group(1)
-        rest = m.group(2).strip() or None
-        return leading_code, rest
-    else:
-        return None, name
-
-
-def _top_level_code_from_leading(leading_code: Optional[str]) -> Optional[str]:
-    """
-    Convert leading code to top-level code (first 2 digits).
-    
-    Args:
-        leading_code: Full leading code string
-        
-    Returns:
-        Top-level code (first 2 digits) or None
-    """
-    if not leading_code:
-        return None
-    s = str(leading_code)
-    if len(s) >= 2:
-        return s[:2]
-    return s
-
-
-def collapse_to_top_level(cat_parsed: List[Dict]) -> List[Tuple[Optional[str], Optional[str]]]:
-    """
-    Collapse category list to top-level codes and labels.
-    
-    Args:
-        cat_parsed: List of parsed category dictionaries
-        
-    Returns:
-        List of (top_code, label) tuples
-    """
-    results = []
-    for d in cat_parsed:
-        leading_code, name_rest = _extract_name_and_leading_code(d)
-        top_code = _top_level_code_from_leading(leading_code)
-        
-        if top_code is None:
-            label = d.get('name') or None
-        else:
-            if name_rest:
-                label = name_rest
-            else:
-                full = d.get('name', '')
-                m2 = re.match(r'^\s*\d+\s*(.*)$', full)
-                label = m2.group(1).strip() if m2 and m2.group(1) else full
-        results.append((top_code, label))
-    return results
 
 
 # ==============================================================================
@@ -1921,22 +1850,35 @@ def top_level_code_from_leading(leading_code):
 # -----------------------
 # For each patent, turn its categories into a list of (top_level_code, top_level_label)
 # -----------------------
+#: ANZSRC 2020 divisions that the Dimensions code list in `P.FOR_2020_CODES` does not carry
+#: (Dimensions classifies nothing under them), named here so a division label never falls
+#: back to a child group's name.
+_DIVISIONS_MISSING_FROM_CODE_LIST = {'45': 'Indigenous Studies'}
+
+
+@lru_cache(maxsize=None)
+def for_division_names():
+    """{2-digit code -> canonical ANZSRC 2020 division name}, from `P.FOR_2020_CODES`.
+
+    The one source of division labels for the patent arm. A label taken from the patent
+    records themselves would be whichever child group (`3101 Biochemistry and Cell
+    Biology`) happened to be seen first for that division, which is a different, narrower
+    level of the classification.
+    """
+    codes = pd.read_csv(P.FOR_2020_CODES, dtype={'code': str})
+    names = (codes[codes['level'] == 'L2_division']
+             .set_index('code')['name'].to_dict())
+    return {**_DIVISIONS_MISSING_FROM_CODE_LIST, **names}
+
+
 def collapse_to_top_level(cat_parsed):
-    """Return distinct FoR divisions, never relabelling a division as a child group."""
-    division_labels = {
-        '30': 'Agricultural, Veterinary and Food Sciences',
-        '31': 'Biological Sciences', '32': 'Biomedical and Clinical Sciences',
-        '33': 'Built Environment and Design', '34': 'Chemical Sciences',
-        '35': 'Commerce, Management, Tourism and Services',
-        '36': 'Creative Arts and Writing', '37': 'Earth Sciences',
-        '38': 'Economics', '39': 'Education', '40': 'Engineering',
-        '41': 'Environmental Sciences', '42': 'Health Sciences',
-        '43': 'History, Heritage and Archaeology', '44': 'Human Society',
-        '45': 'Indigenous Studies', '46': 'Information and Computing Sciences',
-        '47': 'Language, Communication and Culture', '48': 'Law and Legal Studies',
-        '49': 'Mathematical Sciences', '50': 'Philosophy and Religious Studies',
-        '51': 'Physical Sciences', '52': 'Psychology',
-    }
+    """Distinct FoR divisions of one patent as (code, canonical division name) pairs.
+
+    Each 4-digit group is truncated to its 2-digit division and the division is listed
+    ONCE however many of its groups the patent carries, so `len()` of the result is the
+    number of distinct divisions. Labels are the divisions' own names, never a child's.
+    """
+    division_labels = for_division_names()
     results = {}
     for d in cat_parsed:
         leading_code, name_rest = extract_name_and_leading_code(d)
@@ -2593,11 +2535,14 @@ def plot_patent_overview(df_patent, country_counts, graph,
         'using structured assignee countries and the existing name-based fallback. '
         '(B) Distribution of distinct two-digit Fields of '
         'Research divisions per patent, including zero for patents without a '
-        'classified topic; dashed and dotted lines mark the mean and median. '
+        'classified topic: each division counts once per patent, however many of its '
+        'groups the patent carries; dashed and dotted lines mark the mean and median. '
         '(C) Division co-occurrence network. Nodes are divisions, with node area increasing '
         'with the number of connected divisions. Edge widths increase with joint patent '
         'counts, which are also labelled; only pairs occurring together in at least '
-        f'{min_cooccurrence} patent records are retained. '
+        f'{min_cooccurrence} patent records are retained; a pair counts once per patent. '
+        'Labels are canonical ANZSRC 2020 two-digit divisions, not the narrower '
+        'four-digit groups or mechanistic specialisms beneath them. '
         'Patent records are not deduplicated into patent families.'
     )
     return fig
@@ -2871,12 +2816,15 @@ def plot_country_topic_summary(pivot_country_topic, topic_by_country, top_countr
         'divisions. Each patent contributes unit weight divided equally among its '
         'non-missing assignee-country entries, retaining repeated countries; '
         'country weights are credited in full to every distinct division assigned '
-        'to that patent. Countries use structured metadata and the existing name-based '
+        'to that patent, so a division counts once per patent however many of its groups '
+        'the patent carries. Countries use structured metadata and the existing name-based '
         'fallback. Percentages are normalised within '
         'country over the displayed topics, not all patent topics; empty or zero '
         'cells are white. (B) The highest-weight topic in each selected country, '
         'identified using all recorded topics, and its fractional patent count. '
-        'Bar-end labels give those counts. Patent records are not deduplicated '
+        'Bar-end labels give those counts. Topic labels are canonical ANZSRC 2020 '
+        'two-digit divisions, not the narrower four-digit groups or mechanistic '
+        'specialisms beneath them. Patent records are not deduplicated '
         'into patent families.'
     )
     if with_status:

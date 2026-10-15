@@ -120,9 +120,13 @@ DEFAULT_CONFIG = Path("config/dsl.ini")
 CATEGORY_FIELDS = {"for": "category_for_2020", "rcdc": "category_rcdc"}
 
 # What one publication record carries. Both classification systems are pulled in the
-# same fetch, so a single pass over the UK Biobank ids serves both notebooks.
+# same fetch, so a single pass over the UK Biobank ids serves both notebooks. The four
+# citation fields are also what the data-creation runner writes back into the corpus
+# (07_field_thresholds), so the corpus's citation columns and these counts share one
+# index date; `relative_citation_ratio` is carried for that write-back only.
 RECORD_FIELDS = ("id", "year", "type", "times_cited", "field_citation_ratio",
-                 "recent_citations", "category_for_2020", "category_rcdc")
+                 "recent_citations", "relative_citation_ratio",
+                 "category_for_2020", "category_rcdc")
 
 # `where id in [...]` accepts 512 entries; 1000 is rejected outright.
 ID_BATCH = 512
@@ -173,6 +177,20 @@ def load_config(path: Path, instance: str = "live") -> Dict[str, str]:
 # =============================================================================
 # THE CLIENT
 # =============================================================================
+def _transient_query_error(response) -> bool:
+    """A 400 that is the SERVER failing, not the query.
+
+    Dimensions reports some internal faults as HTTP 400 with an EvaluationError whose
+    text says "internal server error. Please try again later" (code 8). Treating that as
+    a bad query killed a 3.4-hour threshold run at cell 250 of 302 on 2026-10-13; the same
+    query is valid and succeeds when asked again.
+    """
+    if response.status_code != 400:
+        return False
+    text = (response.text or "").lower()
+    return "internal server error" in text or "try again later" in text
+
+
 class Dimensions:
     """A thin DSL client: authenticate, run a query, retry politely.
 
@@ -240,7 +258,7 @@ class Dimensions:
                     print("  token expired, re-authenticating", flush=True)
                 self.login()
                 continue
-            if r.status_code in (429, 500, 502, 503, 504):
+            if r.status_code in (429, 500, 502, 503, 504) or _transient_query_error(r):
                 retry_after = float(r.headers.get("Retry-After", backoff))
                 if self.verbose:
                     print(f"  {r.status_code} from the API, waiting {retry_after:.0f}s "

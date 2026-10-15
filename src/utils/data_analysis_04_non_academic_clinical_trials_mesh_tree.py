@@ -47,14 +47,11 @@ from typing import Dict, Iterable, List, Optional, Set
 
 import pandas as pd
 
-from .shared_paths import raw_path
+from .shared_paths import MESH_TREE_CACHE, raw_path
 
 SPARQL = "https://id.nlm.nih.gov/mesh/sparql"
 
-# Anchored on this file (utils/ -> src/ -> repo root) so the cache resolves the same
-# whether this module is imported from a notebook or run as a script.
-_ROOT = Path(__file__).resolve().parents[2]
-CACHE = _ROOT / "data/analysis/non_academic/clinical_trials/mesh_tree_numbers.pkl"
+CACHE = MESH_TREE_CACHE
 
 # =============================================================================
 # MeSH top-level category -> ICD-10 chapter
@@ -154,8 +151,15 @@ def _sparql_mapped_to(scrs: List[str], timeout: int = 40) -> Dict[str, List[str]
 
 def fetch_tree_numbers(dids: Iterable[str], cache: Path = CACHE,
                        batch: int = 40, pause: float = 0.3,
-                       refresh: bool = False, allow_network: bool = True) -> Dict[str, List[str]]:
-    """{descriptor id -> [tree numbers]} from NLM's MeSH SPARQL endpoint, cached to disk."""
+                       refresh: bool = False, allow_network: bool = True,
+                       retries: int = 3, backoff: float = 5.0) -> Dict[str, List[str]]:
+    """{descriptor id -> [tree numbers]} from NLM's MeSH SPARQL endpoint, cached to disk.
+
+    A batch that fails (timeout, 5xx) is retried up to `retries` more times with a growing
+    pause. Descriptors whose batch never succeeds are NOT cached — caching them as `[]`
+    would make them indistinguishable from a real "no disease tree" answer — so the next
+    run asks again, and an `allow_network=False` caller sees the cache as incomplete.
+    """
     known: Dict[str, List[str]] = {}
     if cache.exists() and not refresh:
         known = pd.read_pickle(cache)
@@ -167,15 +171,30 @@ def fetch_tree_numbers(dids: Iterable[str], cache: Path = CACHE,
         )
     if todo:
         print(f"MeSH tree: fetching {len(todo)} descriptors from NLM ...")
-        for i in range(0, len(todo), batch):
-            chunk = todo[i:i + batch]
-            try:
-                known.update(_sparql_batch(chunk))
-            except Exception as exc:                     # noqa: BLE001
-                print(f"  ! batch {i // batch}: {exc}")
-                for d in chunk:
-                    known.setdefault(d, [])
-            time.sleep(pause)
+        pending = [todo[i:i + batch] for i in range(0, len(todo), batch)]
+        for attempt in range(retries + 1):
+            if not pending:
+                break
+            if attempt:
+                print(f"  retry pass {attempt}/{retries}: {len(pending)} batches")
+                time.sleep(backoff * attempt)
+            failed = []
+            for chunk in pending:
+                try:
+                    found = _sparql_batch(chunk)
+                    known.update(found)
+                    for d in chunk:                      # answered, but no tree: a real []
+                        known.setdefault(d, [])
+                except Exception as exc:                 # noqa: BLE001
+                    print(f"  ! batch of {len(chunk)}: {exc}")
+                    failed.append(chunk)
+                time.sleep(pause)
+            pending = failed
+        unresolved = {d for chunk in pending for d in chunk}
+        if unresolved:
+            print(f"  !! {len(unresolved)} descriptors unresolved after {retries} retries; "
+                  "left out of the cache so the next run asks again")
+        todo = [d for d in todo if d not in unresolved]
 
         # SCRs have no trees of their own — inherit them from the heading they map to
         scrs = [d for d in todo if not known.get(d)]
