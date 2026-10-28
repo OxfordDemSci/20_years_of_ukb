@@ -61,18 +61,18 @@ BAND_RULES = {
 # titles. Exact full-label keys prevent a new model's topic IDs inheriting names.
 # Aggregation always retains the original model label.
 TOPIC_DISPLAY_LABELS = {
-    "T0: cognitive / ad / dementia / alzheimers": "Cognition, dementia and brain imaging",
-    "T1: mdd / anxiety / depressive / psychiatric": "Depression and mental health",
+    "T0: dementia / cognitive / ad / alzheimers": "Cognition, dementia and brain health",
+    "T1: depression / mdd / anxiety / depressive": "Depression and mental health",
+    "T4: complex traits / trait / heritability / simulations": "Complex-trait genetics and methods",
     "T2: sleep / sleep duration / insomnia / daytime": "Sleep and circadian rhythms",
-    "T9: complex traits / heritability / finemapping / simulations": "Complex-trait genetics and methods",
     "T3: retinal / glaucoma / amd / myopia": "Vision and eye disease",
-    "T6: dietary / meat / food / fish": "Diet and nutrition",
-    "T4: air / pollution / air pollution / pm": "Air pollution and environmental exposure",
-    "T5: asthma / copd / lung function / ipf": "Lung function and respiratory disease",
-    "T10: prostate / prostate cancer / pca / breast": "Cancer risk and genetic susceptibility",
-    "T8: covid19 / infection / sarscov2 / covid19 infection": "COVID-19 and infection",
-    "T7: masld / nafld / liver disease / fatty liver": "Metabolic liver disease",
-    "T11: mvpa / pa / sedentary / intensity": "Physical activity and sedentary behaviour",
+    "T5: dietary / meat / food / fish": "Diet and nutrition",
+    "T6: asthma / copd / lung function / ipf": "Respiratory and allergic disease",
+    "T7: covid19 / infection / sarscov2 / severe covid19": "COVID-19 and infection",
+    "T10: pa / mvpa / sedentary / intensity": "Physical activity and sedentary behaviour",
+    "T8: liver disease / masld / nafld / fatty liver": "Metabolic liver disease",
+    "T9: breast / crc / breast cancer / cancer risk": "Cancer risk and genetic susceptibility",
+    "T12: ibd / uc / cd / bowel": "Inflammatory bowel and digestive disease",
 }
 
 
@@ -623,6 +623,39 @@ def draw_topic_stream(ax, D):
     return ax
 
 
+#: Fraction of a stream panel's height given to the annual-count strip above it.
+COUNT_STRIP_FRACTION = .2
+
+
+def draw_count_strip(ax, block, label):
+    """Annual paper counts above a share panel, so a share can be read against its base.
+
+    A 40% band in a year of 20 papers is eight papers; without the count the stream
+    makes it look like a field. Drawn as a child inset, so `fig.axes` still holds one
+    axes per lettered panel and the panel letter (an axes title) rises above the strip.
+    """
+    position = ax.get_position()
+    strip_h = position.height * COUNT_STRIP_FRACTION
+    ax.set_position([position.x0, position.y0, position.width, position.height - strip_h])
+    gap = .1   # of the shrunken panel height
+    strip = ax.inset_axes([0, 1 + gap * COUNT_STRIP_FRACTION,
+                           1, COUNT_STRIP_FRACTION / (1 - COUNT_STRIP_FRACTION) - gap * COUNT_STRIP_FRACTION])
+    counts = block["n_papers"].reindex(FLOW_YEARS, fill_value=0)
+    strip.bar(counts.index, counts.to_numpy(), width=.6, color=palette("light_blue"),
+              edgecolor=palette("navy"), linewidth=.4, clip_on=False)
+    for year, n in counts.items():
+        strip.text(year, n, f"{int(n):,}", ha="center", va="bottom",
+                   fontsize=_style()["annot_fs"] * .9, clip_on=False)
+    strip.set_xlim(ax.get_xlim())
+    strip.set_ylim(0, max(1, counts.max()) * 1.05)
+    strip.set_xticks([])
+    strip.set_yticks([])
+    strip.spines[["top", "right", "left"]].set_visible(False)
+    strip.set_ylabel(label, rotation=0, ha="right", va="center",
+                     fontsize=_style()["annot_fs"])
+    return strip
+
+
 def thin_years_note(D):
     counts = D["corpus"].groupby("year").size().reindex(FLOW_YEARS, fill_value=0)
     return (f"Publication window: {FLOW_MIN}–{FLOW_MAX}; n = {len(D['corpus']):,}. "
@@ -641,6 +674,8 @@ def figure_main(D, save=True):
     draw_for_stream(ax_for, D)
     draw_rcdc_stream(ax_rcdc, D)
     draw_topic_stream(ax_topic, D)
+    if D["topics"]["available"]:
+        draw_count_strip(ax_topic, D["topics"], "Assigned\npapers\nper year")
     for ax, letter, title in ((ax_for, "A", "Fields of Research, Level 4"),
                               (ax_rcdc, "B", "RCDC categories")):
         _heading(ax, letter, title)
@@ -1043,7 +1078,8 @@ MAIN_CAPTION = {
     "C": "Topic composition from cached BERTopic assignments. Band thickness shows the annual shares of "
          "all topic-assigned publications attributable to the selected leading topics. "
          "The zero-based percentage axis shows their combined share; the selected topics "
-         "are not rescaled to 100%. Topics "
+         "are not rescaled to 100%. Bars above the panel give the number of topic-assigned papers in each "
+         "year. Topics "
          "are selected using total publication counts across the analysis window, with "
          "up to twelve shown. Descriptive labels summarise model keywords and example publications.",
 }

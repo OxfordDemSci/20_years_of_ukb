@@ -203,3 +203,4 @@ src/utils/data_analysis_03_academic_impact_field_counts.sh
 # -> style.notebooks.*.formats) but never committed — they are huge (one map ran to
 # 120k lines) and the PDF/PNG exports are what the repo ships.
 *.svg
+/output

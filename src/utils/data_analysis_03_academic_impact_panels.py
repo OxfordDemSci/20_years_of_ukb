@@ -157,6 +157,22 @@ C_ABOVE, C_BELOW = PALETTE_COLORS["red"], PALETTE_COLORS["steel_blue"]
 #: Neutral ink for reference lines, parity rules and supporting annotations.
 C_INK = "#3D3D3D"
 C_MUTED = "#BDBDBD"
+C_QUADRANT = "#8A8A8A"
+
+#: Impact map axis ticks; `draw_impact_map` keeps the ones inside its limits.
+MAP_X_TICKS = (1 / 8, 1 / 4, 1 / 2, 1, 1.5, 2, 3, 4, 6, 8, 12, 16, 24)
+
+#: Impact map quadrant names, top-right, top-left, bottom-right, bottom-left. Both axes
+#: are measured against ALL Dimensions research in the field — the background arm plus
+#: UK Biobank, so not strictly "the rest". Horizontal: within-division activity index
+#: against 1x. Vertical: relative citation impact against UK Biobank's OWN pooled average
+#: (the red line), not 1x; the dotted 1.0x line shows where the reference itself sits.
+MAP_QUADRANT_LABELS = (
+    "More active than all Dimensions research;\ncited above the UK Biobank average",
+    "Less active than all Dimensions research;\ncited above the UK Biobank average",
+    "More active than all Dimensions research;\ncited below the UK Biobank average",
+    "Less active than all Dimensions research;\ncited below the UK Biobank average",
+)
 
 #: Fields whose direct label on the impact map is drawn to the LEFT of its point.
 #:
@@ -407,6 +423,7 @@ from contextlib import contextmanager                                   # noqa: 
 
 import matplotlib.pyplot as plt                                         # noqa: E402
 import matplotlib.ticker as mticker                                     # noqa: E402
+import matplotlib.transforms as mtransforms                             # noqa: E402
 from matplotlib.lines import Line2D                                     # noqa: E402
 from matplotlib.legend_handler import HandlerTuple                      # noqa: E402
 from matplotlib.patches import Patch                                    # noqa: E402
@@ -586,31 +603,46 @@ def draw_impact_map(ax, D, top_m: int = MAP_M_MAIN, label_all: bool = False):
                 if label_all or code in labels or code in extreme]
     span = np.log10(big[rci].max() / big[rci].min())
 
-    show_world = big[rci].min() < 1.3
+    # World parity is always drawn: every field sitting above it is part of the message,
+    # and it is what the lower quadrants are "still above".
     ax.axvline(1.0, color=C_INK, lw=1.2)
     ax.axhline(ref, color=C_ABOVE, lw=1.4)
-    if show_world:
-        ax.axhline(1.0, color=C_INK, lw=1, ls=":")
+    ax.axhline(1.0, color=C_INK, lw=1, ls=":")
     ax.set_xscale("log")
     ax.set_yscale("log")
-    for axis, ticks in ((ax.xaxis, [0.25, 0.5, 1, 2, 4, 8]),
-                        (ax.yaxis, [1, 1.5, 2, 3, 4, 5])):
+    for axis in (ax.xaxis, ax.yaxis):
         axis.set_major_formatter(mticker.FuncFormatter(_times_fmt))
         axis.set_minor_formatter(mticker.NullFormatter())
-    ax.set_xticks([0.25, 0.5, 1, 2, 4, 8])
+    xlim = (big.activity_x.min() / 1.9, big.activity_x.max() * 2.4)
+    # Dense enough that the far-right fields (Epidemiology sits near 12x) can be read
+    # off the axis rather than estimated between 8x and the frame.
+    ax.set_xticks([t for t in MAP_X_TICKS if xlim[0] <= t <= xlim[1]])
     ax.set_yticks([1, 1.5, 2, 3, 4, 5])
-    ax.set_xlim(big.activity_x.min() / 1.9, big.activity_x.max() * 2.4)
-    ax.set_ylim((1.0 if show_world else big[rci].min()) / 1.12, big[rci].max() * 1.34)
+    ax.set_xlim(*xlim)
+    ax.set_ylim(min(1.0, big[rci].min()) / 1.12, big[rci].max() * 1.34)
 
     ax.annotate(f"UK Biobank average  {ref:.1f}x", (ax.get_xlim()[0], ref),
                 color=C_ABOVE, fontsize=st["annot_fs"], va="bottom",
                 xytext=(4, 3), textcoords="offset points")
-    if show_world:
-        ax.annotate("world average", (ax.get_xlim()[0], 1.0), color=C_INK,
-                    fontsize=st["annot_fs"], va="bottom", xytext=(4, 3),
-                    textcoords="offset points")
-    # Name the halves rather than all four quadrants: with the reference at UK Biobank's
-    # own average, left and right of the parity line is the whole message.
+    ax.annotate("All Dimensions research average  1.0x", (ax.get_xlim()[0], 1.0),
+                color=C_INK, fontsize=st["annot_fs"], va="top", xytext=(4, -3),
+                textcoords="offset points")
+    # Name the four quadrants. Right of 1x, UK Biobank gives the field a larger share of
+    # its division output than all Dimensions research does; above the red line, its
+    # papers there are cited further above that reference than UK Biobank's papers are on
+    # average. "Below" is below UK Biobank's own average, not below the reference.
+    # The lower pair sit just above the 1.0x line, inside the band they describe.
+    on_parity = mtransforms.blended_transform_factory(ax.transAxes, ax.transData)
+    for (x, y, ha, va), text in zip(((.985, .985, "right", "top"),
+                                     (.015, .985, "left", "top"),
+                                     (.985, 1.0, "right", "bottom"),
+                                     (.015, 1.0, "left", "bottom")),
+                                    MAP_QUADRANT_LABELS):
+        lower = va == "bottom"
+        ax.annotate(text, (x, y), xycoords=on_parity if lower else ax.transAxes,
+                    xytext=(0, 4 if lower else 0), textcoords="offset points",
+                    ha=ha, va=va, color=C_QUADRANT, fontsize=st["annot_fs"],
+                    fontstyle="italic", linespacing=1.3, zorder=1)
     ax.set_xlabel("Within-division activity index (log scale)")
     ax.set_ylabel("Relative mean normalised citation impact\n(same-field reference; log scale)")
     grid_on(ax)
@@ -927,7 +959,7 @@ def block_footprint_quality(fig, spec, D, nrow: int = 2, ncol: int = 4,
                 ax.annotate(f"{100 * h.iloc[-1] / a.iloc[-1]:.0f}%",
                             xy=(idx[-1], (h.iloc[-1] + b.iloc[-1]) / 2), xytext=(-5, 0),
                             textcoords="offset points", ha="right", va="center",
-                            color=C_INK, fontsize=st["annot_fs"], fontweight="bold")
+                            color="black", fontsize=st["annot_fs"], fontweight="bold")
         if i >= (nrow - 1) * ncol:
             ax.set_xlabel("year", fontsize=st["tick_fs"])
         ax.grid(False, which="both")
@@ -951,7 +983,8 @@ def footprint_legend(fig, D, y=0.018, *, fontsize=None):
         tuple(Patch(color=color, alpha=.85) for color in colors),
         tuple(Patch(color=color, alpha=.18) for color in colors),
         tuple(Line2D([], [], color=color, lw=1.8) for color in colors)],
-        labels=["in the field's most-cited 10%", "above the field's median (not top 10%)",
+        labels=["in the field's most-cited 10%",
+                "above the field's median, outside the top 10%\n(pale-band % counts both bands)",
                 "all UK Biobank papers in the field"],
         handler_map={tuple: HandlerTuple(ndivide=None, pad=0)}, handlelength=3.5,
         loc="lower center", bbox_to_anchor=(0.5, y), ncol=3, fontsize=fontsize or st["legend_fs"],
@@ -1230,13 +1263,14 @@ def figure_main(D, save=True):
             "activity index versus relative mean normalised citation impact for the 16 "
             "largest eligible fields; marker area reflects publication count. The red "
             "horizontal line marks overall UK Biobank impact and the vertical line marks "
-            "activity parity. (B) Activity indices for the ten largest fields. "
+            "activity parity; the dotted line marks the all-Dimensions citation average (1.0x). (B) Activity indices for the ten largest fields. "
             "(C) Annual UK Biobank shares of field-specific top-decile citation pools "
             "for the five leading fields by final-year share; the dashed line is the "
             "pooled UK Biobank share. (D-K) UK Biobank publications as a percentage of all "
             "publications in each of eight fields, partitioned into top-decile (solid) "
-            "and other above-median (pale) citation credit. In-band percentages describe "
-            "the corresponding fractions of UK Biobank's own field output. Citation "
+            "and other above-median (pale) citation credit. In-band percentages are "
+            "final-year fractions of UK Biobank's own field output: in the top decile "
+            "(solid) and above the median, top decile included (pale). Citation "
             "thresholds are measured separately by field and publication year; integer "
             "ties can produce achieved fractions different from 10% and 50%."
         )
