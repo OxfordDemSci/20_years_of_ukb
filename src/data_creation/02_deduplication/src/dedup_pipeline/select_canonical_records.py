@@ -5,7 +5,7 @@ import os
 
 import polars as pl
 
-from .config import EMPTY_KEEP_SCHEMA, RANKED_COLS, build_presence_weights
+from .config import EMPTY_KEEP_SCHEMA, RANKED_COLS, build_presence_weights, resolve_id_column
 
 
 def write_empty_keep(out_dir, message):
@@ -15,16 +15,26 @@ def write_empty_keep(out_dir, message):
     print(message)
 
 
-def score_exprs(present_cols, weights):
+def presence_expr(column, dtype):
+    """Treat nulls, blank strings, and empty list values as absent."""
+    expr = pl.col(column).is_not_null()
+    if dtype == pl.Utf8 or dtype == pl.String:
+        return expr & (pl.col(column).str.strip_chars() != "")
+    if isinstance(dtype, pl.List):
+        return expr & (pl.col(column).list.len() > 0)
+    return expr
+
+
+def score_exprs(schema, weights):
     """Build a Polars expression for presence-only informativeness scoring."""
     exprs = []
     for column in RANKED_COLS:
-        if column not in present_cols:
+        if column not in schema:
             continue
         weight = weights.get(column, 0.0)
         if weight == 0.0:
             continue
-        exprs.append(pl.col(column).is_not_null().cast(pl.Float64) * weight)
+        exprs.append(presence_expr(column, schema[column]).cast(pl.Float64) * weight)
 
     if not exprs:
         return [pl.lit(0.0).alias("_score")]
@@ -72,13 +82,20 @@ def stage_c_score_and_select(
             print(f"[warn] missing raw shard: {shard_path}")
             continue
 
-        lf = pl.scan_parquet(shard_path).filter(pl.col("id").is_in(ids))
-        present_cols = set(lf.collect_schema().names())
+        lf = pl.scan_parquet(shard_path)
+        raw_schema = lf.collect_schema()
+        id_column = resolve_id_column(raw_schema.names())
+        lf = lf.filter(pl.col(id_column).cast(pl.Utf8).is_in(ids))
+        if id_column != "id" or raw_schema[id_column] != pl.Utf8:
+            lf = lf.with_columns(pl.col(id_column).cast(pl.Utf8).alias("id"))
+        schema = lf.collect_schema()
+        present_cols = set(schema.names())
         if "file" not in present_cols:
             lf = lf.with_columns(pl.lit(file_stem).alias("file"))
             present_cols.add("file")
+            schema = lf.collect_schema()
 
-        score_cols = score_exprs(present_cols, weights)
+        score_cols = score_exprs(schema, weights)
         payload_cols = [c for c in RANKED_COLS if c in present_cols and c not in ("id", "file")]
         select_cols = ["id", "file"] + payload_cols + score_cols
         scored = lf.select(select_cols)

@@ -2,11 +2,11 @@
 
 import os
 
-from .stage_a import stage_a_build_clusters
-from .stage_b import stage_b_route_ids
-from .stage_c import stage_c_score_and_select
-from .stage_d import stage_d_build_patches
-from .stage_e import stage_e_apply
+from .build_duplicate_clusters import stage_a_build_clusters
+from .route_duplicate_records import stage_b_route_ids
+from .select_canonical_records import stage_c_score_and_select
+from .build_merge_decisions import stage_d_build_patches
+from .apply_deduplication import stage_e_apply
 
 
 def run_pipeline(args):
@@ -51,4 +51,6 @@ def run_pipeline(args):
         merge_patches_path=os.path.join(stage_d_dir, "merge_patches.parquet"),
         out_dir=stage_e_dir,
         only_file=args.apply_only_file,
+        loser_route_dir=os.path.join(stage_d_dir, "losers_by_file"),
+        patch_route_dir=os.path.join(stage_d_dir, "patches_by_file"),
     )

@@ -1,0 +1,11 @@
+{
+  "id": ["publication_id", "dimensions_id", "pub_id"],
+  "doi": ["digital_object_identifier"],
+  "pmid": ["pubmed_id", "pubmed"],
+  "pmcid": ["pubmed_central_id"],
+  "authors": ["author_list", "authors_list", "author_names"],
+  "references": ["reference_ids", "cited_reference_ids"],
+  "original_title": ["title_original"],
+  "preferred_title": ["title", "title_preferred"],
+  "preferred_abstract": ["abstract", "abstract_preferred"]
+}

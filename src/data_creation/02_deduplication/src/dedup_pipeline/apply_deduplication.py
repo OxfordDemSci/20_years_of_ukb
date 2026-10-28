@@ -7,13 +7,30 @@ from datetime import datetime
 
 import polars as pl
 
+from .config import resolve_id_column
 
-def shards_to_process(loser_list_path, merge_patches_path, only_file=None):
+
+def routed_shards(route_dir):
+    if not route_dir or not os.path.isdir(route_dir):
+        return set()
+    return {os.path.splitext(name)[0] for name in os.listdir(route_dir) if name.endswith(".parquet")}
+
+
+def shards_to_process(
+    loser_list_path,
+    merge_patches_path,
+    only_file=None,
+    loser_route_dir=None,
+    patch_route_dir=None,
+):
     shards = set()
-    if os.path.exists(loser_list_path):
+    routed = routed_shards(loser_route_dir) | routed_shards(patch_route_dir)
+    if routed:
+        shards.update(routed)
+    elif os.path.exists(loser_list_path):
         loser_files = pl.read_parquet(loser_list_path, columns=["file"])
         shards.update(loser_files["file"].to_list())
-    if os.path.exists(merge_patches_path):
+    if not routed and os.path.exists(merge_patches_path):
         patch_files = pl.read_parquet(merge_patches_path, columns=["canonical_file"])
         shards.update(patch_files["canonical_file"].to_list())
     if only_file:
@@ -21,7 +38,15 @@ def shards_to_process(loser_list_path, merge_patches_path, only_file=None):
     return sorted(shards)
 
 
-def load_losers_for(shard_file, loser_list_path):
+def load_losers_for(shard_file, loser_list_path, loser_route_dir=None):
+    routed_path = (
+        os.path.join(loser_route_dir, f"{shard_file}.parquet")
+        if loser_route_dir
+        else None
+    )
+    if routed_path and os.path.exists(routed_path):
+        df = pl.read_parquet(routed_path, columns=["id"])
+        return set(df["id"].to_list())
     if not os.path.exists(loser_list_path):
         return set()
     df = pl.read_parquet(loser_list_path, columns=["id", "file"])
@@ -31,11 +56,17 @@ def load_losers_for(shard_file, loser_list_path):
     return set(ids)
 
 
-def build_patch_df_for(shard_file, merge_patches_path):
-    if not os.path.exists(merge_patches_path):
+def build_patch_df_for(shard_file, merge_patches_path, patch_route_dir=None):
+    routed_path = (
+        os.path.join(patch_route_dir, f"{shard_file}.parquet")
+        if patch_route_dir
+        else None
+    )
+    source_path = routed_path if routed_path and os.path.exists(routed_path) else merge_patches_path
+    if not os.path.exists(source_path):
         return None, []
 
-    mp = pl.read_parquet(merge_patches_path, columns=["canonical_id", "canonical_file", "patch_json"])
+    mp = pl.read_parquet(source_path, columns=["canonical_id", "canonical_file", "patch_json"])
     if mp.height == 0:
         return None, []
 
@@ -114,24 +145,33 @@ def apply_to_shard(raw_base_dir, ext, shard_file, losers_set, patch_df, patch_co
 
     loser_ids = list(losers_set) if losers_set else []
 
-    lf_ids = pl.scan_parquet(shard_path).select(pl.col("id"))
-    n_before = lf_ids.count().collect().item()
+    raw_scan = pl.scan_parquet(shard_path)
+    raw_schema = raw_scan.collect_schema()
+    id_column = resolve_id_column(raw_schema.names())
+    join_column = "__dedup_join_id"
+    lf_ids = raw_scan.select(pl.col(id_column).cast(pl.Utf8).alias(join_column))
+    n_before = lf_ids.select(pl.len()).collect().item()
 
     n_del_present = 0
     if loser_ids:
-        n_del_present = lf_ids.filter(pl.col("id").is_in(loser_ids)).count().collect().item()
+        n_del_present = (
+            lf_ids.filter(pl.col(join_column).is_in(loser_ids)).count().collect().item()
+        )
 
-    lf = pl.scan_parquet(shard_path)
+    lf = raw_scan
     if loser_ids:
-        lf = lf.filter(~pl.col("id").is_in(loser_ids))
+        is_loser = pl.col(id_column).cast(pl.Utf8).is_in(loser_ids).fill_null(False)
+        lf = lf.filter(~is_loser)
 
     if patch_df is not None and patch_cols:
+        lf = lf.with_columns(pl.col(id_column).cast(pl.Utf8).alias(join_column))
+        patch_df = patch_df.rename({"id": join_column})
         existing_cols = set(lf.collect_schema().names())
         missing = [c for c in patch_cols if c not in existing_cols]
         if missing:
             lf = lf.with_columns([pl.lit(None).alias(c) for c in missing])
 
-        lf = lf.join(patch_df.lazy(), on="id", how="left")
+        lf = lf.join(patch_df.lazy(), on=join_column, how="left")
 
         updates = []
         for c in patch_cols:
@@ -141,22 +181,22 @@ def apply_to_shard(raw_base_dir, ext, shard_file, losers_set, patch_df, patch_co
 
         drop_cols = [f"__patch_{c}" for c in patch_cols]
         lf_cols = set(lf.collect_schema().names())
-        lf = lf.drop([c for c in drop_cols if c in lf_cols])
+        lf = lf.drop([c for c in [*drop_cols, join_column] if c in lf_cols])
 
     os.makedirs(os.path.join(out_dir, "changelogs"), exist_ok=True)
     tmp_path = shard_path + ".tmp"
     lf.sink_parquet(tmp_path, compression="zstd")
     atomic_replace(tmp_path, shard_path)
 
-    n_after = pl.scan_parquet(shard_path).select(pl.count()).collect().item()
+    n_after = pl.scan_parquet(shard_path).select(pl.len()).collect().item()
 
     n_patched_present = 0
     if patch_df is not None and patch_cols:
-        ids_to_patch = patch_df["id"].to_list()
+        ids_to_patch = patch_df[join_column].to_list()
         if ids_to_patch:
             n_patched_present = (
                 pl.scan_parquet(shard_path)
-                .select(pl.col("id").is_in(ids_to_patch).sum())
+                .select(pl.col(id_column).cast(pl.Utf8).is_in(ids_to_patch).sum())
                 .collect()
                 .item()
             )
@@ -181,10 +221,25 @@ def apply_to_shard(raw_base_dir, ext, shard_file, losers_set, patch_df, patch_co
     return stats
 
 
-def stage_e_apply(raw_base_dir, ext, loser_list_path, merge_patches_path, out_dir, only_file=None):
+def stage_e_apply(
+    raw_base_dir,
+    ext,
+    loser_list_path,
+    merge_patches_path,
+    out_dir,
+    only_file=None,
+    loser_route_dir=None,
+    patch_route_dir=None,
+):
     """Apply Stage D decisions to raw shards."""
     os.makedirs(out_dir, exist_ok=True)
-    shard_files = shards_to_process(loser_list_path, merge_patches_path, only_file)
+    shard_files = shards_to_process(
+        loser_list_path,
+        merge_patches_path,
+        only_file,
+        loser_route_dir=loser_route_dir,
+        patch_route_dir=patch_route_dir,
+    )
 
     if only_file and not shard_files:
         print(f"[E] --only-file {only_file} not found among affected shards; nothing to do.")
@@ -204,8 +259,10 @@ def stage_e_apply(raw_base_dir, ext, loser_list_path, merge_patches_path, out_di
     last_progress_write = started_at
 
     for shard_file in sorted(shard_files):
-        losers_set = load_losers_for(shard_file, loser_list_path)
-        patch_df, patch_cols = build_patch_df_for(shard_file, merge_patches_path)
+        losers_set = load_losers_for(shard_file, loser_list_path, loser_route_dir)
+        patch_df, patch_cols = build_patch_df_for(
+            shard_file, merge_patches_path, patch_route_dir
+        )
 
         stats = apply_to_shard(raw_base_dir, ext, shard_file, losers_set, patch_df, patch_cols, out_dir)
         del losers_set, patch_df, patch_cols

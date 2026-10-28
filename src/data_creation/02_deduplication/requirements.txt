@@ -1,1 +1,3 @@
-polars
+duckdb==2.0.0
+numpy==2.5.4
+polars==2.1.0
