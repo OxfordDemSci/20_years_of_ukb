@@ -12,6 +12,7 @@ import pandas as pd
 import pytest
 
 from utils import shared_style as S
+from utils.shared_style import font_size as FS
 from utils import data_analysis_04_non_academic_figures as F
 
 
@@ -19,7 +20,7 @@ def test_all_sections_inherit_manuscript_typography_and_palette():
     for section in ("panels", "01_clinical_trials", "02_patents", "03_altmetric", "04_collaboration"):
         style = S.load_style("04_non_academic_" + section)
         assert style["colors"] == S.NON_ACADEMIC_PALETTE
-        assert [style[k] for k in ("panel_label_fs", "label_fs", "tick_fs", "legend_fs")] == [20, 13, 11, 11]
+        assert [style[k] for k in ("panel_label_fs", "label_fs", "tick_fs", "legend_fs")] == [22, 16, 14, 14]
         assert style["formats"] == ["pdf", "png"]
 
 
@@ -38,7 +39,7 @@ def test_heatmaps_keep_directionality_observed_limits_and_cell_edges():
     assert all(im.get_clim() == (15., 100.) for im in images)
     np.testing.assert_array_equal(images[0].get_array(), values)
     assert all(len(ax.collections) == 2 for ax in axes)  # idempotent cell borders
-    assert cb.ax.yaxis.label.get_size() == 13
+    assert cb.ax.yaxis.label.get_size() == FS("label")
     assert cb.get_ticks()[0] == 15 and cb.get_ticks()[-1] == 100
     assert images[0].cmap.name == "blue_cream_red"
     plt.close(fig)
@@ -53,8 +54,8 @@ def test_titles_twins_and_legend_fonts():
     F.finalize_figure(fig)
     assert [ax.get_title(loc="left") for ax in axes] == ["A", "B"]
     assert twin.get_title(loc="left") == ""
-    assert all(ax._left_title.get_fontsize() == 20 for ax in axes)
-    assert axes[0].get_legend().get_texts()[0].get_fontsize() == 11
+    assert all(ax._left_title.get_fontsize() == FS("panel_label") for ax in axes)
+    assert axes[0].get_legend().get_texts()[0].get_fontsize() == FS("legend")
     plt.close(fig)
 
 
@@ -79,7 +80,7 @@ def test_heatmap_border_opt_out_and_font_overrides_survive_finalization():
         S.finalize_figure(fig)  # the shared file exporter also finalizes
     fig.canvas.draw()
     assert [len(ax.collections) for ax in axes] == [2, 0]
-    assert axes[0].texts[0].get_fontsize() == 10
+    assert axes[0].texts[0].get_fontsize() == FS("annot")
     assert target.texts[0].get_fontsize() == 12
     assert {text.get_size() for text in target.get_xticklabels()} == {13}
     assert {text.get_size() for text in colorbar.ax.get_yticklabels()} == {13}
@@ -115,21 +116,21 @@ def test_retained_company_heatmap_has_spines_ticks_white_zeros_and_no_cell_borde
     fig.canvas.draw()
     heatmap, colorbar = fig.axes
     assert heatmap.get_title(loc="left") == "A"
-    assert heatmap._left_title.get_size() == 26
+    assert heatmap._left_title.get_size() == FS("panel_label")
     assert not heatmap.collections
     assert all(spine.get_visible() and spine.get_linewidth() == 1
                and to_hex(spine.get_edgecolor()) == "#000000"
                for spine in heatmap.spines.values())
     for axis in (heatmap.xaxis, heatmap.yaxis):
-        assert axis.label.get_size() == 17
+        assert axis.label.get_size() == FS("label")
         for tick in axis.get_major_ticks():
             assert tick.tick1line.get_visible() and tick.tick2line.get_visible()
             assert tick.tick1line.get_markersize() > 0 and tick.tick2line.get_markersize() > 0
     assert not any(line.get_visible() for line in heatmap.get_xgridlines() + heatmap.get_ygridlines())
-    assert {text.get_size() for text in heatmap.texts} == {12}
-    assert {text.get_size() for text in heatmap.get_xticklabels() + heatmap.get_yticklabels()} == {13}
-    assert {text.get_size() for text in colorbar.get_yticklabels()} == {13}
-    assert colorbar.yaxis.label.get_size() == 17
+    assert {text.get_size() for text in heatmap.texts} == {FS("annot")}
+    assert {text.get_size() for text in heatmap.get_xticklabels() + heatmap.get_yticklabels()} == {FS("tick")}
+    assert {text.get_size() for text in colorbar.get_yticklabels()} == {FS("tick")}
+    assert colorbar.yaxis.label.get_size() == FS("label")
     image = heatmap.images[0]
     np.testing.assert_array_equal(image.get_array().data, company_year.drop(columns="org").values)
     np.testing.assert_array_equal(image.get_array().mask, image.get_array().data <= 0)
@@ -175,7 +176,7 @@ def test_collaboration_publication_figure_keeps_only_all_sector_citations_withou
     assert ax.get_title(loc="left") == "A"
     assert not ax.images and not ax.containers
     assert len(ax.patches) == len(H.NON_ACADEMIC_SECTOR_LABELS)
-    medians = [line for line in ax.lines if line.get_linewidth() == 1.5]
+    medians = [line for line in ax.lines if line.get_linewidth() == S.stroke("line")]
     assert len(medians) == len(H.NON_ACADEMIC_SECTOR_LABELS)
     for box, text, median, sector in zip(ax.patches, ax.get_yticklabels(), medians,
                                           H.NON_ACADEMIC_SECTOR_LABELS):
@@ -184,8 +185,8 @@ def test_collaboration_publication_figure_keeps_only_all_sector_citations_withou
         values = np.log10(df.loc[df[H.sector_flag_col(sector)].eq(1), "times_cited"] + 1)
         np.testing.assert_allclose(median.get_xdata(), np.median(values))
         assert f"(n={len(values)})" in text.get_text()
-    assert ax._left_title.get_size() == 26
-    assert ax.xaxis.label.get_size() == ax.yaxis.label.get_size() == 17
+    assert ax._left_title.get_size() == FS("panel_label")
+    assert ax.xaxis.label.get_size() == ax.yaxis.label.get_size() == FS("label")
     assert {side: spine.get_visible() for side, spine in ax.spines.items()} == {
         "left": True, "bottom": True, "top": False, "right": False}
     pd.testing.assert_frame_equal(df, original)
@@ -233,7 +234,7 @@ def test_clinical_heatmap_has_full_spines_larger_labels_white_zeros_and_panel_ga
     first = np.array([[0., 25., 100.], [50., 0., 75.]])
     second = np.array([[100., 0., 10.], [0., 25., 50.]])
     import textwrap
-    namespace = dict(plt=plt, np=np, textwrap=textwrap, STYLE=style,
+    namespace = dict(font_size=S.font_size, stroke=S.stroke, project_figsize=S.figsize, plt=plt, np=np, textwrap=textwrap, STYLE=style,
                      leaves=["Disease one", "Disease two"],
                      leaf_trials={"Disease one": range(4), "Disease two": range(6)},
                      chapters=["I Chapter", "II Chapter", "III Chapter"],
@@ -251,11 +252,11 @@ def test_clinical_heatmap_has_full_spines_larger_labels_white_zeros_and_panel_ga
         assert all(spine.get_visible() for spine in ax.spines.values())
         assert all(to_hex(spine.get_edgecolor()) == "#000000" for spine in ax.spines.values())
         assert all(spine.get_linewidth() == 1.0 for spine in ax.spines.values())
-        assert ax.xaxis.label.get_fontsize() == ax.yaxis.label.get_fontsize() == 17
-        assert all(label.get_fontsize() == 13 for label in ax.get_xticklabels() + ax.get_yticklabels())
+        assert ax.xaxis.label.get_fontsize() == ax.yaxis.label.get_fontsize() == FS("label")
+        assert all(label.get_fontsize() == FS("tick") for label in ax.get_xticklabels() + ax.get_yticklabels())
     colorbar = right.images[0].colorbar
-    assert colorbar.ax.yaxis.label.get_fontsize() == 16
-    assert all(label.get_fontsize() == 12 for label in colorbar.ax.get_yticklabels())
+    assert colorbar.ax.yaxis.label.get_fontsize() == FS("label")
+    assert all(label.get_fontsize() == FS("tick") for label in colorbar.ax.get_yticklabels())
     images = [left.images[0], right.images[0]]
     assert images[0].norm is images[1].norm
     assert all(im.get_clim() == (10., 100.) for im in images)
@@ -284,7 +285,7 @@ def test_legend_handles_keep_their_own_transform_and_match_lines():
     assert handle.get_color() == line.get_color() == "black"
     assert handle.get_linestyle() == line.get_linestyle() == ":"
     assert handle.get_markeredgecolor() == "black"
-    assert handle.get_markersize() == line.get_markersize() == 7
+    assert handle.get_markersize() == line.get_markersize() == S.marker_size()
     plt.close(fig)
 
 
@@ -305,7 +306,7 @@ def test_field_and_concept_rankings_refresh_palette_and_keep_larger_text_on_expo
                          index=["variants", "loci", "genome-wide association studies",
                                 "cardiovascular disease", "fat", "cancer", "physical activity",
                                 "phenotype", "liver fat", "traits"])
-    namespace = dict(plt=plt, np=np, textwrap=textwrap, set_title=S.set_title,
+    namespace = dict(font_size=S.font_size, stroke=S.stroke, project_figsize=S.figsize, plt=plt, np=np, textwrap=textwrap, set_title=S.set_title,
                      STYLE={"c_primary": "purple", "c_green": "olive"},
                      for_frac=fields.copy(), con_frac=concepts.copy(), n_for=158, n_con=166)
     exec(by_id["8e6e07a8"], namespace)
@@ -320,9 +321,9 @@ def test_field_and_concept_rankings_refresh_palette_and_keep_larger_text_on_expo
     for ax, values, color in zip(fig.axes, (fields, concepts), S.palette("red", "steel_blue")):
         assert {to_hex(bar.get_facecolor()).upper() for bar in ax.patches} == {color}
         np.testing.assert_array_equal([bar.get_width() for bar in ax.patches], sorted(values))
-        assert ax.xaxis.label.get_fontsize() == 17
-        assert all(t.get_fontsize() == 14 for t in ax.get_xticklabels() + ax.get_yticklabels())
-        assert all(t.get_fontsize() == 13 for t in ax.texts)
+        assert ax.xaxis.label.get_fontsize() == FS("label")
+        assert all(t.get_fontsize() == FS("tick") for t in ax.get_xticklabels() + ax.get_yticklabels())
+        assert all(t.get_fontsize() == FS("annot") for t in ax.texts)
         assert all(t.get_fontfamily() == ["Helvetica"] for t in ax.texts)
         boxes = [t.get_window_extent(renderer) for t in ax.get_yticklabels()]
         assert not any(a.overlaps(b) for a, b in zip(boxes, boxes[1:]))
@@ -345,7 +346,7 @@ def test_field_concept_plot_reloads_project_blue_and_draws_white_zeros_with_spac
     fields = ["Clinical Sciences", "Genetics", "Public Health"]
     values = np.array([[0., 10., 50.], [25., 0., 75.], [0., 20., 0.]])
     weights = pd.Series([35.3, 24.2, 19.0], index=fields)
-    namespace = dict(np=np, plt=plt, textwrap=textwrap, STYLE={"c_primary": "#274668"},
+    namespace = dict(font_size=S.font_size, stroke=S.stroke, project_figsize=S.figsize, np=np, plt=plt, textwrap=textwrap, STYLE={"c_primary": "#274668"},
                      fields=fields, concepts=["Concept one", "Concept two", "Concept three"],
                      field_frac=weights, heat=pd.DataFrame(values, index=fields),
                      ylabels=fields, set_title=S.set_title)
@@ -359,16 +360,16 @@ def test_field_concept_plot_reloads_project_blue_and_draws_white_zeros_with_spac
     assert {side: spine.get_visible() for side, spine in left.spines.items()} == {
         "left": True, "bottom": True, "top": False, "right": False}
     assert all(spine.get_visible() for spine in right.spines.values())
-    for ax, annotation_size in ((left, 13), (right, 12)):
+    for ax, annotation_size in ((left, FS("annot")), (right, FS("annot"))):
         assert all(to_hex(spine.get_edgecolor()) == "#000000" for spine in ax.spines.values())
         assert all(spine.get_linewidth() == 1.0 for spine in ax.spines.values())
-        assert ax.xaxis.label.get_fontsize() == ax.yaxis.label.get_fontsize() == 17
-        assert all(t.get_fontsize() == 14 for t in ax.get_xticklabels() + ax.get_yticklabels())
+        assert ax.xaxis.label.get_fontsize() == ax.yaxis.label.get_fontsize() == FS("label")
+        assert all(t.get_fontsize() == FS("tick") for t in ax.get_xticklabels() + ax.get_yticklabels())
         assert all(t.get_fontsize() == annotation_size for t in ax.texts)
         np.testing.assert_array_equal(ax.get_ylim(), (-.5, len(fields) - .5))
     colorbar = right.images[0].colorbar
-    assert colorbar.ax.yaxis.label.get_fontsize() == 16
-    assert all(t.get_fontsize() == 13 for t in colorbar.ax.get_yticklabels())
+    assert colorbar.ax.yaxis.label.get_fontsize() == FS("label")
+    assert all(t.get_fontsize() == FS("tick") for t in colorbar.ax.get_yticklabels())
     renderer = fig.canvas.get_renderer()
     for ax in fig.axes:
         for text in [ax.xaxis.label, ax.yaxis.label, *ax.get_xticklabels(), *ax.get_yticklabels()]:
@@ -415,13 +416,13 @@ def test_timeliness_annotation_and_all_panel_colours_follow_current_data_and_pal
         if cached_palette:
             for ax in figure.axes:
                 for bar in ax.patches:
-                    bar.set_facecolor(S.palette("green"))
+                    bar.set_facecolor("#74D1AF")
         return figure
 
     for shift, expected_label in ((0, "Median: three years"), (-1, "Median: 2 years")):
         shifted = trials.copy()
         shifted["start_year"] += shift
-        namespace = dict(np=np, pd=pd, plt=plt, textwrap=textwrap, ct_papers=papers.copy(),
+        namespace = dict(font_size=S.font_size, stroke=S.stroke, project_figsize=S.figsize, np=np, pd=pd, plt=plt, textwrap=textwrap, ct_papers=papers.copy(),
                          df_ct=shifted, STYLE={"c_primary": "#274668"},
                          set_title=S.set_title, savefig=lambda *args, **kwargs: None,
                          ANALYSIS_START_YEAR=2013, ANALYSIS_END_YEAR=2025)
@@ -437,8 +438,8 @@ def test_timeliness_annotation_and_all_panel_colours_follow_current_data_and_pal
         assert list(fig.axes[-1].get_subplotspec().rowspan) == [0, 1]
         for ax, color in zip(fig.axes, (blue, cream, blue, cream, red)):
             assert {to_hex(bar.get_facecolor()).upper() for bar in ax.patches} == {color}
-            assert ax.xaxis.label.get_fontsize() == ax.yaxis.label.get_fontsize() == 17
-            assert all(t.get_fontsize() == 14 for t in ax.get_xticklabels() + ax.get_yticklabels())
+            assert ax.xaxis.label.get_fontsize() == ax.yaxis.label.get_fontsize() == FS("label")
+            assert all(t.get_fontsize() == FS("tick") for t in ax.get_xticklabels() + ax.get_yticklabels())
         middle = fig.axes[3]
         annotation, = [t for t in middle.texts if isinstance(t, Annotation) and t.arrow_patch is not None]
         assert annotation.get_text() == expected_label
@@ -458,7 +459,7 @@ def test_timeliness_annotation_and_all_panel_colours_follow_current_data_and_pal
         assert len(callouts) == 3
         assert callouts[1].xy[0] > trials["n_ukbb"].max()  # arrow clears the last count label
         for annotation in callouts:
-            assert annotation.get_fontsize() == 13
+            assert annotation.get_fontsize() == FS("annot")
             assert to_hex(annotation.arrow_patch.get_edgecolor()).upper() == S.palette("navy")
             box = annotation.get_bbox_patch()
             assert to_hex(box.get_facecolor()) == "#ffffff"
@@ -527,7 +528,7 @@ def test_clinical_status_is_full_width_with_original_size_and_shared_palette():
     })
     with (patch.object(F, "show_figures") as show, patch.object(F, "savefig") as save,
           patch("IPython.display.display") as display):
-        namespace = dict(np=np, pd=pd, plt=plt, STYLE=style, df_ct=frame.copy(),
+        namespace = dict(font_size=S.font_size, stroke=S.stroke, project_figsize=S.figsize, np=np, pd=pd, plt=plt, STYLE=style, df_ct=frame.copy(),
                          set_title=S.set_title, savefig=save, display=display,
                          ANALYSIS_START_YEAR=2013, ANALYSIS_END_YEAR=2025)
         before = set(plt.get_fignums())
@@ -540,7 +541,7 @@ def test_clinical_status_is_full_width_with_original_size_and_shared_palette():
         fig = namespace["fig"]
         assert set(plt.get_fignums()) - before == {fig.number}
         assert len(fig.axes) == 1
-        assert tuple(fig.get_size_inches()) == (10, 5)
+        assert tuple(fig.get_size_inches()) == S.figsize("wide")
         save.assert_called_once_with(fig, "ct_combined_figure", style)
         show.assert_called_once_with()
         display.assert_called_once()
@@ -613,7 +614,7 @@ def test_trial_comparisons_preserve_rankings_and_use_readable_annotations():
         np.testing.assert_array_equal([bar.get_width() for bar in ax.patches], ranked.values)
         assert len(ax.patches) == len(ax.texts) == 15
         assert ax.yaxis_inverted()
-        assert all(text.get_fontsize() == 12 for text in ax.texts)
+        assert all(text.get_fontsize() == FS("annot") for text in ax.texts)
         color = style["c_gold"] if i % 2 else style["c_primary"]
         assert {to_hex(bar.get_facecolor()).upper() for bar in ax.patches} == {color}
         boxes = [label.get_window_extent(renderer) for label in ax.get_yticklabels()]
@@ -674,7 +675,7 @@ def test_trial_geography_maps_match_author_supplement_without_duplicate_panel():
         measured = next(item for item in ax.collections if item.get_array() is not None)
         missing = next(item for item in ax.collections if item.get_hatch())
         assert missing.get_hatch() == "///"
-        assert to_hex(missing.get_facecolors()[0]) == "#efefef"
+        assert to_hex(missing.get_facecolors()[0]) == S.neutral("light").lower()
         np.testing.assert_array_equal(measured.get_array(), expected)
         assert isinstance(measured.norm, LogNorm)
         np.testing.assert_allclose(measured.cmap(np.linspace(0, 1, 256)),

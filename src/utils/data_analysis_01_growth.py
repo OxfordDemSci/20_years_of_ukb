@@ -21,11 +21,12 @@ from .shared_analysis_window import (
     filter_analysis_window,
 )
 from .shared_style import compact_count as shared_compact_count
+from .shared_style import font_size, stroke, figsize as project_figsize, neutral
 from .shared_style import grid_on as shared_grid_on
 from .shared_style import marker_area as shared_marker_area
 from .shared_style import panel_label as shared_panel_label
 from .shared_style import style_axis as shared_style_axis
-from .shared_style import FONT_FAMILY, blue_cream_red_colormap, palette, uppercase_title
+from .shared_style import EDGE_COLOR, FONT_FAMILY, figure_colormap, semantic_colors, uppercase_title
 
 ENDPOINT_SPECS = OrderedDict({
     "clinical_trials": {
@@ -1211,8 +1212,9 @@ def cross_sector_composition_summary(
     return table, multiple_sector_count
 
 
-def supplementary_indicator_specs():
-    """Return the supplementary indicators and their shared-palette colours."""
+def supplementary_indicator_specs(metric_colors=None):
+    """Return the supplementary indicators and their `metric_colors` colours."""
+    metric_colors = metric_colors or semantic_colors()
     columns = OrderedDict({
         "Altmetric attention": "has_altmetric_attention",
         "Cross-sector": "cross_sector_collaboration",
@@ -1223,15 +1225,21 @@ def supplementary_indicator_specs():
         "Dataset": "has_datasets",
     })
     colors = {
-        "Altmetric attention": palette("light_blue"),
-        "Cross-sector": palette("navy"),
-        "International": palette("steel_blue"),
-        "Patent": palette("red"),
-        "Clinical trial": palette("green"),
-        "Policy document": palette("cream"),
-        "Dataset": palette("blue"),
+        "Altmetric attention": metric_colors["altmetric"],
+        "Cross-sector": metric_colors["cross_sector"],
+        # Patents already take steel blue, the usual international colour.
+        "International": metric_colors["grants"],
+        "Patent": metric_colors["patents"],
+        "Clinical trial": metric_colors["clinical_trials"],
+        "Policy document": metric_colors["policy_documents"],
+        "Dataset": metric_colors["datasets"],
     }
     return columns, colors
+
+
+def legible_text_color(color):
+    """`color` for text on white, or the muted grey when it is too pale to read (cream, light red)."""
+    return neutral("muted") if np.dot(to_rgb(color), [0.2126, 0.7152, 0.0722]) > 0.75 else color
 
 
 def indicator_overlap_tables(complete, indicator_columns):
@@ -1291,8 +1299,8 @@ class GrowthPlotter:
     def inset_sparkline(self, ax, series, title, color):
         x = series.index.to_numpy(dtype=float)
         y = series.to_numpy(dtype=float)
-        ax.set_facecolor("#FCFCFB")
-        ax.plot(x, y, color=color, linewidth=1.8, zorder=2)
+        ax.set_facecolor("white")
+        ax.plot(x, y, color=color, linewidth=stroke("line"), zorder=2)
         ax.fill_between(x, y, color=color, alpha=0.11, zorder=1)
         ax.scatter(
             x[-1],
@@ -1311,7 +1319,7 @@ class GrowthPlotter:
             which="major",
             length=4.5,
             width=1.25,
-            color="#000000",
+            color="black",
             bottom=True,
             top=False,
             right=False,
@@ -1324,7 +1332,7 @@ class GrowthPlotter:
             direction="out",
             length=3.2,
             width=0.9,
-            color="#000000",
+            color="black",
             left=True,
             right=False,
             labelleft=False,
@@ -1332,7 +1340,7 @@ class GrowthPlotter:
         ax.grid(False, which="both", axis="both")
         for spine_name, spine in ax.spines.items():
             spine.set_visible(spine_name in {"left", "bottom"})
-            spine.set_color("#000000")
+            spine.set_color("black")
             spine.set_linewidth(max(self.style.get("axes_linewidth", 1.0), 1.3))
         # Explicit point offsets avoid compressed multiline font metrics.
         for line_number, line in enumerate(uppercase_title(title).splitlines()):
@@ -1340,14 +1348,14 @@ class GrowthPlotter:
                 line,
                 xy=(0.055, 0.95),
                 xycoords="axes fraction",
-                xytext=(0, -line_number * (self.style["annot_fs"] + 4)),
+                xytext=(0, -line_number * (font_size("annot"))),
                 textcoords="offset points",
                 ha="left",
                 va="top",
-                fontsize=self.style["annot_fs"] - 0.3,
+                fontsize=font_size("small"),
                 fontweight="bold",
                 fontfamily=FONT_FAMILY,
-                color="#222222",
+                color=neutral("muted"),
             )
         ax.text(
             0.945,
@@ -1358,7 +1366,7 @@ class GrowthPlotter:
             va="top",
             fontsize=self.style["annot_fs"],
             fontweight="bold",
-            color=color,
+            color=legible_text_color(color),
         )
         ax.text(
             0.055,
@@ -1367,8 +1375,8 @@ class GrowthPlotter:
             transform=ax.transAxes,
             ha="left",
             va="top",
-            fontsize=self.style["annot_fs"] - 2,
-            color="#6B7280",
+            fontsize=font_size("small"),
+            color=neutral("muted"),
         )
         ax.text(
             0.945,
@@ -1377,8 +1385,8 @@ class GrowthPlotter:
             transform=ax.transAxes,
             ha="right",
             va="top",
-            fontsize=self.style["annot_fs"] - 2,
-            color="#6B7280",
+            fontsize=font_size("small"),
+            color=neutral("muted"),
         )
 
 
@@ -1397,7 +1405,7 @@ def plot_growth_and_reach(
     """Build the four-panel main growth-and-reach figure."""
     years = annual.index
     indicator_keys = list(indicators)
-    fig = plt.figure(figsize=style["figsize_main"], layout="constrained")
+    fig = plt.figure(figsize=project_figsize("landscape"), layout="constrained")
     grid = fig.add_gridspec(
         3,
         5,
@@ -1417,7 +1425,7 @@ def plot_growth_and_reach(
         main_x,
         main_y,
         color=metric_colors["publications"],
-        linewidth=3.4,
+        linewidth=stroke("line"),
         zorder=3,
     )
     ax_main.fill_between(
@@ -1432,7 +1440,7 @@ def plot_growth_and_reach(
         main_y[-1],
         color=metric_colors["publications"],
         edgecolor="white",
-        linewidth=1.0,
+        linewidth=stroke("edge"),
         s=shared_marker_area(style, scale=0.90),
         zorder=4,
     )
@@ -1449,7 +1457,7 @@ def plot_growth_and_reach(
         ha="right",
         va="bottom",
         color=metric_colors["publications"],
-        fontsize=style["label_fs"] + 1,
+        fontsize=font_size("label"),
         fontweight="bold",
     )
     ax_main.add_patch(
@@ -1494,8 +1502,8 @@ def plot_growth_and_reach(
         annual["annual_papers"],
         width=0.78,
         color=bar_colors,
-        edgecolor="#000000",
-        linewidth=0.8,
+        edgecolor="black",
+        linewidth=stroke("edge"),
     )
     ax_annual.yaxis.set_major_formatter(mticker.EngFormatter(sep=""))
     ax_annual.set_ylim(0, annual["annual_papers"].max() * 1.20)
@@ -1513,7 +1521,7 @@ def plot_growth_and_reach(
         ha="left",
         va="top",
         fontsize=style["annot_fs"],
-        color="#374151",
+        color=neutral("muted"),
         linespacing=1.35,
     )
     ax_annual.annotate(
@@ -1537,7 +1545,7 @@ def plot_growth_and_reach(
             5,
             value,
             color=color,
-            linewidth=2.0,
+            linewidth=stroke("ref"),
             alpha=0.65,
         )
         ax_rates.scatter(
@@ -1546,7 +1554,7 @@ def plot_growth_and_reach(
             s=shared_marker_area(style),
             color=color,
             edgecolor="white",
-            linewidth=0.8,
+            linewidth=stroke("edge"),
             zorder=3,
         )
         ax_rates.text(
@@ -1557,7 +1565,7 @@ def plot_growth_and_reach(
             va="center",
             fontsize=style["annot_fs"],
             fontweight="bold",
-            color=color,
+            color=legible_text_color(color),
         )
     ax_rates.set_xscale("log")
     ax_rates.set_xlim(5, 1_000)
@@ -1590,23 +1598,23 @@ def plot_growth_and_reach(
             is_diagonal = row_key == column_key
             value = conditional_overlap.loc[row_key, column_key]
             if is_diagonal:
-                face_color = "#F2F2F2"
+                face_color = neutral("light")
                 annotation = "\N{EM DASH}"
-                text_color = "#777777"
+                text_color = neutral("muted")
             else:
                 alpha = 0.12 + 0.72 * value / 100
                 face_rgb = (1 - alpha) * np.ones(3) + alpha * base_rgb
                 face_color = tuple(face_rgb)
                 annotation = f"{value:.0f}%"
                 luminance = np.dot(face_rgb, [0.2126, 0.7152, 0.0722])
-                text_color = "white" if luminance < 0.52 else "#222222"
+                text_color = "white" if luminance < 0.52 else neutral("muted")
             ax_overlap.add_patch(Rectangle(
                 (column_index, row_index),
                 1,
                 1,
                 facecolor=face_color,
                 edgecolor="white",
-                linewidth=1.2,
+                linewidth=stroke("edge"),
             ))
             ax_overlap.text(
                 column_index + 0.5,
@@ -1614,7 +1622,7 @@ def plot_growth_and_reach(
                 annotation,
                 ha="center",
                 va="center",
-                fontsize=style["annot_fs"] - 1,
+                fontsize=font_size("small"),
                 fontweight="bold",
                 color=text_color,
             )
@@ -1651,15 +1659,15 @@ def plot_annual_growth_supplement(
     bar_colors[years.get_loc(baseline)] = style["c_gold"]
     bar_colors[years.get_loc(last_complete_year)] = metric_colors["publications"]
 
-    fig, axes = plt.subplots(2, 3, figsize=(17, 9.5), layout="constrained")
+    fig, axes = plt.subplots(2, 3, figsize=project_figsize("wide"), layout="constrained")
     axes = axes.ravel()
     axes[0].bar(
         years,
         annual["annual_papers"],
         color=bar_colors,
         width=0.78,
-        edgecolor="#000000",
-        linewidth=0.8,
+        edgecolor="black",
+        linewidth=stroke("edge"),
     )
     axes[0].set_ylabel("Annual publications")
     axes[0].yaxis.set_major_formatter(mticker.StrMethodFormatter("{x:,.0f}"))
@@ -1679,10 +1687,10 @@ def plot_annual_growth_supplement(
         recent_growth,
         color=growth_colors,
         width=0.78,
-        edgecolor="#000000",
-        linewidth=0.8,
+        edgecolor="black",
+        linewidth=stroke("edge"),
     )
-    axes[2].axhline(0, color="#555555", linewidth=0.8)
+    axes[2].axhline(0, color=neutral("muted"), linewidth=stroke("ref"))
     axes[2].set_ylabel("Year-on-year growth (%)")
     axes[2].yaxis.set_major_formatter(mticker.PercentFormatter(xmax=100))
 
@@ -1690,70 +1698,70 @@ def plot_annual_growth_supplement(
         years,
         annual["median_authors"],
         color=metric_colors["publications"],
-        linewidth=2.2,
+        linewidth=stroke("line"),
     )
     axes[1].fill_between(
         years.to_numpy(dtype=float),
         annual["authors_q25"].to_numpy(dtype=float),
         annual["authors_q75"].to_numpy(dtype=float),
         facecolor=to_rgba(metric_colors["publications"], 0.15),
-        edgecolor="k",
-        linewidth=0.9,
+        edgecolor="black",
+        linewidth=stroke("edge"),
         linestyle="--",
         label="Interquartile\nrange",
     )
     axes[1].set_ylabel("Authors per paper")
-    axes[1].legend(frameon=True, edgecolor="k", loc="upper right")
+    axes[1].legend(frameon=True, edgecolor="black", loc="upper right")
 
     axes[3].plot(
         years,
         annual["share_cross_sector_collaboration_pct"],
         color=metric_colors["cross_sector"],
-        linewidth=2.2,
+        linewidth=stroke("line"),
         label="Cross-sector",
     )
     axes[3].plot(
         years,
         annual["share_international_collaboration_pct"],
         color=metric_colors["international"],
-        linewidth=2.2,
+        linewidth=stroke("line"),
         label="International",
     )
     axes[3].plot(
         years,
         sector_by_year["share_education_company_pct"],
         color=style["c_gold"],
-        linewidth=1.8,
+        linewidth=stroke("line"),
         label="Education + company",
     )
     axes[3].set_ylabel("Share of annual publications (%)")
     axes[3].yaxis.set_major_formatter(mticker.PercentFormatter(xmax=100))
-    axes[3].legend(frameon=True, edgecolor="k", loc="best")
+    axes[3].legend(frameon=True, edgecolor="black", loc="best")
 
     axes[4].plot(
         years,
         annual["share_has_altmetric_attention_pct"],
         color=metric_colors["altmetric"],
-        linewidth=2.2,
+        linewidth=stroke("line"),
         label="Altmetric attention",
     )
     axes[4].plot(
         years,
         annual["share_is_open_access_pct"],
         color=metric_colors["open_access"],
-        linewidth=2.2,
+        linewidth=stroke("line"),
         label="Open access",
     )
     axes[4].plot(
         years,
         annual["share_is_preprint_pct"],
         color=metric_colors["preprints"],
-        linewidth=1.8,
+        linewidth=stroke("line"),
         label="Preprints",
     )
     axes[4].set_ylabel("Share of annual publications (%)")
     axes[4].yaxis.set_major_formatter(mticker.PercentFormatter(xmax=100))
-    axes[4].legend(frameon=True, edgecolor="k", loc="best")
+    axes[4].legend(frameon=True, edgecolor="black", loc="best")
 
     reach_lines = [
         ("grants", "Grants", metric_colors["grants"]),
@@ -1767,7 +1775,7 @@ def plot_annual_growth_supplement(
         axes[5].plot(
             years,
             reach_share,
-            linewidth=1.9,
+            linewidth=stroke("line"),
             color=color,
             label=label,
         )
@@ -1777,7 +1785,7 @@ def plot_annual_growth_supplement(
     axes[5].yaxis.set_major_formatter(
         mticker.FuncFormatter(lambda value, _: f"{value:g}%")
     )
-    axes[5].legend(frameon=True, edgecolor="k", ncol=2, loc="best")
+    axes[5].legend(frameon=True, edgecolor="black", ncol=2, loc="best")
 
     for label, ax in zip("ABCDEF", axes):
         plotter.panel_label(ax, label, x=-0.10, y=1.16)
@@ -1798,7 +1806,7 @@ def plot_indicator_overlap_supplement(
     fig, (ax_heat, ax_bar) = plt.subplots(
         1,
         2,
-        figsize=(14, 5.8),
+        figsize=project_figsize("wide"),
         layout="constrained",
         gridspec_kw={"width_ratios": [1.35, 0.9]},
     )
@@ -1810,7 +1818,7 @@ def plot_indicator_overlap_supplement(
         mask=triangle_mask,
         annot=True,
         fmt=".2f",
-        cmap=blue_cream_red_colormap(),
+        cmap=figure_colormap(),
         vmin=0,
         vmax=color_max,
         square=True,
@@ -1822,10 +1830,10 @@ def plot_indicator_overlap_supplement(
     for row, column in np.argwhere(~triangle_mask & jaccard.notna().to_numpy()):
         ax_heat.add_patch(Rectangle(
             (column, row), 1, 1,
-            fill=False, edgecolor=palette("navy"), linewidth=0.7,
+            fill=False, edgecolor=EDGE_COLOR, linewidth=stroke("edge"),
         ))
     heatmap_cbar = ax_heat.collections[0].colorbar
-    heatmap_cbar.outline.set_edgecolor(palette("navy"))
+    heatmap_cbar.outline.set_edgecolor(EDGE_COLOR)
     heatmap_cbar.outline.set_linewidth(1.0)
     shared_style_axis(ax_heat, style, grid=False)
     ax_heat.set_xlabel("")
@@ -1842,8 +1850,8 @@ def plot_indicator_overlap_supplement(
         prevalence.index,
         prevalence.values,
         color=[indicator_colors[label] for label in prevalence.index],
-        edgecolor=palette("navy"),
-        linewidth=0.8,
+        edgecolor=EDGE_COLOR,
+        linewidth=stroke("edge"),
     )
     for position, value in enumerate(prevalence.values):
         ax_bar.text(

@@ -7,16 +7,18 @@
 #     from utils.shared_style import load_style
 #     STYLE = load_style("03_academic_impact")   # base + that notebook's overrides
 #
-# `style.base` is what all notebooks share. `style.notebooks.<notebook stem>`
-# overrides only the keys that notebook genuinely does differently. All notebooks
-# share the seven-colour palette used by the author analyses.
+# `style.base` is what all notebooks share, and it is the ONLY place typography,
+# strokes and figure sizes are set (D55): every figure is drawn 18in wide on one rung of
+# a height ladder, with one set of font sizes, one colormap and black edges, so text
+# prints at the same size in every figure. A `style.notebooks.<notebook stem>` section
+# may set only its palette, semantic colours (`*_colors`, `roles`, `c_*`) and output
+# (`save`, `formats`, `savedir`); `load_style` raises on anything else.
 #
 # TWO CONVENIENCES THE LOADER APPLIES
 # -----------------------------------
 #   roles / *_colors : an INTEGER value means "index into `colors`", so the
 #                      semantic roles follow the palette when the palette changes.
 #                      A string value is taken literally ("#BBBBBB").
-#   figsize*         : two-element lists become tuples, as matplotlib expects.
 #
 # `savedir` is relative to the repo root and only used when `save: true`;
 # `formats` lists the file extensions savefig writes.
@@ -26,33 +28,56 @@ style:
 
   # ---------------------------------------------------------------- shared base
   base:
-    # Matches shared_style.PALETTE: red, cream, light blue, blue, steel blue, navy, green.
+    # Matches shared_style.PALETTE: red, cream, light blue, blue, steel blue, navy,
+    # light red (a 50% white tint of the red; it replaced green in every analysis).
     colors: &project_palette ["#E66859", "#FEE7BA", "#75BBD4", "#74ADD1",
-                              "#416FA0", "#274668", "#74D1AF"]
+                              "#416FA0", "#274668", "#F2B4AC"]
+    # The only greys (shared_style.NEUTRALS).
+    neutral_colors:
+      missing: "#B7B7B7"
+      muted:   "#555555"
+      light:   "#E5E5E5"
 
-    # figure sizes
-    figsize:       [12, 7]
-    figsize_wide:  [14, 7]
-    figsize_small: [10, 6]
-    figsize_panel: [16, 12]
+    # Figure size (D55): one width, height = width x one rung of the ladder.
+    # Mirrors shared_style.FIG_WIDTH / FIG_ASPECTS; use shared_style.figsize(<rung>).
+    fig_width: 18
+    fig_aspects:
+      wide:      0.5
+      landscape: 0.625
+      standard:  0.8
+      square:    1.0
+      tall:      1.25
 
-    # typography
+    # Typography — Helvetica everywhere (shared_style.FONT_FAMILY). Four sizes in all,
+    # in points at the 18in width (x0.4 on a 183 mm page: 8.8 / 6.4 / 5.6 / 5.2 pt).
     font_family: Helvetica
+    panel_label_fs:    22
+    title_fs:          22
+    label_fs:          16
+    colorbar_label_fs: 16
+    tick_fs:           14
+    legend_fs:         14
+    annot_fs:          13
+    small_fs:          13
+    body_fs:           13
 
-    # font sizes
-    title_fs:  16
-    label_fs:  13
-    tick_fs:   11
-    annot_fs:  10
-    legend_fs: 11
+    # Strokes. Every edge on a filled mark is black at edge_linewidth; white is used only
+    # as a separator between filled areas (stacked segments, map borders).
+    edgecolor:       black
+    separator_color: white
+    edge_linewidth:  0.6
+    line_width:      2.0
+    ref_linewidth:   1.0
+    axes_linewidth:  1.0
+    tick_length:     4
+    tick_width:      1.0
+    tick_pad:        3
+    minor_tick_length: 2.5
+    minor_tick_width:  0.7
 
     # marker diameters are in points; scatter areas are in points squared
     marker_size:      8.5
     dot_marker_area: 76
-
-    # misc
-    dpi: 500  # PNG exports are also enforced by shared_style.PNG_DPI
-    edgecolor: grey
 
     # Dashed gridlines are the project default, on both axes and BOTH tick levels.
     # shared_style.grid_on() is what applies them; ax.grid() by hand will get the dash
@@ -61,53 +86,39 @@ style:
     grid_linewidth: 0.6
     grid_color: "#B0B0B0"
     grid_alpha: 0.6
+
+    dpi: 500  # PNG exports are also enforced by shared_style.PNG_DPI
     save: false                                  # set true to write figures out
     formats: [pdf]
     savedir: output/figures/data_analysis
 
   # --------------------------------------------------- per-notebook differences
+  # Palette, semantic colours and output only. Typography, strokes and sizes: see base.
   notebooks:
 
     00_dataset:
-      title_fs: 20
-      colorbar_label_fs: 16
       colors: *project_palette
       save: true
       formats: [pdf, png]
       savedir: output/figures/data_analysis/00_dataset
 
     01_growth:
+      # Same stream colours as 04 (stream_colors), so an indicator keeps its colour
+      # across analyses; datasets, which 04 does not plot, take the cream.
       colors: *project_palette
       metric_colors:
-        publications: 3
-        patents: 0
-        clinical_trials: 6
-        policy_documents: 1
-        datasets: 3
-        cross_sector: 5
-        altmetric: 2
-        grants: 4
-        international: 4
-        open_access: 6
-        preprints: 3
+        publications: 3           # blue
+        patents: 4                # steel blue
+        clinical_trials: 5        # navy
+        policy_documents: 0       # red
+        datasets: 1               # cream
+        cross_sector: 6           # light red (04 "company affiliations")
+        altmetric: 2              # light blue
+        grants: 3                 # blue
+        international: 4          # steel blue
+        open_access: 5            # navy
+        preprints: 4              # steel blue
       c_primary_light: "#75BBD4"
-      figsize_main:  [16, 9.9]
-      figsize_panel: [18, 11.5]
-      title_fs: 22
-      label_fs: 18
-      tick_fs: 16
-      annot_fs: 14
-      legend_fs: 14
-      body_fs: 14
-      marker_size: 9.5
-      dot_marker_area: 92
-      grid_linestyle: "--"
-      axes_linewidth: 1.1
-      tick_length: 6
-      tick_width: 1.2
-      tick_pad: 5
-      minor_tick_length: 3.5
-      minor_tick_width: 0.9
       save: true
       formats: [pdf, png]
       savedir: output/figures/data_analysis/01_growth
@@ -115,50 +126,26 @@ style:
         c_primary: 4        # steel blue
         c_accent:  0        # red
         c_gold:    1        # cream
-        c_green:   6        # green
-
-    01_authors:
-      figsize_map:     [14, 8]
-      figsize_network: [12, 12]
-      savedir: output/figures/data_analysis/01_authors
-      roles:
-        c_primary: 4        # steel blue
-        c_accent:  0        # red
-        c_gold:    1        # cream
-        c_green:   6        # green
-      gender_colors:
-        female: 0
-        male:   4
-        unknown: "#BBBBBB"
 
     05_author_characteristics:
-      # The project palette (D29): the seven colours of shared_style.PALETTE_COLORS, in
-      # the same order, so an integer role below and a `palette("navy")` call in the plot
-      # module resolve to the same hex. This section used to carry an eight-colour
-      # literal of its own (crimson / gold / olive / royal blue / purple / teal / brown /
-      # slate); every semantic map below was re-pointed onto the shared colours, which is
-      # why the indexes changed as well as the palette.
-      #
-      #   0 red  1 cream  2 light_blue  3 blue  4 steel_blue  5 navy  6 green
+      # The project palette (D29), in shared_style.PALETTE_COLORS order:
+      #   0 red  1 cream  2 light_blue  3 blue  4 steel_blue  5 navy  6 light_red
       colors: *project_palette
-      # Domain colours for lines, categorical marks and supplementary sequential maps.
-      # The headline map uses Blues; its impact panels use shared blue-cream-red.
       domain_colors:
         author_metrics: 4         # steel blue
         name_gender: 0            # red
         geography: 5              # navy
-        institutions: 6           # green
+        institutions: 6           # light red
         networks: 3               # blue
       author_metric_colors:
         productivity: 4           # steel blue
         h_index: 0                # red
         h_index_kde: 5            # navy
         association: 3            # blue
-      # Leading-author bars and colourbar use the full shared blue-cream-red scale.
       gender_colors:
         Female: 0                 # red
         Male: 4                   # steel blue
-        Unknown: "#B7B7B7"        # deliberately neutral: not a category, an absence
+        Unknown: "#B7B7B7"        # neutral "missing": not a category, an absence
       # The four network component classes, ordered cream -> light blue -> navy so the
       # size ordering is legible as a ramp, with the red reserved for the isolates that
       # sit outside that ordering.
@@ -167,28 +154,6 @@ style:
         Small (2-5): 1            # cream
         Intermediate (6-55): 2    # light blue
         Giant component: 5        # navy
-      figsize_main: [18.5, 10.4]
-      figsize_headline: [18.5, 15.5]
-      figsize_panel: [15.5, 9.2]
-      title_fs: 20
-      label_fs: 15
-      tick_fs: 13
-      annot_fs: 11
-      legend_fs: 11
-      body_fs: 12
-      marker_size: 9.5
-      dot_marker_area: 92
-      grid_linestyle: "--"
-      axes_linewidth: 1.1
-      tick_length: 5.5
-      tick_width: 1.1
-      tick_pad: 4
-      minor_tick_length: 3
-      minor_tick_width: 0.8
-      # Headline map: Matplotlib Blues. Other continuous scales use shared_style:
-      # blue_cream_red_colormap for impact, leading-author, gender-by-field and
-      # country-period panels; sequential_colormap for supplementary maps.
-      edgecolor: black
       save: true
       formats: [pdf, png]
       savedir: output/figures/data_analysis/05_author_characteristics
@@ -196,124 +161,26 @@ style:
         c_primary: 5              # navy
         c_accent: 0               # red
         c_gold: 1                 # cream
-        c_green: 6                # green
 
-    02_content: &content_style
-      # One content-analysis notebook; shared project palette and publication exports.
+    02_content:
       colors: *project_palette
-      title_fs: 20
-      label_fs: 13
-      tick_fs: 11
-      annot_fs: 10
-      legend_fs: 11
-      body_fs: 11
-      panel_label_fs: 20
-      fs_scale:
-        main: 1.0
-        si1_rank_flow: 1.0
-      axes_linewidth: 1.0
-      tick_length: 4
-      tick_width: 1.0
-      tick_pad: 3
-      minor_tick_length: 2.5
-      minor_tick_width: 0.7
-      edgecolor: black
-      marker_size: 8.5
-      dot_marker_area: 76
-      figsize_main: [16, 12]
-      figsize_si: [15, 10]
       save: true
       formats: [pdf, png]
       savedir: output/figures/data_analysis/02_content
 
-    # Backwards-compatible style name for existing panel callers.
-    02_content_99_all:
-      <<: *content_style
-
     03_academic_impact: &academic_style
       colors: *project_palette
-      title_fs: 20
-      panel_label_fs: 20
-      label_fs: 13
-      tick_fs: 11
-      annot_fs: 10
-      legend_fs: 11
-      body_fs: 11
-      colorbar_label_fs: 13
-      edgecolor: black
-      marker_size: 7
-      dot_marker_area: 76
       save: true
+      # pdf + png only, per D32.
       formats: [pdf, png]
       savedir: output/figures/data_analysis/03_academic_impact
 
     03_academic_impact_panels:
       <<: *academic_style
-      # Main and supplementary pages inherit identical typography and palette.
-      fs_scale:
-        main: 1.0
-        si1_impact_map: 1.0
-        si2_top_decile: 1.0
-        si3_growth: 1.0
-      axes_linewidth: 1.0
-      tick_length: 4
-      tick_width: 1.0
-      tick_pad: 3
-      minor_tick_length: 2.5
-      minor_tick_width: 0.7
-      edgecolor: black
-      marker_size: 8.5
-      dot_marker_area: 76
-      figsize_main:     [19, 18]  # A (2x2), B and C stacked beside it, D-K full width
-      main_legend_fs: 14
-      figsize_si_wide:  [14, 10]    # SI 1: labelled impact map
-      figsize_si_grid:  [20, 17]    # SI 2: 25 common-scale field panels
-      figsize_si:       [18, 10.5]  # SI 3: rates and trajectories with a shared key
-      save: true
-      # pdf + png only, per D32. `*.svg` is gitignored, so an svg written here is a file
-      # the repo cannot carry — and §8 of the notebook already says pdf and png only.
-      formats: [pdf, png]
-      savedir: output/figures/data_analysis/03_academic_impact
 
     04_non_academic_panels: &non_academic_style
       <<: *academic_style
-      # Analysis 04 uses project blues/reds, retaining explicitly requested yellow.
-      # Slot 6 is a 50% white tint of red, not green; other indices stay unchanged.
-      colors: &non_academic_palette
-        ["#E66859", "#FEE7BA", "#75BBD4", "#74ADD1", "#416FA0", "#274668", "#F2B4AC"]
-      title_fs: 20
-      label_fs: 13
-      tick_fs: 11
-      annot_fs: 10
-      legend_fs: 11
-      body_fs: 11
-      panel_label_fs: 20
-      # Per-figure type scale. Every font size above is multiplied by the entry for the
-      # figure being drawn, so the family can be tuned figure by figure without a second
-      # style section that would drift from this one.
-      #
-      # The numbers track how tall each page is, because that is what sets the zoom it is
-      # read at: a figure drawn two pages tall is viewed at half the magnification of a
-      # one-page figure, so its type has to be correspondingly larger to land the same
-      # size on screen. si2 is 1.30x the base height; si1_patents is back to 1.0x now
-      # that the RCDC cluster heatmap has a page of its own.
-      fs_scale:
-        main: 1.0
-        si1_patents: 1.0
-        si2_clinical_trials: 1.0
-      axes_linewidth: 1.0
-      tick_length: 4
-      tick_width: 1.0
-      tick_pad: 3
-      minor_tick_length: 2.5
-      minor_tick_width: 0.7
-      edgecolor: black
-      figsize_main: [17, 15]      # the one main-paper panel (sized for main_fs_scale)
-      figsize_si:   [15, 11]      # one SI panel per section
-      save: true
-      # pdf + png only, per D32. `*.svg` is gitignored, so an svg written here is a file
-      # the repo cannot carry and the manifest cell counts anyway.
-      formats: [pdf, png]
+      colors: *project_palette
       savedir: output/figures/data_analysis/04_non_academic
       roles:
         c_primary:   5            # navy
@@ -345,16 +212,7 @@ style:
 
     04_non_academic_01_clinical_trials:
       <<: *academic_style
-      # Same project palette and typography as the other manuscript figures.
-      colors: *non_academic_palette
-      axes_linewidth: 1.0
-      tick_length: 4
-      tick_width: 1.0
-      tick_pad: 3
-      minor_tick_length: 2.5
-      minor_tick_width: 0.7
-      figsize: [10, 7]
-      edgecolor: black
+      colors: *project_palette
       savedir: output/figures/data_analysis/04_non_academic/clinical_trials
       roles:
         c_accent:  0

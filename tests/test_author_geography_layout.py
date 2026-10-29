@@ -36,16 +36,16 @@ def test_geography_metrics_square_export_and_unclipped_labels(tmp_path, monkeypa
     monkeypatch.setattr(shared_style, "PNG_DPI", 72)
     fig, paths = plots.plot_geography_metrics_supplement(core, style)
     try:
-        assert tuple(fig.get_size_inches()) == (14.5, 14.5)
+        assert tuple(fig.get_size_inches()) == shared_style.figsize("square")
         assert len(fig.axes) == 4
         fig.canvas.draw()
         bounds = fig.get_tightbbox(fig.canvas.get_renderer())
         assert bounds.x0 >= 0 and bounds.y0 >= 0
-        assert bounds.x1 <= 14.5 and bounds.y1 <= 14.5
+        assert bounds.x1 <= shared_style.FIG_WIDTH and bounds.y1 <= shared_style.FIG_WIDTH
         for ax in fig.axes:
             box = ax.get_window_extent()
             assert 0.9 <= box.width / box.height <= 1.1
         with Image.open(paths[0]) as exported:
-            assert exported.size == (1044, 1044)
+            assert exported.size == (round(shared_style.FIG_WIDTH * 72),) * 2
     finally:
         plt.close(fig)

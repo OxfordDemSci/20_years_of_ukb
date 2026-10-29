@@ -10,6 +10,7 @@ import pytest
 from unittest.mock import patch
 
 from utils import data_analysis_04_non_academic_figures as F
+from utils.shared_style import font_size as FS
 from utils import data_analysis_04_non_academic_panels as N
 from utils import shared_paths as P
 from utils import shared_style as S
@@ -46,9 +47,9 @@ def assert_scatter_style(ax, color=N.ATTENTION_PRIMARY, *, outlined=True):
     assert ax.get_xscale() == ax.get_yscale() == "log"
     for side, spine in ax.spines.items():
         assert spine.get_visible() == (not outlined or side in ("left", "bottom"))
-    assert ax.xaxis.label.get_size() == ax.yaxis.label.get_size() == 14
+    assert ax.xaxis.label.get_size() == ax.yaxis.label.get_size() == FS("label")
     assert ax.xaxis.label.get_fontfamily() == ["Helvetica"]
-    assert all(t.get_size() == 12 for t in ax.get_xticklabels() + ax.get_yticklabels())
+    assert all(t.get_size() == FS("tick") for t in ax.get_xticklabels() + ax.get_yticklabels())
     assert not any(line.get_visible() for line in ax.get_xgridlines() + ax.get_ygridlines())
     assert ax.get_legend() is None
     cloud = ax.collections[0]
@@ -79,7 +80,7 @@ def test_mentions_points_and_readable_callouts_survive_finalization(attention_da
     assert to_hex(ax.collections[1].get_facecolors()[0]) == S.palette(N.ATTENTION_SECONDARY).lower()
     assert ax.collections[1].get_sizes().tolist() == [70]
     np.testing.assert_array_equal(ax.collections[1].get_edgecolors(), [[0, 0, 0, 1]])
-    np.testing.assert_allclose(ax.collections[1].get_linewidths(), [.65])
+    np.testing.assert_allclose(ax.collections[1].get_linewidths(), [S.stroke("edge")])
     assert {t.get_text() for t in ax.texts} == {"Douaud et al. (2022)", "Chieng et al. (2022)"}
     renderer = fig.canvas.get_renderer()
     bounds = ax.get_window_extent(renderer)
@@ -89,7 +90,7 @@ def test_mentions_points_and_readable_callouts_survive_finalization(attention_da
     for label, box in zip(ax.texts, boxes):
         assert bounds.contains(*box.p0) and bounds.contains(*box.p1)
         assert not any(box.contains(*point) for point in points)
-        assert label.get_size() == 12
+        assert label.get_size() == S.font_size("annot")
         assert abs(label.arrow_patch.get_connectionstyle().rad) == .20
         assert label.arrow_patch.shrinkA == 6
         assert label.arrow_patch.shrinkB == 14
@@ -206,8 +207,8 @@ def test_supplementary_attention_is_square_with_exact_palette_and_major_only_gri
     renderer = fig.canvas.get_renderer()
     for ax in (a, b, c, d):
         assert ax.bbox.width == pytest.approx(ax.bbox.height)
-        assert ax.xaxis.label.get_size() == ax.yaxis.label.get_size() == 14
-        assert all(t.get_size() == 12 for t in ax.get_xticklabels() + ax.get_yticklabels())
+        assert ax.xaxis.label.get_size() == ax.yaxis.label.get_size() == FS("label")
+        assert all(t.get_size() == FS("tick") for t in ax.get_xticklabels() + ax.get_yticklabels())
         assert all(spine.get_visible() for spine in ax.spines.values())
         for axis in (ax.xaxis, ax.yaxis):
             for tick in axis.get_major_ticks():
@@ -231,7 +232,7 @@ def test_supplementary_attention_is_square_with_exact_palette_and_major_only_gri
     for ax in (b, c):
         legend = ax.get_legend()
         assert [to_hex(h.get_color()).upper() for h in legend.legend_handles] == [blue, red]
-        assert all(text.get_size() == 12 for text in legend.get_texts())
+        assert all(text.get_size() == FS("legend") for text in legend.get_texts())
     np.testing.assert_array_equal(b.lines[0].get_ydata(), originals["mentions_by_year"]["News mentions"])
     np.testing.assert_array_equal(twin.lines[0].get_ydata(), originals["mentions_by_year"]["Policy mentions"])
     np.testing.assert_array_equal(c.lines[0].get_ydata(), originals["coverage_by_year"]["pct_news"])

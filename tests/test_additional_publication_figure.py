@@ -13,6 +13,7 @@ import pandas as pd
 import pytest
 
 from utils import data_analysis_04_non_academic_collab_helpers as H
+from utils.shared_style import font_size as FS, stroke
 
 
 def inputs():
@@ -126,12 +127,12 @@ def test_combined_figure_keeps_percentages_medians_contributions_and_journal_den
 
     renderer = fig.canvas.get_renderer()
     for ax in fig.axes:
-        assert ax._left_title.get_size() == 26
-        assert ax.xaxis.label.get_size() == ax.yaxis.label.get_size() == 17
+        assert ax._left_title.get_size() == FS("panel_label")
+        assert ax.xaxis.label.get_size() == ax.yaxis.label.get_size() == FS("label")
         assert {side: spine.get_visible() for side, spine in ax.spines.items()} == {
             "left": True, "bottom": True, "top": False, "right": False}
         legend = ax.get_legend()
-        assert all(text.get_size() == 12 for text in legend.get_texts())
+        assert all(text.get_size() == FS("legend") for text in legend.get_texts())
         box = ax.get_tightbbox(renderer)
         assert fig.bbox.contains(*box.p0) and fig.bbox.contains(*box.p1)
     boxes = [ax.get_tightbbox(renderer) for ax in fig.axes]
@@ -154,7 +155,7 @@ def test_unique_no_taxonomy_citation_baseline_is_preserved_in_section_12(tmp_pat
     ax, = fig.axes
     assert "No taxonomy collaborator" in ax.get_yticklabels()[-1].get_text()
     assert "(n=2)" in ax.get_yticklabels()[-1].get_text()
-    medians = [line for line in ax.lines if line.get_linewidth() == 1.5]
+    medians = [line for line in ax.lines if line.get_linewidth() == stroke("line")]
     expected = np.log10(frame.loc[~H._any_sector_collab_mask(frame), "times_cited"].fillna(0) + 1)
     np.testing.assert_allclose(medians[-1].get_xdata(), expected.median())
     assert ax.patches[-1].get_facecolor() == to_rgba(H.palette("cream"))

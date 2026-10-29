@@ -53,13 +53,13 @@ def _legend(fig, handles, ncol=4, *, fontsize=None):
 
 def _field_handles(D):
     styles = P.field_line_styles(D)
-    return [Line2D([], [], **styles[lab], lw=2, ms=6, markeredgecolor="black", markeredgewidth=.4,
+    return [Line2D([], [], **styles[lab], lw=S.stroke("line"), ms=6, markeredgecolor="black", markeredgewidth=S.stroke("edge"),
                    label=fill(lab, 27)) for lab in D["TOP_LABELS"]]
 
 
-def _field_grid(D, *, height=8.5, bottom=.15):
+def _field_grid(D, *, bottom=.15):
     n = len(D["TOP_LABELS"])
-    fig, axes = plt.subplots(int(np.ceil(n / 4)), 4, figsize=(18, height), squeeze=False)
+    fig, axes = plt.subplots(int(np.ceil(n / 4)), 4, figsize=S.figsize("wide"), squeeze=False)
     fig.subplots_adjust(left=.08, right=.96, top=.94, bottom=bottom,
                         hspace=.48, wspace=.55)
     axes = axes.ravel()
@@ -95,21 +95,21 @@ def whole_database_trends(D):
 
 
 def publication_contribution(D):
-    fig, axes = plt.subplots(1, 2, figsize=(16, 7))
-    fig.subplots_adjust(left=.07, right=.98, bottom=.23, top=.94, wspace=.25)
+    fig, axes = plt.subplots(1, 2, figsize=S.figsize("wide"))
+    fig.subplots_adjust(left=.07, right=.98, bottom=.195, top=.94, wspace=.25)
     styles = P.field_line_styles(D)
     for ax, frame, ylabel in zip(axes, [D["ukbb_ts"], D["share_ts"]],
                                  ["UK Biobank publications", "Share of field publications (%)"]):
         for lab in D["TOP_LABELS"]:
             s = frame[lab]
-            ax.plot(s.index, s, **styles[lab], lw=2, ms=6,
-                    markeredgecolor="black", markeredgewidth=.4)
+            ax.plot(s.index, s, **styles[lab], lw=S.stroke("line"), ms=6,
+                    markeredgecolor="black", markeredgewidth=S.stroke("edge"))
         ax.set(xlabel="Publication year", ylabel=ylabel, ylim=(0, None))
         ax.set_xticks(S.year_ticks(frame.index.min(), frame.index.max(), 3))
         S.style_axis(ax, grid_kws={"which": "major", "alpha": .25})
     axes[1].yaxis.set_major_formatter(mticker.PercentFormatter(100))
     S.label_panels(axes, "AB")
-    S.align_legend_rows(_legend(fig, _field_handles(D), fontsize=14))
+    S.align_legend_rows(_legend(fig, _field_handles(D), fontsize=S.font_size("legend")))
     return _finish(fig, "UK Biobank output in its eight leading Fields of Research. "
                    "(A) Annual publication counts. (B) UK Biobank publications as a percentage "
                    "of all publications in the same field and year. Whole counting is used "
@@ -121,9 +121,9 @@ def annual_growth_speed(D):
     styles = P.field_line_styles(D)
     for ax, lab in zip(axes, D["TOP_LABELS"]):
         s = D["whole_ts"][lab].diff().iloc[1:]
-        ax.plot(s.index, s, **styles[lab], lw=2, ms=6,
-                markeredgecolor="black", markeredgewidth=.4)
-        ax.axhline(0, color="black", lw=.8)
+        ax.plot(s.index, s, **styles[lab], lw=S.stroke("line"), ms=6,
+                markeredgecolor="black", markeredgewidth=S.stroke("edge"))
+        ax.axhline(0, color="black", lw=S.stroke("ref"))
         ax.set_xticks(S.year_ticks(s.index.min(), s.index.max(), 3))
         ax.yaxis.set_major_formatter(mticker.EngFormatter())
     fig.supylabel("Change in publications from previous year", x=.005)
@@ -133,7 +133,7 @@ def annual_growth_speed(D):
 
 
 def activity_over_time(D):
-    fig, axes = plt.subplots(1, 2, figsize=(17, 9.6), gridspec_kw={"width_ratios": [1, 1.15]})
+    fig, axes = plt.subplots(1, 2, figsize=S.figsize("landscape"), gridspec_kw={"width_ratios": [1, 1.15]})
     fig.subplots_adjust(left=.20, right=.98, bottom=.30, top=.95, wspace=.3)
     left = axes[0].get_position()
     axes[0].set_position([left.x0, .12, left.width, left.y1 - .12])
@@ -147,15 +147,15 @@ def activity_over_time(D):
     styles = P.field_line_styles(D)
     for code, lab in zip(D["TOP_CODES"], D["TOP_LABELS"]):
         axes[1].plot(annual.index, annual[code], **styles[lab],
-                     lw=2, ms=6, markeredgecolor="black", markeredgewidth=.4)
+                     lw=S.stroke("line"), ms=6, markeredgecolor="black", markeredgewidth=S.stroke("edge"))
     axes[1].set(yscale="log", xlabel="Publication year", ylabel="Within-division activity index")
-    axes[1].axhline(1, color="black", ls="--", lw=1)
+    axes[1].axhline(1, color="black", ls="--", lw=S.stroke("ref"))
     axes[1].set_xticks(S.year_ticks(annual.index.min(), annual.index.max(), 3))
     axes[1].yaxis.set_major_formatter(mticker.FuncFormatter(lambda v, _: f"{v:g}x"))
     S.style_axis(axes[1], grid_kws={"which": "major", "alpha": .25})
     S.label_panels(axes, "AB")
     legend = S.black_legend(axes[1], handles=_field_handles(D), ncol=2,
-                            loc="upper center", borderaxespad=0, fontsize=14,
+                            loc="upper center", borderaxespad=0, fontsize=S.font_size("legend"),
                             columnspacing=1, handletextpad=.5, handlelength=1.8)
     S.align_legend_rows(legend)
     S.finalize_figure(fig)
@@ -182,30 +182,30 @@ def citation_measure_comparison(D, min_docs=20):
     head = D["CITE_HEADLINE"][2:]
     order = D["IMPACT"].reindex(D["TOP_CODES"]).dropna(subset=[f"rci_{head}"])
     order = order.sort_values(f"rci_{head}")
-    colors = [S.palette(name) for name in ("navy", "red", "steel_blue", "green")]
+    colors = [S.palette(name) for name in ("navy", "red", "steel_blue", "light_red")]
     names = {"n_mncs": "Mean normalised citations", "n_top10f": "Field top-decile credit",
              "n_top50f": "Above-median credit", "n_fcr": "Field citation ratio"}
-    fig, axes = plt.subplots(1, 2, figsize=(17, 6.8))
+    fig, axes = plt.subplots(1, 2, figsize=S.figsize("wide"))
     fig.subplots_adjust(left=.18, right=.98, bottom=.125, top=.95, wspace=.3)
     y = np.arange(len(order))
     for i, metric in enumerate(D["RCI_WEIGHTS"]):
         color = colors[i % len(colors)]
         axes[0].scatter(order[f"rci_{metric[2:]}"] , y, s=80, color=color,
-                        marker=["o", "D", "s", "^"][i % 4], edgecolor="black", lw=.5,
+                        marker=["o", "D", "s", "^"][i % 4], edgecolor="black", lw=S.stroke("edge"),
                         label=names.get(metric, metric), zorder=3)
-        axes[0].axvline(D["OVERALL"][metric[2:]], color=color, ls="--", lw=1)
+        axes[0].axvline(D["OVERALL"][metric[2:]], color=color, ls="--", lw=S.stroke("ref"))
     axes[0].set_yticks(y, [fill(D["label_of"](c), 28) for c in order.index])
     axes[0].set_xlabel("Relative citation impact")
     S.black_legend(axes[0], loc="lower right")
     annual = D["rci_timeseries"](D["CITE_HEADLINE"], min_docs)
     styles = P.field_line_styles(D)
     for code, lab in zip(D["TOP_CODES"], D["TOP_LABELS"]):
-        axes[1].plot(annual.index, annual[code], **styles[lab], lw=2,
-                     ms=6, markeredgecolor="black", markeredgewidth=.4)
+        axes[1].plot(annual.index, annual[code], **styles[lab], lw=S.stroke("line"),
+                     ms=6, markeredgecolor="black", markeredgewidth=S.stroke("edge"))
     axes[1].set(yscale="log", xlabel="Publication year", ylabel="Relative mean normalised citation impact")
     axes[1].yaxis.set_major_formatter(mticker.FuncFormatter(lambda v, _: f"{v:g}x"))
     axes[1].set_xticks(S.year_ticks(annual.index.min(), annual.index.max(), 3))
-    S.black_legend(axes[1], handles=_field_handles(D), loc="upper right", fontsize=10)
+    S.black_legend(axes[1], handles=_field_handles(D), loc="upper right", fontsize=S.font_size("legend"))
     for ax in axes:
         S.style_axis(ax, grid_kws={"which": "major", "alpha": .25})
     S.label_panels(axes, "AB")
@@ -232,8 +232,8 @@ def citation_cutoffs(D, cuts):
     for ax, code in zip(axes, D["TOP_CODES"]):
         frame = cuts.xs(code, level="code").sort_index()
         for column, color, marker in [("thr10", "navy", "o"), ("median", "red", "s")]:
-            ax.plot(frame.index, frame[column], color=S.palette(color), lw=2, marker=marker,
-                    ms=6, markeredgecolor="black", markeredgewidth=.4)
+            ax.plot(frame.index, frame[column], color=S.palette(color), lw=S.stroke("line"), marker=marker,
+                    ms=6, markeredgecolor="black", markeredgewidth=S.stroke("edge"))
         ax.set_ylim(bottom=0)
         ax.set_xticks(S.year_ticks(frame.index.min(), frame.index.max(), 3))
     _legend(fig, [Line2D([], [], color=S.palette("navy"), marker="o", label="Top-decile cut-off"),
@@ -256,15 +256,15 @@ def top_decile_pool(D):
         measured = frame.pivot_table(index="year", columns="code", values=f"{column}_docs", aggfunc="sum")
         return values.where(measured > 0)
     whole, ukb = pool(D["whole"]), pool(D["ukbb"])
-    fig, axes = _field_grid(D, height=8.4, bottom=.13)
+    fig, axes = _field_grid(D, bottom=.13)
     legend_handles = []
     rows = []
     for ax, code, lab in zip(axes, D["TOP_CODES"], D["TOP_LABELS"]):
         w = whole[code].dropna()
         u = ukb[code].reindex(w.index)
-        other_bars = ax.bar(w.index, w - u, bottom=u, color="white", edgecolor="black", lw=.5,
+        other_bars = ax.bar(w.index, w - u, bottom=u, color="white", edgecolor="black", lw=S.stroke("edge"),
                             label="Other publications")
-        ukbb_bars = ax.bar(w.index, u, color=S.palette("steel_blue"), edgecolor="black", lw=.5,
+        ukbb_bars = ax.bar(w.index, u, color=S.palette("steel_blue"), edgecolor="black", lw=S.stroke("edge"),
                            label="UK Biobank publications")
         ax.yaxis.set_major_formatter(mticker.EngFormatter())
         ax.set_xticks(S.year_ticks(w.index.min(), w.index.max(), 3))
@@ -272,7 +272,7 @@ def top_decile_pool(D):
         ratio = 100 * u / w.where(w > 0)
         twin = ax.twinx()
         share_line, = twin.plot(ratio.index, ratio, color=S.palette("red"), marker="o", ms=6,
-                                markeredgecolor="black", markeredgewidth=.5, lw=2,
+                                markeredgecolor="black", markeredgewidth=S.stroke("edge"), lw=S.stroke("line"),
                                 label="UK Biobank share (right axis)")
         if not legend_handles:
             legend_handles = [other_bars, ukbb_bars, share_line]
@@ -289,7 +289,7 @@ def top_decile_pool(D):
                      "fold_change": ratio.loc[last] / ratio.loc[first] if ratio.loc[first] > 0 else np.nan})
     fig._ukb_tables = {"top_decile_pool_summary.csv": pd.DataFrame(rows)}
     fig.supylabel("Publications in the field's top-decile pool", x=.005)
-    _legend(fig, legend_handles, 3, fontsize=14)
+    _legend(fig, legend_handles, 3, fontsize=S.font_size("legend"))
     return _finish(fig, "Size of each field's measured top-decile citation pool and UK "
                    "Biobank's contribution, across eight leading fields (A-H). Stacked white "
                    "and blue bars show other and UK Biobank publication counts, respectively; "
@@ -310,14 +310,14 @@ def author_cohort_profile(author_summary, author_paper, cohort_order):
         "First/last-author credit": by_paper.leadership_author_credit.sum(),
     }).T.reindex(columns=cohort_order).fillna(0)
     shares = raw.div(raw.sum(axis=1).replace(0, np.nan), axis=0)
-    fig, ax = plt.subplots(figsize=(13, 6))
+    fig, ax = plt.subplots(figsize=S.figsize("wide"))
     fig.subplots_adjust(left=.24, right=.98, bottom=.26, top=.92)
-    colors = S.blue_colormap()(np.linspace(0, 1, len(cohort_order)))
+    colors = S.ramp_colors(len(cohort_order))
     left = np.zeros(len(shares))
     for cohort, color in zip(cohort_order, colors):
         vals = shares[cohort].to_numpy()
         ax.barh(shares.index, vals, left=left, height=.64, color=color,
-                edgecolor="black", lw=.5, label=cohort.replace("\n", " "))
+                edgecolor="black", lw=S.stroke("edge"), label=cohort.replace("\n", " "))
         for y, x, v in zip(range(len(shares)), left, vals):
             if v >= .065:
                 ink = "white" if np.mean(color[:3]) < .5 else "black"
@@ -370,12 +370,12 @@ def author_fingerprint(author_summary, impact_short="MNCS", top_n=24):
     finite = ranks[np.isfinite(ranks)]
     if not len(finite):
         raise ValueError("No measured author percentiles are available.")
-    cmap = S.blue_cream_red_colormap()
+    cmap = S.figure_colormap()
     norm = Normalize(finite.min(), finite.max())
-    fig, ax = plt.subplots(figsize=(14, 11))
+    fig, ax = plt.subplots(figsize=S.figsize("standard"))
     fig.subplots_adjust(left=.25, right=.90, bottom=.09, top=.95)
     im = ax.pcolormesh(np.ma.masked_invalid(ranks), cmap=cmap, norm=norm,
-                      edgecolors="black", linewidth=.4)
+                      edgecolors="black", linewidth=S.stroke("edge"))
     ax.set(ylim=(len(selected), 0), xlim=(0, len(specs)))
     ax.set_xticks(np.arange(len(specs)) + .5, [s[1] for s in specs])
     ax.set_yticks(np.arange(len(selected)) + .5, selected.author_name.fillna(""))
@@ -406,9 +406,9 @@ def author_fingerprint(author_summary, impact_short="MNCS", top_n=24):
                    "name-based fallback used in the cohort analysis.")
 
 
-def _single(*, size=(9, 6), bottom=.15, left=.12, ax=None):
+def _single(*, aspect="landscape", bottom=.15, left=.12, ax=None):
     if ax is None:
-        fig, ax = plt.subplots(figsize=size)
+        fig, ax = plt.subplots(figsize=S.figsize(aspect))
         fig.subplots_adjust(left=left, right=.97, bottom=bottom, top=.92)
     else:
         fig = ax.figure
@@ -442,10 +442,10 @@ def disciplinary_composition(analysis_papers, for_long, TOP_N=15, *, ax=None):
     )
 
 
-    fig, ax = _single(size=(13, 9), left=.34, bottom=.10, ax=ax)
+    fig, ax = _single(left=.34, bottom=.10, ax=ax)
     values = discipline_plot.fractional_paper_count
-    colors = S.blue_colormap()(.15 + .85 * values / values.max())
-    bars = ax.barh(np.arange(len(values)), values, color=colors, height=.7, edgecolor="black", lw=.5)
+    colors = S.figure_colormap()(values / values.max())
+    bars = ax.barh(np.arange(len(values)), values, color=colors, height=.7, edgecolor="black", lw=S.stroke("edge"))
     ax.set_yticks(np.arange(len(values)), [fill(t, 36) for t in discipline_plot.for_name])
     ax.set(xlabel="Fractional publication count", xlim=(0, values.max() * 1.28))
     ax.grid(False)
@@ -484,8 +484,8 @@ def cumulative_citation_stock(analysis_papers, *, ax=None):
     for column, name, color in [
             ("cumulative_paper_share", "Publications", "navy"),
             ("cumulative_citation_share", "Citation stock", "red")]:
-        ax.plot(yearly.year, yearly[column], color=S.palette(color), lw=2, marker="o",
-                ms=7, markeredgecolor="black", markeredgewidth=.5, label=name)
+        ax.plot(yearly.year, yearly[column], color=S.palette(color), lw=S.stroke("line"), marker="o",
+                ms=7, markeredgecolor="black", markeredgewidth=S.stroke("edge"), label=name)
     ax.set(xlim=(yearly.year.min(), yearly.year.max()), ylim=(0, 103),
            xlabel="Publication year", ylabel="Cumulative share of 2013-2025 total (%)")
     ax.set_xticks(S.year_ticks(yearly.year.min(), yearly.year.max(), 3))
@@ -517,11 +517,11 @@ def field_citation_stock(for_long, TOP_N=15, *, ax=None, cax=None):
         .copy()
     )
 
-    fig, ax = _single(size=(14, 9), left=.32, bottom=.10, ax=ax)
+    fig, ax = _single(left=.32, bottom=.10, ax=ax)
     norm = Normalize(field_plot.fractional_papers.min(), field_plot.fractional_papers.max())
-    cmap = S.blue_cream_red_colormap()
+    cmap = S.figure_colormap()
     bars = ax.barh(np.arange(len(field_plot)), field_plot.fractional_citations,
-                   color=cmap(norm(field_plot.fractional_papers)), edgecolor="black", lw=.5)
+                   color=cmap(norm(field_plot.fractional_papers)), edgecolor="black", lw=S.stroke("edge"))
     ax.set_yticks(np.arange(len(field_plot)), [fill(t, 34) for t in field_plot.for_name])
     maximum = field_plot.fractional_citations.max()
     ax.set(xlim=(0, maximum * 1.22), xlabel="Fractionally allocated citations")
@@ -570,7 +570,7 @@ def citation_concentration(analysis_papers, *, ax=None):
 
     fig, ax = _single(ax=ax)
     ax.plot(concentration.top_paper_share, concentration.citation_share,
-            color=S.palette("navy"), lw=2.3)
+            color=S.palette("navy"), lw=S.stroke("line"))
     ax.fill_between(concentration.top_paper_share, concentration.citation_share,
                     concentration.top_paper_share, color=S.palette("light_blue"), alpha=.18)
     ax.plot([0, 100], [0, 100], color="black", ls="--", lw=1, label="Equal citation counts")
@@ -650,7 +650,7 @@ def citation_cohorts(analysis_papers, CITATION_SNAPSHOT_YEAR=2026,
     positions = np.arange(len(plot_values))
 
 
-    fig, ax = _single(size=(10, 6.5), bottom=.19, ax=ax)
+    fig, ax = _single(bottom=.19, ax=ax)
     colors = S.palette("red", "cream", "steel_blue", "light_blue", "navy")
     density_positions = [i for i, values in enumerate(plot_values)
                          if len(values) > 1 and np.ptp(values) > 0]
@@ -660,12 +660,12 @@ def citation_cohorts(analysis_papers, CITATION_SNAPSHOT_YEAR=2026,
                                showmeans=False, showmedians=False, showextrema=False)
         for index, body in zip(density_positions, violins["bodies"]):
             body.set(facecolor=colors[index % len(colors)], edgecolor="black",
-                     linewidth=.7, alpha=1)
+                     linewidth=S.stroke("edge"), alpha=1)
     for index in set(positions) - set(density_positions):
         ax.plot([index - .25, index + .25], [plot_values[index][0]] * 2,
-                color=colors[index % len(colors)], lw=3)
+                color=colors[index % len(colors)], lw=S.stroke("line"))
     ax.boxplot(plot_values, positions=positions, widths=.18, patch_artist=True, showfliers=False,
-               medianprops={"color": "black", "linewidth": 1.5},
+               medianprops={"color": "black", "linewidth": S.stroke("line")},
                boxprops={"facecolor": "white", "edgecolor": "black"})
     ax.set_xticks(positions, [f"{r.cohort}\nn = {r.papers:,}" for r in cohort_summary.itertuples()])
     raw_ticks = np.array([0, 1, 5, 10, 50, 100, 500, 1000, 5000, 10000, 50000, 100000])
@@ -692,7 +692,7 @@ def citation_concentration_and_cohorts(analysis_papers, CITATION_SNAPSHOT_YEAR=2
     analysis_papers = analysis_papers.loc[
         analysis_papers["year"].between(MIN_YEAR, MAX_YEAR)
     ]
-    fig, axes = plt.subplots(1, 2, figsize=(16, 6.5))
+    fig, axes = plt.subplots(1, 2, figsize=S.figsize("wide"))
     fig.subplots_adjust(left=.07, right=.98, bottom=.18, top=.92, wspace=.30)
     citation_concentration(analysis_papers, ax=axes[0])
     concentration_caption = fig._ukb_caption
@@ -735,8 +735,8 @@ def citation_survival(analysis_papers, *, ax=None):
     })
 
 
-    fig, ax = _single(size=(10, 6.5), ax=ax)
-    ax.plot(x_grid, y_share, color=S.palette("navy"), lw=2.4)
+    fig, ax = _single(ax=ax)
+    ax.plot(x_grid, y_share, color=S.palette("navy"), lw=S.stroke("line"))
     ax.fill_between(x_grid, y_share, color=S.palette("light_blue"), alpha=.15)
     visible = threshold_summary[threshold_summary.threshold.between(x_min, x_max)]
     ax.scatter(visible.threshold, visible.percent_at_or_above, s=85,
@@ -761,7 +761,7 @@ def citation_survival(analysis_papers, *, ax=None):
 
 def citation_overview(analysis_papers, for_long, TOP_N=15):
     """Assemble the four publication-level diagnostics without changing their tables."""
-    fig, axes = plt.subplots(2, 2, figsize=(19, 13.3))
+    fig, axes = plt.subplots(2, 2, figsize=S.figsize("landscape"))
     fig.subplots_adjust(left=.20, right=.98, bottom=.07, top=.96, wspace=.34, hspace=.22)
     position = axes[1, 0].get_position()
     cax = fig.add_axes([position.x1 + .01, position.y0 + .05 * position.height,

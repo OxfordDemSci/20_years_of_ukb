@@ -14,6 +14,7 @@ import pandas as pd
 import pytest
 
 from utils import data_analysis_04_non_academic_figures as F
+from utils.shared_style import font_size as FS
 from utils import data_analysis_04_non_academic_panels as N
 from utils import shared_style as S
 
@@ -62,7 +63,7 @@ def test_clinical_figure_deduplication_preserves_data_palette_and_body_geometry(
     assert "lifecycle" not in " ".join(N.SI_CAPTIONS["trials"].values()).lower()
 
 
-@pytest.mark.parametrize("figsize", [(6.2, 8), (8, 9)])
+@pytest.mark.parametrize("figsize", [(7.4, 9.6), (9.6, 10.8)])  # panel sizes on the 18in canvas (D55)
 def test_bodymap_vector_palette_proportions_and_label_clearance(trial_data, figsize):
     counts = trial_data["trials"]["icd_chapters"]
     original = counts.copy(deep=True)
@@ -75,7 +76,7 @@ def test_bodymap_vector_palette_proportions_and_label_clearance(trial_data, figs
     assert {patch.get_gid() for patch in ax.patches} == {"trial-body-outline", "trial-body-head"}
     for patch in ax.patches:
         assert to_hex(patch.get_facecolor()) == "#ffffff"
-        assert to_hex(patch.get_edgecolor()) == S.palette("navy").lower()
+        assert to_hex(patch.get_edgecolor()) == to_hex(S.EDGE_COLOR)
     dots = [c for c in ax.collections if (c.get_gid() or "").startswith("trial-chapter:")]
     assert len(dots) == len(counts)
     for dot, (chapter, value) in zip(dots, counts.items()):
@@ -88,7 +89,7 @@ def test_bodymap_vector_palette_proportions_and_label_clearance(trial_data, figs
     renderer = fig.canvas.get_renderer()
     boxes = [Text.get_window_extent(text, renderer) for text in labels]
     for index, (text, box) in enumerate(zip(labels, boxes)):
-        assert text.get_size() == 12
+        assert text.get_size() == FS("annot")
         assert text.get_fontfamily() == ["Helvetica"]
         assert "trials" in text.get_text()
         assert ax.bbox.contains(*box.p0) and ax.bbox.contains(*box.p1)

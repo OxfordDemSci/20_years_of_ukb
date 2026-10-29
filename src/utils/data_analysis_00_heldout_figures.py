@@ -12,9 +12,10 @@ import seaborn as sns
 
 from .data_analysis_00_figures import _export, format_heatmap_colorbar, heatmap_limits
 from .shared_style import (
-    black_legend, blue_cream_red_colormap, label_panels, load_style, palette,
+    black_legend, figure_colormap, label_panels, load_style, palette,
     panel_grid, panel_label, style_axis,
 )
+from .shared_style import stroke
 
 
 def _letter(index):
@@ -29,7 +30,7 @@ def _letter(index):
 def _heatmap(ax, values, style, *, square=False, lower_triangle=False, vmin=0, vmax=1):
     mask = np.triu(np.ones(values.shape, dtype=bool), k=1) if lower_triangle else None
     sns.heatmap(
-        values, vmin=vmin, vmax=vmax, cmap=blue_cream_red_colormap(),
+        values, vmin=vmin, vmax=vmax, cmap=figure_colormap(),
         mask=mask,
         annot=True, fmt=".2f", annot_kws={"fontsize": style["annot_fs"]},
         square=square, cbar=False, ax=ax,
@@ -43,7 +44,7 @@ def _heatmap(ax, values, style, *, square=False, lower_triangle=False, vmin=0, v
         # Border only displayed cells, leaving the upper triangle completely blank.
         for row, column in np.argwhere(~mask & values.notna().to_numpy()):
             ax.add_patch(Rectangle((column, row), 1, 1, fill=False,
-                                   edgecolor="black", linewidth=.6, clip_on=False))
+                                   edgecolor="black", linewidth=stroke("edge"), clip_on=False))
     plt.setp(ax.get_xticklabels(), rotation=45, ha="right", rotation_mode="anchor")
     plt.setp(ax.get_yticklabels(), rotation=0)
     ax.grid(False, which="both")
@@ -73,7 +74,7 @@ def plot_heldout_agreement(agreements, model_labels):
     vmin, vmax = heatmap_limits(visible)
     fig, axes = panel_grid(
         1 if single else 2, 1 if single else 3, style,
-        figsize=(8.2, 7.1) if single else (19, 12),
+        aspect="standard" if single else "landscape",
         squeeze=False, layout="constrained",
     )
     fig.get_layout_engine().set(w_pad=.12, h_pad=.12, wspace=.06, hspace=.08)
@@ -111,7 +112,7 @@ def plot_heldout_performance(metrics, prompts, models, prompt_labels, model_labe
     style = load_style("00_dataset")
     selected = metrics.loc[metrics.prompt.isin(prompts) & metrics.model.isin(models)]
     low, high = heatmap_limits(selected[["precision", "recall", "f1"]].to_numpy())
-    fig, axes = panel_grid(1, 3, style, figsize=(20, 6.5), layout="constrained")
+    fig, axes = panel_grid(1, 3, style, aspect="wide", layout="constrained")
     fig.get_layout_engine().set(w_pad=.12, h_pad=.12, wspace=.06)
     for ax, metric in zip(axes, ("precision", "recall", "f1")):
         table = metrics.pivot(index="prompt", columns="model", values=metric)
@@ -129,10 +130,10 @@ def plot_selected_prompt_performance(metrics):
         id_vars=["model_display"], value_vars=["precision", "recall", "f1"],
         var_name="metric", value_name="score",
     )
-    fig, ax = panel_grid(1, 1, style, figsize=(11, 5.8), layout="constrained")
+    fig, ax = panel_grid(1, 1, style, aspect="wide", layout="constrained")
     sns.barplot(
         data=frame, x="model_display", y="score", hue="metric", errorbar=None,
-        palette=palette("red", "cream", "light_blue"), edgecolor="black", linewidth=.6, ax=ax,
+        palette=palette("red", "cream", "light_blue"), edgecolor="black", linewidth=stroke("edge"), ax=ax,
     )
     ax.set(ylim=(0, 1.04), xlabel="", ylabel="Held-out score")
     plt.setp(ax.get_xticklabels(), rotation=25, ha="right", rotation_mode="anchor")
@@ -165,7 +166,7 @@ def render_heldout_performance(metrics, primary_metrics, prompts, models,
 def _draw_confusion(ax, matrix, style, *, show_y=True, limits):
     matrix = np.asarray(matrix)
     normalised = matrix / np.maximum(matrix.sum(axis=1, keepdims=True), 1)
-    image = ax.imshow(normalised, cmap=blue_cream_red_colormap(), vmin=limits[0], vmax=limits[1])
+    image = ax.imshow(normalised, cmap=figure_colormap(), vmin=limits[0], vmax=limits[1])
     for row, column in np.ndindex(2, 2):
         ax.text(
             column, row, f"{matrix[row, column]:,}\n({normalised[row, column]:.1%})",
@@ -186,7 +187,7 @@ def plot_heldout_confusion(lookup, prompts, models, prompt_labels, model_labels)
         raise ValueError("Expected six classifiers and one or six held-out prompts.")
     fig, axes = panel_grid(
         2 if single else 6, 3 if single else 6, style,
-        figsize=(15, 10) if single else (24, 23), layout="constrained",
+        aspect="landscape" if single else "square", layout="constrained",
     )
     fig.get_layout_engine().set(w_pad=.10, h_pad=.12, wspace=.03, hspace=.04)
     pairs = [(prompt, model) for prompt in prompts for model in models]

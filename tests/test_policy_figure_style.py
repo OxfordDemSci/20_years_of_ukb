@@ -10,6 +10,7 @@ import pandas as pd
 import pytest
 
 from utils import data_analysis_04_non_academic_panels as N
+from utils.shared_style import font_size as FS
 from utils import data_analysis_04_non_academic_figures as F
 from utils import shared_style as S
 
@@ -50,13 +51,14 @@ def test_policy_palette_grids_and_labels_survive_export_finalization():
     np.testing.assert_array_equal([bar.get_width() for bar in c.patches], [39, 81])
     np.testing.assert_array_equal([bar.get_width() for bar in d.patches], [104, 195])
     for ax in (a, c, d):
-        assert ax.xaxis.label.get_size() == ax.yaxis.label.get_size() == 16
+        assert ax.xaxis.label.get_size() == ax.yaxis.label.get_size() == FS("label")
         assert ax.get_axisbelow() is True
         for axis in (ax.xaxis, ax.yaxis):
             assert all(tick.gridline.get_visible() for tick in axis.get_major_ticks())
             assert not any(tick.gridline.get_visible() for tick in axis.get_minor_ticks())
-        assert all(text.get_size() == 12 for text in ax.get_xticklabels() + ax.get_yticklabels())
+        assert all(text.get_size() == FS("tick") for text in ax.get_xticklabels() + ax.get_yticklabels())
     assert not b.axison
-    assert colorbar.yaxis.label.get_size() == 16
-    assert N.POLICY_MAP_RAMP == ["#FFFFFF", "blue", "steel_blue", "navy"]
+    assert colorbar.yaxis.label.get_size() == FS("label")
+    import inspect
+    assert "figure_colormap()" in inspect.getsource(N.draw_policy_country_map)
     plt.close(fig)

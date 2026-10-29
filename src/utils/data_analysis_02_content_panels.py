@@ -431,11 +431,12 @@ from matplotlib.patches import Patch
 from matplotlib.ticker import MaxNLocator, PercentFormatter
 
 from utils.shared_style import (
-    PALETTE, black_legend, blue_cream_red_colormap, extended_palette, grid_on,
+    PALETTE, black_legend, figure_colormap, extended_palette, grid_on,
     palette, panel_label, savefig, set_title,
 )
+from utils.shared_style import font_size, stroke, neutral, figsize
 
-OTHER_COLOR = "#FFFFFF"
+OTHER_COLOR = "white"
 VOCABULARY_COLORS = {"for": palette("navy"), "rcdc": palette("red"),
                      "topics": palette("steel_blue")}
 VOCABULARY_LABELS = {"for": "FOR Level 4", "rcdc": "RCDC", "topics": "BERTopic"}
@@ -547,14 +548,14 @@ def _missing_panel(ax, title, note):
     _axes(ax, grid=False)
     ax.set_xticks([])
     ax.set_yticks([])
-    ax.set_facecolor("#FAFAFA")
+    ax.set_facecolor("white")
     set_title(ax, title, fontsize=_style()["title_fs"], pad=20)
     ax.text(.5, .56, "Topic results unavailable", transform=ax.transAxes,
             ha="center", va="center", fontsize=_style()["label_fs"], fontweight="bold")
     ax.text(.5, .40, "No verified completed topic assignments were found.\n"
             "This panel will populate when the saved results are available.",
             transform=ax.transAxes, ha="center", va="center",
-            fontsize=_style()["annot_fs"], linespacing=1.5, color="#555555")
+            fontsize=_style()["annot_fs"], linespacing=1.5, color=neutral("muted"))
     return ax
 
 
@@ -568,7 +569,7 @@ def draw_share_stream(ax, block, title, *, label_min=None, callout_gap=None,
         colors.append(OTHER_COLOR)
     _axes(ax, grid=False)
     ax.stackplot(band.index, band.T.to_numpy(dtype=float), colors=colors,
-                 edgecolor="white", linewidth=.35)
+                 edgecolor="white", linewidth=stroke("edge"))
     _years(ax)
     ax.set_xlabel(xlabel)
     ax.set_ylim(0, 100)
@@ -580,7 +581,7 @@ def draw_share_stream(ax, block, title, *, label_min=None, callout_gap=None,
     handles = []
     for color, label in zip(colors, band.columns):
         name = f"Other ({block['n_other']} categories)" if label == OTHER_LABEL else label
-        handles.append(Patch(facecolor=color, edgecolor=palette("navy"), linewidth=.4,
+        handles.append(Patch(facecolor=color, edgecolor="black", linewidth=stroke("edge"),
                              label=fill(str(name), width=25)))
     _composition_legend(ax, handles)
     return ax
@@ -605,7 +606,7 @@ def draw_topic_stream(ax, D):
     _axes(ax, grid=False)
     values = selected.T.to_numpy(dtype=float)
     ax.stackplot(selected.index, values, baseline="zero", colors=colors,
-                 edgecolor="white", linewidth=.35)
+                 edgecolor="white", linewidth=stroke("edge"))
     _years(ax)
     maximum = selected.sum(axis=1, min_count=1).max()
     upper = max(10, 10 * np.ceil(maximum / 10)) if np.isfinite(maximum) else 100
@@ -614,7 +615,7 @@ def draw_topic_stream(ax, D):
     ax.set_ylabel("BERTopic topics\nShare of topic-assigned publications")
     grid_on(ax, axis="x", which="major", linestyle="--", alpha=.3)
     legend_labels = _topic_legend_labels(block["share"].columns)
-    handles = [Patch(facecolor=color, edgecolor=palette("navy"), linewidth=.4,
+    handles = [Patch(facecolor=color, edgecolor="black", linewidth=stroke("edge"),
                      label=legend_labels[label])
                for color, label in zip(colors, keep)]
     black_legend(ax, _style(), handles=handles, loc="center left", bbox_to_anchor=(1.025, .5),
@@ -642,10 +643,10 @@ def draw_count_strip(ax, block, label):
                            1, COUNT_STRIP_FRACTION / (1 - COUNT_STRIP_FRACTION) - gap * COUNT_STRIP_FRACTION])
     counts = block["n_papers"].reindex(FLOW_YEARS, fill_value=0)
     strip.bar(counts.index, counts.to_numpy(), width=.6, color=palette("light_blue"),
-              edgecolor=palette("navy"), linewidth=.4, clip_on=False)
+              edgecolor="black", linewidth=stroke("edge"), clip_on=False)
     for year, n in counts.items():
         strip.text(year, n, f"{int(n):,}", ha="center", va="bottom",
-                   fontsize=_style()["annot_fs"] * .9, clip_on=False)
+                   fontsize=font_size("small"), clip_on=False)
     strip.set_xlim(ax.get_xlim())
     strip.set_ylim(0, max(1, counts.max()) * 1.05)
     strip.set_xticks([])
@@ -666,8 +667,7 @@ def thin_years_note(D):
 
 def figure_main(D, save=True):
     """FOR and RCDC side by side, with thematic waves across the lower row."""
-    figsize = _style().get("figsize_main", (16, 12))
-    fig = plt.figure(figsize=figsize)
+    fig = plt.figure(figsize=figsize("standard"))
     ax_for = fig.add_axes([.075, .64, .39, .29])
     ax_rcdc = fig.add_axes([.575, .64, .39, .29])
     ax_topic = fig.add_axes([.075, .14, .65, .31])
@@ -767,11 +767,11 @@ def draw_category_heatmap(ax, block, title, *, n_categories=12):
     """Leading categories across all years, on an explicit shared percentage scale."""
     keep = list(block["order"].index[:n_categories])
     values = block["share"][keep].T
-    cmap = blue_cream_red_colormap().with_extremes(bad="#EEEEEE")
+    cmap = figure_colormap()
     vmax = max(1.0, float(np.nanmax(values.to_numpy())))
     norm = Normalize(vmin=0, vmax=vmax)
     mesh = ax.pcolormesh(np.ma.masked_invalid(values.to_numpy(dtype=float)),
-                        cmap=cmap, norm=norm, edgecolors=palette("navy"), linewidth=.45)
+                        cmap=cmap, norm=norm, edgecolors="black", linewidth=stroke("edge"))
     _axes(ax, grid=False)
     ax.set_xlim(0, len(values.columns))
     ax.set_ylim(len(keep), 0)
@@ -787,15 +787,15 @@ def draw_category_heatmap(ax, block, title, *, n_categories=12):
             if not np.isfinite(value):
                 continue
             red, green, blue, _ = cmap(norm(value))
-            text_color = "white" if .2126 * red + .7152 * green + .0722 * blue < .52 else "#222222"
+            text_color = "white" if .2126 * red + .7152 * green + .0722 * blue < .52 else neutral("muted")
             ax.text(col + .5, row + .5, f"{value:.1f}", ha="center", va="center",
-                    fontsize=max(7.0, _style()["annot_fs"] - .5), color=text_color)
+                    fontsize=max(7.0, font_size("small")), color=text_color)
     cax = ax.inset_axes([1.025, .07, .028, .86])
     cb = ax.figure.colorbar(mesh, cax=cax)
     cb.set_label("Annual share (%)")
     cb.set_ticks(np.linspace(0, vmax, 5))
     cb.ax.set_yticklabels([f"{v:.1f}" for v in np.linspace(0, vmax, 5)])
-    cb.outline.set_edgecolor(palette("navy"))
+    cb.outline.set_edgecolor("black")
     letter, description = title.split("  ", 1)
     ax.set_ylabel(description)
     panel_label(ax, letter, _style())
@@ -804,8 +804,7 @@ def draw_category_heatmap(ax, block, title, *, n_categories=12):
 
 def figure_si_category_detail(D, save=True):
     """Supplement 1: the leading twelve fields and tags without stacked-band occlusion."""
-    width, height = _style().get("figsize_si", (15, 10))
-    fig, axes = plt.subplots(2, 1, figsize=(width, height * 1.2))
+    fig, axes = plt.subplots(2, 1, figsize=figsize("standard"))
     fig.subplots_adjust(left=.27, right=.88, top=.95, bottom=.115, hspace=.48)
     draw_category_heatmap(axes[0], D["for"], "A  Fields of Research, Level 4")
     draw_category_heatmap(axes[1], D["rcdc"], "B  RCDC categories")
@@ -821,8 +820,8 @@ def _metric_lines(ax, metrics, column, ylabel, *, keys=("for", "rcdc", "topics")
         if frame.empty or not frame[column].notna().any():
             continue
         ax.plot(frame["year"], frame[column], label=VOCABULARY_LABELS[key],
-                color=VOCABULARY_COLORS[key], marker="o", linewidth=1.8,
-                markersize=4.5, markeredgecolor=palette("navy"), markeredgewidth=.5)
+                color=VOCABULARY_COLORS[key], marker="o", linewidth=stroke("line"),
+                markersize=4.5, markeredgecolor="black", markeredgewidth=stroke("edge"))
     _years(ax)
     ax.set_ylabel(ylabel)
     ax.yaxis.set_major_locator(MaxNLocator(5))
@@ -832,7 +831,7 @@ def _metric_lines(ax, metrics, column, ylabel, *, keys=("for", "rcdc", "topics")
 def figure_si_coverage(D, save=True):
     """Supplement 2: coverage, diversity, active categories and cumulative breadth."""
     metrics = annual_vocabulary_metrics(D)
-    fig, axes = plt.subplots(2, 2, figsize=_style().get("figsize_si", (15, 10)))
+    fig, axes = plt.subplots(2, 2, figsize=figsize("landscape"))
     fig.subplots_adjust(left=.085, right=.975, top=.94, bottom=.11, hspace=.40, wspace=.32)
     panels = (
         ("coverage_pct", "Publications classified (%)", "A  Classification coverage"),
@@ -852,7 +851,7 @@ def figure_si_coverage(D, save=True):
     handles, labels = axes[0, 0].get_legend_handles_labels()
     black_legend(fig, _style(), handles=handles, labels=labels,
                  loc="lower center", bbox_to_anchor=(.53, .01),
-                 ncol=len(handles), fontsize=_style()["legend_fs"] + 3,
+                 ncol=len(handles), fontsize=font_size("legend"),
                  markerscale=1.5, handlelength=2.4, columnspacing=2.0)
     if save:
         savefig(fig, "02_03_supplementary_figure_02_coverage_and_breadth", formats=("pdf", "png"))
@@ -885,7 +884,7 @@ def draw_rank_flow(ax, block, title):
             marker="o",
             markersize=marker_size,
             markeredgecolor="black",
-            markeredgewidth=0.45,
+            markeredgewidth=stroke("edge"),
             solid_capstyle="round",
             zorder=3,
         )
@@ -896,7 +895,7 @@ def draw_rank_flow(ax, block, title):
             ax.text(
                 -0.015, first_rank, f"#{first_rank}  {label}",
                 transform=outside, ha="right", va="center",
-                fontsize=_style()["annot_fs"] - 0.5, color="black",
+                fontsize=font_size("small"), color="black",
                 fontweight="bold", clip_on=False,
             )
         if pd.isna(values.iloc[-1]):
@@ -909,7 +908,7 @@ def draw_rank_flow(ax, block, title):
             transform=outside,
             ha="left",
             va="center",
-            fontsize=_style()["annot_fs"] - 0.5,
+            fontsize=font_size("small"),
             color="black",
             fontweight="bold",
             clip_on=False,
@@ -928,7 +927,7 @@ def draw_rank_flow(ax, block, title):
 
 def figure_si_rank_flow(D, save=True):
     """Supplement: rank trajectories for leading FOR and RCDC categories."""
-    fig, axes = plt.subplots(2, 1, figsize=_style().get("figsize_si", (15, 10)))
+    fig, axes = plt.subplots(2, 1, figsize=figsize("landscape"))
     fig.subplots_adjust(left=.24, right=.76, top=.95, bottom=.08, hspace=.40)
     draw_rank_flow(
         axes[0], D["for"],
@@ -990,7 +989,7 @@ def figure_si_topic_robustness(D, save=True):
     for parameter in parameters:
         row = runs.loc[runs["parameter_index"].eq(parameter)].iloc[0]
         labels.append(f"{int(row.n_neighbors)}/{int(row.min_cluster_size)}/{int(row.min_samples)}")
-    fig, axes = plt.subplots(2, 2, figsize=_style().get("figsize_si", (15, 10)))
+    fig, axes = plt.subplots(2, 2, figsize=figsize("landscape"))
     fig.subplots_adjust(left=.085, right=.975, top=.94, bottom=.115, hspace=.47, wspace=.33)
 
     def configuration_axis(ax):
@@ -1000,7 +999,7 @@ def figure_si_topic_robustness(D, save=True):
         ax.set_xticks(range(len(parameters)), labels=labels)
         ax.set_xlim(-.55, len(parameters) - .45)
         ax.set_xlabel("Neighbours / minimum cluster size / minimum samples")
-        ax.tick_params(axis="x", labelsize=_style()["tick_fs"] - .5)
+        ax.tick_params(axis="x", labelsize=font_size("tick"))
 
     for ax, metric, title, ylabel in (
         (axes[0, 0], "coherence_cv", "A  Topic coherence across seeds", r"Topic coherence ($c_v$)"),
@@ -1012,10 +1011,10 @@ def figure_si_topic_robustness(D, save=True):
             x = positions[parameter]
             offsets = np.linspace(-.18, .18, len(group)) if len(group) > 1 else [0]
             ax.scatter(x + np.asarray(offsets), group[metric], s=30,
-                       color=palette("steel_blue"), edgecolor=palette("navy"),
-                       linewidth=.5, alpha=.8, zorder=3)
+                       color=palette("steel_blue"), edgecolor="black",
+                       linewidth=stroke("edge"), alpha=.8, zorder=3)
             ax.plot([x - .26, x + .26], [group[metric].mean()] * 2,
-                    color=palette("red"), linewidth=2.4, zorder=4)
+                    color=palette("red"), linewidth=stroke("line"), zorder=4)
         ax.set_ylabel(ylabel)
         ax.yaxis.set_major_locator(MaxNLocator(5))
         panel_label(ax, title.split("  ", 1)[0], _style())
@@ -1031,20 +1030,20 @@ def figure_si_topic_robustness(D, save=True):
                        edgecolor="none", zorder=2)
         means = pairs.groupby("parameter_index")[metric].mean().reindex(parameters)
         ax.plot(np.arange(len(parameters)) + offset, means, color=color, marker="o",
-                markersize=4.5, linewidth=1.5, label=label, zorder=4)
+                markersize=4.5, linewidth=stroke("line"), label=label, zorder=4)
     ax.set_ylabel("Agreement between seed pairs")
     ax.set_ylim(min(0, float(pairs[["ari", "nmi"]].min().min()) - .03), 1.03)
     ax.legend(loc="lower left", frameon=True, facecolor="white",
-              edgecolor=palette("navy"), fontsize=_style()["legend_fs"] - 1)
+              edgecolor="black", fontsize=font_size("legend"))
     panel_label(ax, "C", _style())
 
     ax = axes[1, 1]
     _axes(ax)
     ax.scatter(persistence["raw_cluster_size"], persistence["cluster_persistence"],
                s=42, color=palette("steel_blue"), alpha=.75,
-               edgecolor=palette("navy"), linewidth=.6, zorder=3)
+               edgecolor="black", linewidth=stroke("edge"), zorder=3)
     median = float(persistence["cluster_persistence"].median())
-    ax.axhline(median, color=palette("red"), linestyle="--", linewidth=1.4,
+    ax.axhline(median, color=palette("red"), linestyle="--", linewidth=stroke("ref"),
                label=f"Median persistence: {median:.2f}")
     ax.set_xscale("log")
     ax.minorticks_off()
@@ -1053,7 +1052,7 @@ def figure_si_topic_robustness(D, save=True):
     ax.yaxis.set_major_locator(MaxNLocator(5))
     ax.set_xlabel("HDBSCAN cluster size before outlier reassignment")
     ax.set_ylabel("Cluster persistence")
-    ax.legend(loc="upper right", frameon=False, fontsize=_style()["legend_fs"] - 1)
+    ax.legend(loc="upper right", frameon=False, fontsize=font_size("legend"))
     panel_label(ax, "D", _style())
     if save:
         savefig(fig, "02_04_supplementary_figure_03_topic_robustness", formats=("pdf", "png"))

@@ -27,6 +27,7 @@ from .shared_style import (
     PNG_DPI, apply_typography, figure_export_formats,
     set_figure_title, set_title,
 )
+from .shared_style import font_size, stroke, figsize as project_figsize
 
 # Repo root, anchored on this file (utils/ -> src/ -> root).
 _ROOT = Path(__file__).resolve().parents[2]
@@ -38,7 +39,7 @@ from utils.data_analysis_04_non_academic_figures import (
     show_figures, save_figure_file, finalize_figure, slug, PATENT_STATUS_COLORS,
 )
 from utils.shared_style import (
-    NON_ACADEMIC_PALETTE, author_geography_colormap, blue_cream_red_colormap, extended_palette, palette,
+    NON_ACADEMIC_PALETTE, figure_colormap, extended_palette, palette,
 )
 import matplotlib.patheffects as path_effects
 from bs4 import BeautifulSoup
@@ -785,7 +786,7 @@ def plot_bar_matplotlib(
     counts_df: pd.DataFrame,
     top_n: int = 20,
     colors: Optional[str] = None,
-    figsize: Tuple[int, int] = (12, 6),
+    figsize: Tuple[int, int] = project_figsize("wide"),
     savefile: Optional[str] = None
 ):
     """
@@ -808,7 +809,7 @@ def plot_bar_matplotlib(
     
     for i, row in df.iterrows():
         plt.text(row['iso2'], row['count'], str(row['count']), 
-                ha='center', va='bottom', fontsize=9, fontweight='bold')
+                ha='center', va='bottom', fontsize=font_size("annot"), fontweight='bold')
     
     plt.xlabel('Country')
     plt.ylabel('Count')
@@ -873,7 +874,7 @@ def build_country_count(df_with_iso):
 
 
 
-def plot_topics_distribution(df_patent, cat_col,figsize=(10,6),savefigure=False):
+def plot_topics_distribution(df_patent, cat_col,figsize=project_figsize("landscape"),savefigure=False):
     """
     Plots the distribution of the number of topics per patent for a given category column.
     """
@@ -912,7 +913,7 @@ def plot_topics_distribution(df_patent, cat_col,figsize=(10,6),savefigure=False)
 
 
 
-def map_plotting(country_df, column_to_show_counts,figsize=(12, 8),savefigure=True):
+def map_plotting(country_df, column_to_show_counts,figsize=project_figsize("landscape"),savefigure=True):
     """
     function to plot the world map with patent counts.
 
@@ -946,8 +947,8 @@ def map_plotting(country_df, column_to_show_counts,figsize=(12, 8),savefigure=Tr
         column='count',
         ax=ax,
         legend=True,
-        cmap=author_geography_colormap(),
-        edgecolor='grey',
+        cmap=figure_colormap(),
+        edgecolor="black",
         missing_kwds={
             "color": "white",
             "label": "No patents"
@@ -958,7 +959,7 @@ def map_plotting(country_df, column_to_show_counts,figsize=(12, 8),savefigure=Tr
         }
     )
 
-    set_title(ax, 'Global distribution of patent {}'.format(column_to_show_counts), fontsize=14)
+    set_title(ax, 'Global distribution of patent {}'.format(column_to_show_counts), fontsize=font_size("panel_label"))
     ax.axis('off')
     finalize_figure(plt.gcf())
     plt.tight_layout()
@@ -994,7 +995,7 @@ LEGAL_STATUS_DISPLAY = {
 }
 
 
-def plot_filing_status_over_time(df_patent,col,figsize=(10, 6),savefigure=True, ax=None, title: Optional[str] = None):
+def plot_filing_status_over_time(df_patent,col,figsize=project_figsize("landscape"),savefigure=True, ax=None, title: Optional[str] = None):
     """
     Plot stacked bar chart of patent counts by filing status over publication years.
 
@@ -1055,7 +1056,7 @@ def plot_filing_status_over_time(df_patent,col,figsize=(10, 6),savefigure=True, 
             values,
             bottom=bottom,
             label=status,
-            color=status_colors.get(status, "white"), edgecolor="black", linewidth=.5
+            color=status_colors.get(status, "white"), edgecolor="black", linewidth=stroke("edge")
             #color=colors_scheme[pivot_df.columns.get_loc(status)+2]
         )
 
@@ -1069,7 +1070,7 @@ def plot_filing_status_over_time(df_patent,col,figsize=(10, 6),savefigure=True, 
                     f'{pct:.1f}%',
                     ha='center',
                     va='center',
-                    fontsize=10,
+                    fontsize=font_size("annot"),
                     color='white' if status in ('Application Pending', 'Application Ceased') else 'black'
                 )
 
@@ -1083,7 +1084,7 @@ def plot_filing_status_over_time(df_patent,col,figsize=(10, 6),savefigure=True, 
             f'{int(totals.loc[year])}',
             ha='center',
             va='bottom',
-            fontsize=10,
+            fontsize=font_size("annot"),
             fontweight='bold'
         )
 
@@ -1116,7 +1117,7 @@ def plot_patent_counts_by_filing_status(
     year_col: str = 'publication_year',
     filing_status_col: str = 'filing_status',
     colors: Optional[List[str]] = None,
-    figsize: Tuple[int, int] = (15, 6),
+    figsize: Tuple[int, int] = project_figsize("wide"),
     savefile: Optional[str] = None
 ):
     """
@@ -1177,7 +1178,7 @@ def plot_patent_counts_by_filing_status(
                     f'{pct:.1f}%',
                     ha='center',
                     va='center',
-                    fontsize=8,
+                    fontsize=font_size("annot"),
                     color='white'
                 )
         
@@ -1191,7 +1192,7 @@ def plot_patent_counts_by_filing_status(
             f'{int(totals.loc[year])}',
             ha='center',
             va='bottom',
-            fontsize=10,
+            fontsize=font_size("annot"),
             fontweight='bold'
         )
     
@@ -1214,7 +1215,7 @@ def plot_patent_countries_map(
     assignee_countries_col: str = 'assignee_countries',
     shapefile_path: str = None,
     colors: Optional[str] = None,
-    figsize: Tuple[int, int] = (15, 8),
+    figsize: Tuple[int, int] = project_figsize("wide"),
     savefile: Optional[str] = None
 ):
     """
@@ -1272,7 +1273,7 @@ def plot_patent_countries_map(
         column='count',
         ax=ax,
         legend=True,
-        cmap=author_geography_colormap() if colors is None else colors,
+        cmap=figure_colormap() if colors is None else colors,
         edgecolor='black',
         missing_kwds={
             "color": "lightgrey",
@@ -1284,7 +1285,7 @@ def plot_patent_countries_map(
         }
     )
     
-    set_title(ax, 'Global distribution of patent assignees', fontsize=14)
+    set_title(ax, 'Global distribution of patent assignees', fontsize=font_size("panel_label"))
     ax.axis('off')
     finalize_figure(plt.gcf())
     plt.tight_layout()
@@ -1300,7 +1301,7 @@ def plot_topics_histogram(
     df: pd.DataFrame,
     n_topics_col: str = 'n_topics',
     colors: Optional[str] = None,
-    figsize: Tuple[int, int] = (8, 5),
+    figsize: Tuple[int, int] = project_figsize("landscape"),
     savefile: Optional[str] = None
 ):
     """
@@ -1350,7 +1351,7 @@ def plot_top_topics_horizontal(
     count_col: str = 'count',
     top_n: int = 20,
     colors: Optional[str] = None,
-    figsize: Tuple[int, int] = (10, 6),
+    figsize: Tuple[int, int] = project_figsize("landscape"),
     savefile: Optional[str] = None,
     export_name: str = "patents_topics"
 ):
@@ -1393,7 +1394,7 @@ def plot_collapsed_topics_horizontal(
     top_n: int = 20,
     fractional: bool = True,
     colors: Optional[str] = None,
-    figsize: Tuple[int, int] = (12, 8),
+    figsize: Tuple[int, int] = project_figsize("landscape"),
     savefile: Optional[str] = None
 ):
     """
@@ -1430,7 +1431,7 @@ def plot_collapsed_topics_horizontal(
             f"{cnt:.0f}" if not fractional else f"{cnt:.2f}",
             va='center',
             ha='left',
-            fontsize=9,
+            fontsize=font_size("annot"),
             fontweight='bold'
         )
     
@@ -1457,7 +1458,7 @@ def plot_drug_dev_by_country(
     weight_col: str = 'weight',
     uk_code: str = 'GB',
     colors: Optional[List[str]] = None,
-    figsize: Tuple[int, int] = (10, 6),
+    figsize: Tuple[int, int] = project_figsize("landscape"),
     savefile: Optional[str] = None
 ):
     """
@@ -1511,15 +1512,15 @@ def plot_drug_dev_by_country(
         
         if uk > 0:
             ax.text(i, uk / 2, f'{uk:.1f}',
-                   ha='center', va='center', fontsize=9, color='white')
+                   ha='center', va='center', fontsize=font_size("annot"), color='white')
         
         if others > 0:
             ax.text(i, uk + others / 2, f'{others:.1f}',
-                   ha='center', va='center', fontsize=9, color='white')
+                   ha='center', va='center', fontsize=font_size("annot"), color='white')
     
     for i, total in enumerate(totals):
         ax.text(i, total, f'{total:.1f}',
-               ha='center', va='bottom', fontsize=10, fontweight='bold')
+               ha='center', va='bottom', fontsize=font_size("annot"), fontweight='bold')
     
     set_title(ax, 'Drug Development Patents: UK vs Other Countries by Year')
     ax.set_xlabel('Year')
@@ -1545,7 +1546,7 @@ def plot_development_stage_pies(
     weight_col: str = 'weight',
     uk_code: str = 'GB',
     colors: Optional[List[str]] = None,
-    figsize: Tuple[int, int] = (12, 6),
+    figsize: Tuple[int, int] = project_figsize("wide"),
     savefile: Optional[str] = None
 ):
     """
@@ -1591,7 +1592,7 @@ def plot_development_stage_pies(
             startangle=140,
             labeldistance=1.15,
             pctdistance=0.75,
-            wedgeprops=dict(linewidth=1, edgecolor='white')
+            wedgeprops=dict(linewidth=stroke("edge"), edgecolor='white')
         )
         
         for t in autotexts:
@@ -1615,7 +1616,7 @@ def plot_development_stage_pies(
         title='Other Countries'
     )
     
-    set_figure_title(plt.gcf(), 'Drug Development Patents by Development Stage', fontsize=14)
+    set_figure_title(plt.gcf(), 'Drug Development Patents by Development Stage', fontsize=font_size("panel_label"))
     finalize_figure(plt.gcf())
     plt.tight_layout()
     
@@ -1632,7 +1633,7 @@ def plot_top_cited_papers(
     count_col: str = 'count',
     top_n: int = 10,
     colors: Optional[str] = None,
-    figsize: Tuple[int, int] = (12, 7),
+    figsize: Tuple[int, int] = project_figsize("landscape"),
     savefile: Optional[str] = None
 ):
     """
@@ -1657,7 +1658,7 @@ def plot_top_cited_papers(
     fig, ax = plt.subplots(figsize=figsize)
     
     ax.barh(top_papers_ordered[title_col], top_papers_ordered[count_col], color=colors)
-    ax.set_yticklabels(ax.get_yticklabels(), ha='right', fontsize=10)
+    ax.set_yticklabels(ax.get_yticklabels(), ha='right', fontsize=font_size("tick"))
     
     ax.spines['top'].set_visible(False)
     ax.spines['right'].set_visible(False)
@@ -1667,14 +1668,14 @@ def plot_top_cited_papers(
     # Annotate counts
     for i, (count, title) in enumerate(zip(top_papers_ordered[count_col],
                                            top_papers_ordered[title_col])):
-        ax.text(count + 0.5, i, str(count), va='center', fontsize=9, fontweight='bold')
+        ax.text(count + 0.5, i, str(count), va='center', fontsize=font_size("annot"), fontweight='bold')
     
     ax.set_xticklabels([])
     ax.set_xticks([])
     
     set_title(ax,
         f'Top {top_n} UKBB Papers Cited by Drug Development Patents',
-        fontsize=12,
+        fontsize=font_size("panel_label"),
     )
     
     finalize_figure(plt.gcf())
@@ -1690,7 +1691,7 @@ def plot_top_cited_papers(
 def plot_model_agreement_pairwise(
     df_pairwise: pd.DataFrame,
     colors: Optional[str] = None,
-    figsize: Tuple[int, int] = (10, 6),
+    figsize: Tuple[int, int] = project_figsize("landscape"),
     savefile: Optional[str] = None
 ):
     """
@@ -1714,14 +1715,14 @@ def plot_model_agreement_pairwise(
     for i, (bar, val, kappa) in enumerate(zip(bars, df_pairwise['Agreement %'], df_pairwise['Cohen\'s Kappa'])):
         ax.text(bar.get_x() + bar.get_width()/2, bar.get_height() + 1,
                f'{val:.1f}%\nkappa={kappa:.2f}',
-               ha='center', va='bottom', fontsize=9, fontweight='bold')
+               ha='center', va='bottom', fontsize=font_size("annot"), fontweight='bold')
     
     pair_labels = [f"{row['Model 1']}\nvs\n{row['Model 2']}" for _, row in df_pairwise.iterrows()]
     ax.set_xticks(x_pos)
-    ax.set_xticklabels(pair_labels, fontsize=9)
+    ax.set_xticklabels(pair_labels, fontsize=font_size("tick"))
     
-    ax.set_ylabel('Agreement (%)', fontsize=11)
-    set_title(ax, 'Pairwise Agreement Between Models on Drug Development Labels', fontsize=12, fontweight='bold')
+    ax.set_ylabel('Agreement (%)', fontsize=font_size("label"))
+    set_title(ax, 'Pairwise Agreement Between Models on Drug Development Labels', fontsize=font_size("panel_label"), fontweight='bold')
     ax.set_ylim(0, 110)
     ax.spines['top'].set_visible(False)
     ax.spines['right'].set_visible(False)
@@ -1740,7 +1741,7 @@ def plot_model_agreement_distribution(
     df_concordance: pd.DataFrame,
     yes_count_col: str = 'yes_count',
     colors: Optional[str] = None,
-    figsize: Tuple[int, int] = (10, 6),
+    figsize: Tuple[int, int] = project_figsize("landscape"),
     savefile: Optional[str] = None
 ):
     """
@@ -1766,11 +1767,11 @@ def plot_model_agreement_distribution(
         pct = val / len(df_concordance) * 100
         ax.text(bar.get_x() + bar.get_width()/2, bar.get_height() + 5,
                f'{val}\n({pct:.1f}%)',
-               ha='center', va='bottom', fontsize=10, fontweight='bold')
+               ha='center', va='bottom', fontsize=font_size("annot"), fontweight='bold')
     
-    ax.set_xlabel('Number of models labeling as "yes"', fontsize=11)
-    ax.set_ylabel('Number of patents', fontsize=11)
-    set_title(ax, 'Distribution of Model Agreement on Drug Development Labels', fontsize=12, fontweight='bold')
+    ax.set_xlabel('Number of models labeling as "yes"', fontsize=font_size("label"))
+    ax.set_ylabel('Number of patents', fontsize=font_size("label"))
+    set_title(ax, 'Distribution of Model Agreement on Drug Development Labels', fontsize=font_size("panel_label"), fontweight='bold')
     ax.set_xticks([0, 1, 2, 3, 4])
     ax.spines['top'].set_visible(False)
     ax.spines['right'].set_visible(False)
@@ -2392,7 +2393,7 @@ def build_topic_cooccurrence_network(
 def plot_topic_cooccurrence_network(
     graph,
     code_to_label: Optional[Dict[str, str]] = None,
-    figsize: Tuple[int, int] = (12, 10),
+    figsize: Tuple[int, int] = project_figsize("standard"),
     savefile: Optional[str] = None,
     ax=None,
 ):
@@ -2438,7 +2439,7 @@ def plot_topic_cooccurrence_network(
         node_size=node_sizes,
         node_color=palette('steel_blue'),
         edgecolors='black',
-        linewidths=.8,
+        linewidths=stroke("edge"),
         ax=ax,
     )
     labels = [code_to_label.get(node, str(node)) for node in graph.nodes()]
@@ -2479,31 +2480,31 @@ def plot_patent_overview(df_patent, country_counts, graph,
     from matplotlib.ticker import MaxNLocator
 
     apply_typography()
-    fig = plt.figure(figsize=(18, 9), layout='constrained')
+    fig = plt.figure(figsize=project_figsize("wide"), layout='constrained')
     fig.get_layout_engine().set(w_pad=.10, h_pad=.10, hspace=.08)
     grid = fig.add_gridspec(2, 2, width_ratios=(1, 1.25), wspace=.08)
     axes = [fig.add_subplot(grid[0, 0]), fig.add_subplot(grid[1, 0]),
             fig.add_subplot(grid[:, 1])]
     for letter, ax in zip('ABC', axes):
-        ax._ukb_title_fs = 26
-        ax._ukb_label_fs = 17
-        ax._ukb_tick_fs = 13
-        ax._ukb_annotation_fs = 12
-        ax._ukb_legend_fs = 13
+        ax._ukb_title_fs = font_size("panel_label")
+        ax._ukb_label_fs = font_size("label")
+        ax._ukb_tick_fs = font_size("tick")
+        ax._ukb_annotation_fs = font_size("annot")
+        ax._ukb_legend_fs = font_size("legend")
         set_title(ax, letter)
     axes[2].set_xticks([])
     axes[2].set_yticks([])
 
     countries = country_counts.sort_values('count', ascending=False, kind='stable').head(10)
     axes[0].bar(countries['iso2'].replace({'GB': 'UK'}), countries['count'],
-                color=palette('steel_blue'), edgecolor='black', linewidth=.6)
+                color=palette('steel_blue'), edgecolor='black', linewidth=stroke("edge"))
     axes[0].set(xlabel='Assignee country', ylabel='Assignee-country occurrences')
 
     counts = df_patent['topic_count'].dropna()
     if len(counts):
         # Centre bins on integers and retain patents without a classified topic.
         axes[1].hist(counts, bins=np.arange(0, int(counts.max()) + 2) - .5,
-                     color=palette('steel_blue'), edgecolor='black', linewidth=.6)
+                     color=palette('steel_blue'), edgecolor='black', linewidth=stroke("edge"))
         axes[1].axvline(counts.mean(), linestyle='--', color=palette('navy'),
                         label=f'Mean: {counts.mean():.2f}')
         axes[1].axvline(counts.median(), linestyle=':', color=palette('red'),
@@ -2609,7 +2610,7 @@ def analyze_country_topics(
 def plot_country_topic_heatmap(
     pivot_country_topic: pd.DataFrame,
     code_to_label: Optional[Dict[str, str]] = None,
-    figsize: Tuple[int, int] = (8, 6),
+    figsize: Tuple[int, int] = project_figsize("standard"),
     savefile: Optional[str] = None,
     ax=None,
     cmap=None,
@@ -2634,12 +2635,12 @@ def plot_country_topic_heatmap(
         fig = ax.figure
 
     if cmap is None:
-        cmap = blue_cream_red_colormap()
+        cmap = figure_colormap()
 
     values = pivot_normalized.values
     if mask_zeros:
         values = np.ma.masked_equal(values, 0)
-        cmap = plt.get_cmap(cmap).copy()
+        cmap = cmap.copy()
         cmap.set_bad('white')
     im = ax.imshow(values, cmap=cmap, aspect='auto')
     ax.set_xticks(range(len(pivot_normalized.columns)))
@@ -2651,11 +2652,11 @@ def plot_country_topic_heatmap(
         for j in range(len(pivot_normalized.columns)):
             value = pivot_normalized.values[i, j]
             if value > 0:
-                ax.text(j, i, f'{value:.1f}%', ha='center', va='center', color='white', fontsize=7)
+                ax.text(j, i, f'{value:.1f}%', ha='center', va='center', color='white', fontsize=font_size("annot"))
 
     if title is None:
         title = 'Patent Topics by Country (%)'
-    set_title(ax, title, fontsize=10, fontweight='bold')
+    set_title(ax, title, fontsize=font_size("panel_label"), fontweight='bold')
     ax.set_xlabel('Country')
     ax.set_ylabel('Topic Division')
     plt.colorbar(im, ax=ax, orientation='vertical', pad=0.02, fraction=0.046,
@@ -2678,7 +2679,7 @@ def plot_country_dominant_topics(
     topic_by_country: pd.DataFrame,
     top_countries: List[str],
     code_to_label: Optional[Dict[str, str]] = None,
-    figsize: Tuple[int, int] = (8, 6),
+    figsize: Tuple[int, int] = project_figsize("standard"),
     savefile: Optional[str] = None,
     ax=None,
 ):
@@ -2715,13 +2716,13 @@ def plot_country_dominant_topics(
                      break_long_words=False, break_on_hyphens=False)
               for country, code in zip(dominant_df['country'], dominant_df['topic_code'])]
     bars = ax.barh(labels, dominant_df['count'], color=palette('steel_blue'),
-                   edgecolor='black', linewidth=.6)
+                   edgecolor='black', linewidth=stroke("edge"))
     ax.bar_label(bars, labels=[f'{count:.2f}' for count in dominant_df['count']],
-                 padding=5, fontsize=12)
+                 padding=5, fontsize=font_size("annot"))
     ax.set_xlim(0, max(float(dominant_df['count'].max()) * 1.18, 1.))
     ax.set_xlabel('Fractional Patent Count in Dominant Topic')
     ax.set_ylabel('Country')
-    set_title(ax, 'Dominant Topic per Country (Fractional)', fontsize=10, fontweight='bold')
+    set_title(ax, 'Dominant Topic per Country (Fractional)', fontsize=font_size("panel_label"), fontweight='bold')
     ax.invert_yaxis()
     ax.spines['top'].set_visible(False)
     ax.spines['right'].set_visible(False)
@@ -2754,17 +2755,17 @@ def plot_country_topic_summary(pivot_country_topic, topic_by_country, top_countr
     code_to_label = code_to_label or {}
     apply_typography()
     with_status = df_patent is not None
-    fig = plt.figure(figsize=(20, 15 if with_status else 7.5), layout='constrained')
+    fig = plt.figure(figsize=project_figsize("standard" if with_status else "wide"), layout='constrained')
     grid = fig.add_gridspec(2 if with_status else 1, 2, width_ratios=(1.25, 1))
     axes = [fig.add_subplot(grid[0, 0]), fig.add_subplot(grid[0, 1])]
     if with_status:
         axes.append(fig.add_subplot(grid[1, :]))
     fig.get_layout_engine().set(w_pad=.10, h_pad=.10, wspace=.06, hspace=.10)
     for letter, ax in zip('ABC', axes):
-        ax._ukb_label_fs = 17
-        ax._ukb_tick_fs = 13
-        ax._ukb_annotation_fs = 12
-        ax._ukb_legend_fs = 12
+        ax._ukb_label_fs = font_size("label")
+        ax._ukb_tick_fs = font_size("tick")
+        ax._ukb_annotation_fs = font_size("annot")
+        ax._ukb_legend_fs = font_size("legend")
         set_title(ax, letter)
         ax.grid(False, which='both')
 
@@ -2780,8 +2781,8 @@ def plot_country_topic_summary(pivot_country_topic, topic_by_country, top_countr
         spine.set_linewidth(1)
     if axes[0].images:
         colorbar = axes[0].images[0].colorbar
-        colorbar.ax._ukb_label_fs = 15
-        colorbar.ax._ukb_tick_fs = 12
+        colorbar.ax._ukb_label_fs = font_size("label")
+        colorbar.ax._ukb_tick_fs = font_size("tick")
         colorbar.set_label('Share of country-field assignments (%)')
     else:
         axes[0].text(.5, .5, 'No country-topic data', transform=axes[0].transAxes,
@@ -2848,7 +2849,7 @@ def plot_two_level_hierarchy(
     child_name: str = 'Child',
     top_parent_n: int = 5,
     top_child_n: int = 8,
-    figsize: Tuple[int, int] = (14, 20),
+    figsize: Tuple[int, int] = project_figsize("tall"),
     savefile: Optional[str] = None,
 ):
     """Draw a bubble-tree style hierarchy plot for a two-level taxonomy."""
@@ -2889,26 +2890,26 @@ def plot_two_level_hierarchy(
         child_y_spacing = 0.7
         parent_y = child_y_start + (n_children - 1) * child_y_spacing / 2
 
-        ax.scatter(x_parent, parent_y, s=min(2200, 500 + parent_total * 6), color=parent_colors[parent_code], edgecolor='black', linewidth=2, zorder=3, alpha=0.85)
-        ax.text(x_parent - 0.3, parent_y, f"{parent_code}\n{parent_label}\n({parent_total})", ha='right', va='center', fontsize=9, fontweight='bold')
+        ax.scatter(x_parent, parent_y, s=min(2200, 500 + parent_total * 6), color=parent_colors[parent_code], edgecolor='black', linewidth=stroke("edge"), zorder=3, alpha=0.85)
+        ax.text(x_parent - 0.3, parent_y, f"{parent_code}\n{parent_label}\n({parent_total})", ha='right', va='center', fontsize=font_size("annot"), fontweight='bold')
 
         for child_idx, (_, child_row) in enumerate(children.iterrows()):
             child_code = child_row[child_code_col]
             child_label = child_row[child_label_col]
             child_count = child_row['count']
             child_y = child_y_start + child_idx * child_y_spacing
-            ax.plot([x_parent, x_child], [parent_y, child_y], color=parent_colors[parent_code], linewidth=1.3, alpha=0.6, zorder=1)
-            ax.scatter(x_child, child_y, s=min(900, 200 + child_count * 4), color=parent_colors[parent_code], edgecolor='gray', linewidth=1, zorder=2, alpha=0.55)
+            ax.plot([x_parent, x_child], [parent_y, child_y], color=parent_colors[parent_code], linewidth=stroke("line"), alpha=0.6, zorder=1)
+            ax.scatter(x_child, child_y, s=min(900, 200 + child_count * 4), color=parent_colors[parent_code], edgecolor="black", linewidth=stroke("edge"), zorder=2, alpha=0.55)
             child_text = child_label if len(str(child_label)) <= 35 else str(child_label)[:32] + '...'
-            ax.text(x_child + 0.2, child_y, f"{child_code}: {child_text} ({child_count})", ha='left', va='center', fontsize=7)
+            ax.text(x_child + 0.2, child_y, f"{child_code}: {child_text} ({child_count})", ha='left', va='center', fontsize=font_size("annot"))
 
         y_current += (n_children * child_y_spacing) + y_spacing
 
     ax.set_xlim(-2, 15)
     ax.set_ylim(-1, y_current)
     ax.axis('off')
-    ax.text(x_parent, -0.5, parent_name, ha='center', va='top', fontsize=9, style='italic')
-    ax.text(x_child, -0.5, child_name, ha='center', va='top', fontsize=9, style='italic')
+    ax.text(x_parent, -0.5, parent_name, ha='center', va='top', fontsize=font_size("annot"), style='italic')
+    ax.text(x_child, -0.5, child_name, ha='center', va='top', fontsize=font_size("annot"), style='italic')
     finalize_figure(plt.gcf())
     plt.tight_layout()
 
@@ -3021,7 +3022,7 @@ def plot_rcdc_macro_hierarchy(
     category_col: str = 'category_rcdc',
     top_level_topics_col: str = 'top_level_topics',
     top_macro: int = 8,
-    figsize: Tuple[int, int] = (14, 20),
+    figsize: Tuple[int, int] = project_figsize("tall"),
     savefile: Optional[str] = None,
 ):
     """Plot the macro-cluster to RCDC category tree-style hierarchy."""
@@ -3117,13 +3118,13 @@ def plot_rcdc_macro_hierarchy(
 
         ax.scatter(
             x_macro, macro_y, s=min(2200, 500 + macro_total * 6),
-            color=macro_colors[macro_code], edgecolor='black', linewidth=2,
+            color=macro_colors[macro_code], edgecolor='black', linewidth=stroke("edge"),
             zorder=3, alpha=0.85
         )
         ax.text(
             x_macro - 0.3, macro_y,
             f"{macro_code}\n{macro_label}\n({macro_total})",
-            ha='right', va='center', fontsize=9, fontweight='bold'
+            ha='right', va='center', fontsize=font_size("annot"), fontweight='bold'
         )
 
         for child_idx, (_, child_row) in enumerate(children.iterrows()):
@@ -3132,15 +3133,15 @@ def plot_rcdc_macro_hierarchy(
             rcdc_count = child_row['count']
             child_y = child_y_start + child_idx * child_y_spacing
 
-            ax.plot([x_macro, x_rcdc], [macro_y, child_y], color=macro_colors[macro_code], linewidth=1.3, alpha=0.6, zorder=1)
+            ax.plot([x_macro, x_rcdc], [macro_y, child_y], color=macro_colors[macro_code], linewidth=stroke("line"), alpha=0.6, zorder=1)
             ax.scatter(
                 x_rcdc, child_y,
                 s=min(900, 200 + rcdc_count * 4),
-                color=macro_colors[macro_code], edgecolor='gray', linewidth=1,
+                color=macro_colors[macro_code], edgecolor="black", linewidth=stroke("edge"),
                 zorder=2, alpha=0.55
             )
             child_text = rcdc_label if len(str(rcdc_label)) <= 35 else str(rcdc_label)[:32] + '...'
-            ax.text(x_rcdc + 0.2, child_y, f"{rcdc_id}: {child_text} ({rcdc_count})", ha='left', va='center', fontsize=7)
+            ax.text(x_rcdc + 0.2, child_y, f"{rcdc_id}: {child_text} ({rcdc_count})", ha='left', va='center', fontsize=font_size("annot"))
 
         y_current += (n_children * child_y_spacing) + y_spacing
 
@@ -3148,8 +3149,8 @@ def plot_rcdc_macro_hierarchy(
     ax.set_ylim(-1, y_current)
     ax.set_aspect('auto')
     ax.axis('off')
-    ax.text(x_macro, -0.5, 'Macro Cluster', ha='center', va='top', fontsize=9, style='italic')
-    ax.text(x_rcdc, -0.5, 'RCDC Category', ha='center', va='top', fontsize=9, style='italic')
+    ax.text(x_macro, -0.5, 'Macro Cluster', ha='center', va='top', fontsize=font_size("annot"), style='italic')
+    ax.text(x_rcdc, -0.5, 'RCDC Category', ha='center', va='top', fontsize=font_size("annot"), style='italic')
     finalize_figure(plt.gcf())
     plt.tight_layout()
 
@@ -3167,14 +3168,13 @@ def plot_rcdc_macro_heatmap(
     category_col: str = 'category_rcdc',
     top_n_categories: int = 5,
     normalize: bool = True,
-    figsize: Tuple[int, int] = (13, 8),
+    figsize: Tuple[int, int] = project_figsize("landscape"),
     savefile: Optional[str] = None,
 ):
     """Plot the macro-cluster by RCDC-category heatmap used in the original notebook."""
     apply_typography()
     import ast
     import textwrap
-    from matplotlib.colors import LinearSegmentedColormap
     import seaborn as sns
 
     cat_dict = rcdc_context['cat_dict']
@@ -3251,7 +3251,7 @@ def plot_rcdc_macro_heatmap(
     )
 
     macro_topic_totals = {label: int(sum(macro_topic_counts[str(code)].values())) for code, label in macro_cluster_names.items()}
-    cmap = blue_cream_red_colormap()
+    cmap = figure_colormap()
     cmap.set_bad("white")
     fig, ax = plt.subplots(figsize=figsize)
     dis_df = sorted_df.copy()
@@ -3272,14 +3272,14 @@ def plot_rcdc_macro_heatmap(
     )
 
     for i in range(5, len(dis_df), 5):
-        ax.axhline(i, color='grey', linewidth=1, linestyle='--')
+        ax.axhline(i, color='grey', linewidth=stroke("ref"), linestyle='--')
 
     wrapped_labels = [textwrap.fill(label, width=14) for label in dis_df.columns]
-    ax.set_xticklabels(wrapped_labels, rotation=0, ha='center', fontsize=9)
-    set_title(ax, 'Top 5 RCDC Categories per Macro Cluster', fontsize=12, fontweight='bold', pad=20)
+    ax.set_xticklabels(wrapped_labels, rotation=0, ha='center', fontsize=font_size("tick"))
+    set_title(ax, 'Top 5 RCDC Categories per Macro Cluster', fontsize=font_size("panel_label"), fontweight='bold', pad=20)
     ax.set_ylabel('RCDC Category', fontweight='bold')
     ax.set_xlabel('Macro Cluster', fontweight='bold')
-    ax.set_yticklabels(ax.get_yticklabels(), fontsize=9)
+    ax.set_yticklabels(ax.get_yticklabels(), fontsize=font_size("tick"))
     finalize_figure(plt.gcf())
     plt.tight_layout()
 

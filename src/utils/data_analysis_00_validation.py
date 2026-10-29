@@ -17,6 +17,7 @@ import pandas as pd
 
 from . import shared_paths as P
 from .shared_analysis_window import filter_analysis_window
+from .shared_style import stroke, figsize as project_figsize
 
 
 PROMPTS = (
@@ -218,12 +219,12 @@ def _agreement(frame, models):
 
 
 def _draw_matrix(ax, values, *, letter, row_models, column_labels, model_columns=False):
-    from .shared_style import blue_cream_red_colormap, load_style, palette, set_title
+    from .shared_style import figure_colormap, load_style, palette, set_title
     style = load_style("00_dataset", activate=False)
-    cmap = blue_cream_red_colormap().with_extremes(bad="white")
+    cmap = figure_colormap()
     array = values.to_numpy(dtype=float)
     image = ax.pcolormesh(np.ma.masked_invalid(array), cmap=cmap, vmin=0, vmax=1,
-                         edgecolors=palette("navy"), linewidth=.45)
+                         edgecolors="black", linewidth=stroke("edge"))
     ax.invert_yaxis()
     ax.set_xticks(np.arange(values.shape[1]) + .5, column_labels, rotation=40, ha="right",
                   fontsize=style["tick_fs"])
@@ -237,9 +238,9 @@ def _draw_matrix(ax, values, *, letter, row_models, column_labels, model_columns
         ax.text(col + .5, row + .5, label, ha="center", va="center", fontsize=style["annot_fs"])
     llm_count = sum(m not in ENCODER_MODELS for m in row_models)
     if 0 < llm_count < len(row_models):
-        ax.axhline(llm_count, color=palette("navy"), lw=1.6, linestyle="--")
+        ax.axhline(llm_count, color=palette("navy"), lw=stroke("ref"), linestyle="--")
         if model_columns:
-            ax.axvline(llm_count, color=palette("navy"), lw=1.6, linestyle="--")
+            ax.axvline(llm_count, color=palette("navy"), lw=stroke("ref"), linestyle="--")
     ax.grid(False)
     return image
 
@@ -270,7 +271,7 @@ def _render_performance(summary, figure_dir, *, n_papers, n_positive, show_figur
     models = [m for m in MODEL_NAMES if m in set(summary["model"])]
     prompts = [p for p, _ in PROMPTS]
     labels = ["Conservative", "Balanced", "Evidence cues", "Context", "One-shot", "Five-shot"]
-    fig, axes = plt.subplots(2, 2, figsize=(14.8, 10.6))
+    fig, axes = plt.subplots(2, 2, figsize=project_figsize("standard"))
     for index, (ax, metric) in enumerate(zip(axes.ravel(), ("accuracy", "precision", "recall", "f1"))):
         values = summary.pivot(index="model", columns="prompt", values=metric).reindex(index=models, columns=prompts)
         image = _draw_matrix(ax, values, letter=chr(65 + index),
@@ -299,7 +300,7 @@ def _render_agreement(agreements, figure_dir, *, comparison_counts=None, n_paper
     from .data_analysis_00_figures import format_heatmap_colorbar, heatmap_limits
     style = load_style("00_dataset")
     models = [m for m in MODEL_NAMES if any(m in frame.index for frame in agreements.values())]
-    fig, axes = plt.subplots(2, 3, figsize=(17, 11.5))
+    fig, axes = plt.subplots(2, 3, figsize=project_figsize("landscape"))
     for index, (ax, (prompt, _)) in enumerate(zip(axes.ravel(), PROMPTS)):
         values = agreements[prompt].reindex(index=models, columns=models)
         if comparison_counts is not None:

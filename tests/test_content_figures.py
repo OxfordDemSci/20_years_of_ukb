@@ -15,7 +15,7 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / 'src'))
 from utils import data_analysis_02_content_panels as panels
 from utils.data_analysis_02_content_window import write_topic_window_provenance
-from utils.shared_style import finalize_figure, load_style
+from utils.shared_style import figsize, finalize_figure, load_style
 
 
 class ContentFigureTests(unittest.TestCase):
@@ -143,7 +143,7 @@ class ContentFigureTests(unittest.TestCase):
         self.assertEqual([ax.get_title(loc='left') for ax in (A, B, C)], list('ABC'))
         self.assertEqual(A.get_legend()._ncols, 3)
         self.assertEqual(B.get_legend()._ncols, 3)
-        self.assertEqual(panels.OTHER_COLOR, '#FFFFFF')
+        self.assertEqual(panels.OTHER_COLOR, 'white')
         self.assertIn('Fields of Research', A.get_ylabel())
         self.assertIn('RCDC', B.get_ylabel())
         finalize_figure(fig)
@@ -211,9 +211,9 @@ class ContentFigureTests(unittest.TestCase):
 
     def test_category_heatmap_headings_are_letters_only(self):
         fig = panels.figure_si_category_changes(self.fixture(), save=False)
-        width, height = panels._style().get('figsize_si', (15, 10))
+        width, height = figsize('standard')
         self.assertAlmostEqual(fig.get_figwidth(), width)
-        self.assertAlmostEqual(fig.get_figheight(), height * 1.2)
+        self.assertAlmostEqual(fig.get_figheight(), height)
         finalize_figure(fig)
         fig.canvas.draw()
         self.assertEqual([ax.get_title(loc='left') for ax in fig.axes], ['A', 'B'])

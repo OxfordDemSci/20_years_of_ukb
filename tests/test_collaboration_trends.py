@@ -14,6 +14,7 @@ import pandas as pd
 import pytest
 
 from utils import data_analysis_04_non_academic_collab_helpers as H
+from utils.shared_style import font_size as FS
 
 
 def sector_data():
@@ -45,8 +46,8 @@ def test_combined_counts_priority_palette_and_legend_are_preserved():
     fig.canvas.draw()
     a, b = fig.axes
     assert [ax.get_title(loc="left") for ax in (a, b)] == ["A", "B"]
-    assert all(ax._left_title.get_size() == 20 for ax in (a, b))
-    assert all(ax.yaxis.label.get_size() == 13 for ax in (a, b))
+    assert all(ax._left_title.get_size() == FS("panel_label") for ax in (a, b))
+    assert all(ax.yaxis.label.get_size() == FS("label") for ax in (a, b))
     assert a.get_position().x1 < b.get_position().x0
     assert a.get_position().y0 == pytest.approx(b.get_position().y0)
     assert a.get_position().y1 == pytest.approx(b.get_position().y1)
@@ -88,7 +89,7 @@ def test_combined_counts_priority_palette_and_legend_are_preserved():
     legend, = fig.legends
     assert legend._ncols == 3
     assert [text.get_text() for text in legend.get_texts()] == list(expected_primary)
-    assert {text.get_size() for text in legend.get_texts()} == {11}
+    assert {text.get_size() for text in legend.get_texts()} == {FS("legend")}
     # Both symbols in a tuple must match the actual line and filled area.
     legend_lines = legend.findobj(Line2D)
     legend_boxes = legend.findobj(Rectangle)
@@ -171,9 +172,9 @@ def test_sector_comparison_aligns_counts_and_preserves_palette_and_inputs():
     renderer = fig.canvas.get_renderer()
     assert a.get_tightbbox(renderer).x1 < b.get_tightbbox(renderer).x0
     for ax, metric in zip((a, b), ("institution_mentions", "papers")):
-        assert ax._left_title.get_size() == 26
-        assert ax.xaxis.label.get_size() == 17
-        assert all(text.get_size() == 13 for text in ax.get_xticklabels() + ax.get_yticklabels())
+        assert ax._left_title.get_size() == FS("panel_label")
+        assert ax.xaxis.label.get_size() == FS("label")
+        assert all(text.get_size() == FS("tick") for text in ax.get_xticklabels() + ax.get_yticklabels())
         for side, spine in ax.spines.items():
             assert spine.get_visible() == (side in ("left", "bottom"))
             assert spine.get_linewidth() == 1
@@ -188,7 +189,7 @@ def test_sector_comparison_aligns_counts_and_preserves_palette_and_inputs():
         np.testing.assert_array_equal([bar.get_width() for bar in ax.patches], ranked[metric])
         assert [text.get_text() for text in ax.texts] == [f"{value:,.0f}" for value in ranked[metric]]
         for bar, text in zip(ax.patches, ax.texts):
-            assert text.get_fontsize() == 13
+            assert text.get_fontsize() == FS("annot")
             np.testing.assert_allclose(text.xy, (bar.get_width(), bar.get_y() + bar.get_height() / 2))
             assert text.get_verticalalignment() == "center"
             label_box = text.get_window_extent(renderer)

@@ -19,7 +19,8 @@ import matplotlib.pyplot as plt
 from utils.data_analysis_04_non_academic_figures import (
     show_figures, save_figure_file, finalize_figure, SECTOR_COLORS, slug,
 )
-from utils.shared_style import blue_colormap, blue_cream_red_colormap, load_style, palette
+from utils.shared_style import figure_colormap, load_style, palette
+from utils.shared_style import font_size, stroke, figsize as project_figsize
 import numpy as np
 import pandas as pd
 from cycler import cycler
@@ -929,15 +930,15 @@ def plot_non_academic_sector_breakdown(
     plot_df = sector_df.copy()
     plot_df = plot_df.sort_values(value_col, ascending=True)
     color_map = SECTOR_COLORS
-    bar_colors = [color_map.get(s, "#FFFFFF") for s in plot_df["sector"]]
+    bar_colors = [color_map.get(s, "white") for s in plot_df["sector"]]
 
-    plt.figure(figsize=(10.5, 5.5), dpi=300)
+    plt.figure(figsize=project_figsize("wide"))
     plt.barh(
         plot_df["sector"],
         plot_df[value_col],
         color=bar_colors,
         edgecolor="black",
-        linewidth=0.5,
+        linewidth=stroke("edge"),
     )
     xlabel = "Institution mentions" if value_col == "institution_mentions" else "Paper count"
     plt.xlabel(xlabel)
@@ -968,20 +969,20 @@ def plot_sector_breakdown_comparison(sector_df: pd.DataFrame):
     apply_typography()
     ranked = sector_df.sort_values("institution_mentions", ascending=False, kind="stable")
     positions = np.arange(len(ranked))
-    colors = [SECTOR_COLORS.get(sector, "#FFFFFF") for sector in ranked["sector"]]
-    fig, axes = plt.subplots(1, 2, figsize=(17, 6.5), sharey=True, layout="constrained")
+    colors = [SECTOR_COLORS.get(sector, "white") for sector in ranked["sector"]]
+    fig, axes = plt.subplots(1, 2, figsize=project_figsize("wide"), sharey=True, layout="constrained")
     fig.get_layout_engine().set(w_pad=.10, h_pad=.10, wspace=.04)
     for ax, letter, metric, label in zip(
         axes, "AB", ("institution_mentions", "papers"), ("Institution mentions", "Publications")
     ):
-        ax._ukb_title_fs = 26
-        ax._ukb_label_fs = 17
-        ax._ukb_tick_fs = 13
-        ax._ukb_annotation_fs = 13
+        ax._ukb_title_fs = font_size("panel_label")
+        ax._ukb_label_fs = font_size("label")
+        ax._ukb_tick_fs = font_size("tick")
+        ax._ukb_annotation_fs = font_size("annot")
         bars = ax.barh(positions, ranked[metric].to_numpy(), height=.78, color=colors,
-                edgecolor="black", linewidth=.6)
+                edgecolor="black", linewidth=stroke("edge"))
         ax.bar_label(bars, labels=[f"{value:,.0f}" for value in ranked[metric]],
-                     padding=5, fontsize=13, color="black")
+                     padding=5, fontsize=font_size("annot"), color="black")
         ax.set_yticks(positions, ranked["sector"])
         ax.set_xlabel(label)
         ax.set_xlim(0, max(float(ranked[metric].max()) * 1.18, 1.))
@@ -1225,13 +1226,13 @@ def plot_top_orgs(
 
     plot_df = table.head(n).sort_values(value_col, ascending=True)
 
-    plt.figure(figsize=(11, 7), dpi=150)
+    plt.figure(figsize=project_figsize("landscape"))
     plt.barh(
         plot_df["org"],
         plot_df[value_col],
         color=color,
         edgecolor="black",
-        linewidth=0.3,
+        linewidth=stroke("edge"),
     )
     set_title(plt.gca(), title)
     plt.xlabel(xlabel)
@@ -1246,7 +1247,7 @@ def plot_collaborator_count_distributions(df: pd.DataFrame) -> None:
     apply_typography()
     nrows = 2
     ncols = 4
-    fig, axes = plt.subplots(nrows, ncols, figsize=(16, 8), dpi=150)
+    fig, axes = plt.subplots(nrows, ncols, figsize=project_figsize("wide"))
     axes = axes.flatten()
 
     color_map = SECTOR_COLORS
@@ -1260,7 +1261,7 @@ def plot_collaborator_count_distributions(df: pd.DataFrame) -> None:
             counts = pd.Series([0] * len(df))
         else:
             counts = df[col]
-        series_spec.append((axes[idx], counts, f"{label} orgs per paper", color_map.get(label, "#FFFFFF")))
+        series_spec.append((axes[idx], counts, f"{label} orgs per paper", color_map.get(label, "white")))
 
     for index, (ax, counts, title, color) in enumerate(series_spec):
         set_title(ax, chr(65 + index))
@@ -1273,7 +1274,7 @@ def plot_collaborator_count_distributions(df: pd.DataFrame) -> None:
 
         max_count = int(nonzero.max())
         bins = np.arange(1, max_count + 2) - 0.5
-        ax.hist(nonzero, bins=bins, color=color, edgecolor="black", linewidth=0.3)
+        ax.hist(nonzero, bins=bins, color=color, edgecolor="black", linewidth=stroke("edge"))
         from matplotlib.ticker import MaxNLocator
         ax.xaxis.set_major_locator(MaxNLocator(nbins=5, integer=True))
         ax.set_xlabel(title.replace(" orgs per paper", "\norganisations per paper"))
@@ -1333,7 +1334,7 @@ def plot_cumulative_by_type(
     if use_sector:
         color_map = SECTOR_COLORS
         series_spec = [
-            (label, sector_flag_col(label), color_map.get(label, "#FFFFFF"))
+            (label, sector_flag_col(label), color_map.get(label, "white"))
             for label in NON_ACADEMIC_SECTOR_LABELS
             if label != "University/HEI"
         ]
@@ -1352,7 +1353,7 @@ def plot_cumulative_by_type(
 
     created_fig = ax is None
     if created_fig:
-        fig, ax = plt.subplots(figsize=(10, 5), dpi=150)
+        fig, ax = plt.subplots(figsize=project_figsize("wide"))
     else:
         fig = ax.figure
     for label, col, color in series_spec:
@@ -1361,7 +1362,7 @@ def plot_cumulative_by_type(
             year_range,
             yearly.cumsum().values,
             marker="o",
-            linewidth=2,
+            linewidth=stroke("line"),
             color=color,
             label=label,
         )
@@ -1388,7 +1389,7 @@ def plot_yearly_share_by_type(df: pd.DataFrame, start_year: int = ANALYSIS_START
     if use_sector:
         color_map = SECTOR_COLORS
         series_spec = [
-            (label, sector_flag_col(label), color_map.get(label, "#FFFFFF"))
+            (label, sector_flag_col(label), color_map.get(label, "white"))
             for label in NON_ACADEMIC_SECTOR_LABELS
         ]
         title = f"Share of papers by taxonomy sector ({start_year}-{end_year})"
@@ -1401,11 +1402,11 @@ def plot_yearly_share_by_type(df: pd.DataFrame, start_year: int = ANALYSIS_START
         ]
         title = f"Share of papers with collaborator types ({start_year}-{end_year})"
 
-    plt.figure(figsize=(10, 5), dpi=150)
+    plt.figure(figsize=project_figsize("wide"))
     for label, col, color in series_spec:
         yearly = df[df[col] == 1].groupby("year").size().reindex(year_range, fill_value=0)
         share = np.where(yearly_total > 0, yearly / yearly_total, 0)
-        plt.plot(year_range, share * 100, marker="o", linewidth=2, color=color, label=label)
+        plt.plot(year_range, share * 100, marker="o", linewidth=stroke("line"), color=color, label=label)
     set_title(plt.gca(), title)
     plt.xlabel("Year")
     plt.ylabel("Percent of papers")
@@ -1445,10 +1446,10 @@ def plot_company_share_within_non_academic(
     share_uk_in_non = np.where(yearly_non > 0, yearly_uk / yearly_non, 0)
     share_non_uk_in_non = np.where(yearly_non > 0, yearly_non_uk / yearly_non, 0)
 
-    plt.figure(figsize=(10, 5), dpi=150)
-    plt.plot(year_range, share_company_in_non * 100, marker="o", linewidth=2, color="#75BBD4", label="Company (any)")
-    plt.plot(year_range, share_uk_in_non * 100, marker="o", linewidth=2, color="#E66859", label="UK company")
-    plt.plot(year_range, share_non_uk_in_non * 100, marker="o", linewidth=2, color="#274668", label="Company (non-UK)")
+    plt.figure(figsize=project_figsize("wide"))
+    plt.plot(year_range, share_company_in_non * 100, marker="o", linewidth=stroke("line"), color="#75BBD4", label="Company (any)")
+    plt.plot(year_range, share_uk_in_non * 100, marker="o", linewidth=stroke("line"), color="#E66859", label="UK company")
+    plt.plot(year_range, share_non_uk_in_non * 100, marker="o", linewidth=stroke("line"), color="#274668", label="Company (non-UK)")
     set_title(plt.gca(), f"Share of taxonomy-collaboration papers with company sectors ({start_year}-{end_year})")
     plt.xlabel("Year")
     plt.ylabel("Percent of taxonomy-collaboration papers")
@@ -1512,11 +1513,11 @@ def plot_collaboration_mix_stacked_area(
     colors = [SECTOR_COLORS.get(label, palette("cream")) for label in labels]
     created_fig = ax is None
     if created_fig:
-        fig, ax = plt.subplots(figsize=(12, 6), dpi=300)
+        fig, ax = plt.subplots(figsize=project_figsize("wide"))
     else:
         fig = ax.figure
     areas = ax.stackplot(year_range, stack_series, labels=labels, colors=colors,
-                         edgecolor="black", linewidth=.35)
+                         edgecolor="black", linewidth=stroke("edge"))
     areas[0].set_hatch("///")
     set_title(ax, f"Annual paper volume by primary taxonomy sector ({start_year}-{end_year})")
     ax.set(xlabel="Publication year", ylabel="Annual publications")
@@ -1550,7 +1551,7 @@ def plot_collaboration_trends(
         raise ValueError("The combined trends figure requires sector counts for the primary-sector mix.")
     apply_project_plot_style()
     df = ensure_year_column(df)
-    fig, axes = plt.subplots(1, 2, figsize=(16, 6.2), layout="constrained")
+    fig, axes = plt.subplots(1, 2, figsize=project_figsize("wide"), layout="constrained")
     fig.get_layout_engine().set(w_pad=.08, h_pad=.06, wspace=.06)
     plot_cumulative_by_type(df, start_year, end_year, ax=axes[0], legend=False)
     plot_collaboration_mix_stacked_area(df, start_year, end_year, ax=axes[1], legend=False)
@@ -1622,13 +1623,13 @@ def plot_collaboration_mix_share_stacked_area(
     colors = [SECTOR_COLORS.get(label, palette("cream")) for label in labels]
     own_fig = ax is None
     if own_fig:
-        fig, ax = plt.subplots(figsize=(12, 6), dpi=300)
+        fig, ax = plt.subplots(figsize=project_figsize("wide"))
     else:
         fig = ax.figure
     areas = ax.stackplot(year_range, shares, labels=labels, colors=colors, alpha=1)
     for area, label in zip(areas, labels):
         if label == "No taxonomy collaborator":
-            area.set(hatch="///", edgecolor="black", linewidth=.4)
+            area.set(hatch="///", edgecolor="black", linewidth=stroke("edge"))
     set_title(ax, f"Annual share by primary taxonomy sector ({start_year}-{end_year})")
     ax.set(xlabel="Publication year", ylabel="Share of publications (%)", ylim=(0, 100))
     ax.set_xticks(year_range)
@@ -1669,8 +1670,8 @@ def plot_flag_overlap_heatmap(
             both = int((row_mask & (df[col_col] == 1)).sum())
             matrix[i, j] = (100 * both / row_total) if row_total else 0.0
 
-    fig, ax = plt.subplots(figsize=(11, 9), dpi=300)
-    im = ax.imshow(matrix, cmap=blue_cream_red_colormap(), vmin=0, vmax=100)
+    fig, ax = plt.subplots(figsize=project_figsize("standard"))
+    im = ax.imshow(matrix, cmap=figure_colormap(), vmin=0, vmax=100)
     set_title(ax, "Collaboration flag overlap (% of row flag papers)")
     ax.set_xticks(np.arange(len(labels)))
     ax.set_yticks(np.arange(len(labels)))
@@ -1753,21 +1754,21 @@ def plot_citation_distribution_by_group(df: pd.DataFrame, citation_col: str = "t
         print("No citation data available for plotting.")
         return
 
-    fig, ax = plt.subplots(figsize=(10, 6), dpi=300)
+    fig, ax = plt.subplots(figsize=project_figsize("landscape"))
     box = ax.boxplot(
         data,
         patch_artist=True,
         tick_labels=labels,
         orientation="vertical",
         showfliers=False,
-        medianprops={"color": "black", "linewidth": 1.5},
+        medianprops={"color": "black", "linewidth": stroke("line")},
     )
 
     for patch, color in zip(box["boxes"], colors[: len(data)]):
         patch.set_facecolor(color)
         patch.set_alpha(1)
         patch.set_edgecolor("black")
-        patch.set_linewidth(0.6)
+        patch.set_linewidth(stroke("edge"))
 
     set_title(ax, "Citation distributions by taxonomy group")
     ax.set_ylabel("log10(citations + 1)")
@@ -1819,14 +1820,14 @@ def plot_collaborator_concentration_curves(df: pd.DataFrame, *, ax=None, legend:
 
     own_fig = ax is None
     if own_fig:
-        fig, ax = plt.subplots(figsize=(8, 6), dpi=300)
+        fig, ax = plt.subplots(figsize=project_figsize("standard"))
     else:
         fig = ax.figure
-    ax.plot([0, 1], [0, 1], linestyle="--", color="black", linewidth=1.2, label="Uniform baseline")
+    ax.plot([0, 1], [0, 1], linestyle="--", color="black", linewidth=stroke("line"), label="Uniform baseline")
     for label, x, y, color in curves:
         if len(x) == 0:
             continue
-        ax.plot(x, y, linewidth=2.2, color=color, label=f"{label} collaborators")
+        ax.plot(x, y, linewidth=stroke("line"), color=color, label=f"{label} collaborators")
 
     set_title(ax, "Collaborator concentration curve")
     ax.set(xlabel="Fraction of organisations\n(ranked by publication count)",
@@ -1875,7 +1876,7 @@ def plot_yearly_median_log_citations_by_group(
 
     own_fig = ax is None
     if own_fig:
-        fig, ax = plt.subplots(figsize=(11, 6), dpi=300)
+        fig, ax = plt.subplots(figsize=project_figsize("wide"))
     else:
         fig = ax.figure
     for label, mask, color in groups:
@@ -1887,7 +1888,7 @@ def plot_yearly_median_log_citations_by_group(
                 y_vals.append(np.nan)
             else:
                 y_vals.append(float(vals.median()))
-        ax.plot(year_range, y_vals, marker="o", linewidth=2, color=color, label=label)
+        ax.plot(year_range, y_vals, marker="o", linewidth=stroke("line"), color=color, label=label)
 
     set_title(ax, f"Yearly median citation impact by taxonomy group ({start_year}-{end_year})")
     ax.set(xlabel="Publication year", ylabel="Median log10(citations + 1)")
@@ -2037,15 +2038,15 @@ def plot_top_journal_company_share(
 
     own_fig = ax is None
     if own_fig:
-        fig, ax = plt.subplots(figsize=(12, 7.5), dpi=300)
+        fig, ax = plt.subplots(figsize=project_figsize("landscape"))
     else:
         fig = ax.figure
     ax.barh(
         y,
         plot_df[bar_col] * 100,
-        color="#FFFFFF",
+        color="white",
         edgecolor="black",
-        linewidth=0.4,
+        linewidth=stroke("edge"),
         alpha=0.9,
         label="Any non-academic sector",
     )
@@ -2058,12 +2059,12 @@ def plot_top_journal_company_share(
             s=76,
             zorder=3,
             edgecolor="black",
-            linewidth=0.5,
+            linewidth=stroke("edge"),
             label=label,
         )
 
     for yi, papers in zip(y, plot_df["papers"]):
-        ax.text(101, yi, f"n={int(papers)}", va="center", ha="left", fontsize=9)
+        ax.text(101, yi, f"n={int(papers)}", va="center", ha="left", fontsize=font_size("annot"))
 
     ax.set_yticks(y)
     ax.set_yticklabels(plot_df["journal_name"])
@@ -2074,7 +2075,7 @@ def plot_top_journal_company_share(
     # Below the axes: seven entries in the corner would sit on top of the bars.
     if legend:
         ax.legend(frameon=False, loc="upper center", bbox_to_anchor=(0.5, -0.09),
-                  ncol=3, fontsize=11)
+                  ncol=3, fontsize=font_size("legend"))
     ax.grid(True, axis="x", alpha=0.25)
     if own_fig:
         finalize_figure(fig)
@@ -2101,15 +2102,15 @@ def plot_additional_publication_figure(
     if min_papers_per_point < 1:
         raise ValueError("min_papers_per_point must be positive.")
     apply_project_plot_style()
-    fig, axes = plt.subplots(2, 2, figsize=(22, 17), layout="constrained")
+    fig, axes = plt.subplots(2, 2, figsize=project_figsize("standard"), layout="constrained")
     fig.get_layout_engine().set(w_pad=.12, h_pad=.12, wspace=.09, hspace=.09)
     a, b, c, d = axes.flat
     for ax in axes.flat:
-        ax._ukb_title_fs = 26
-        ax._ukb_label_fs = 17
-        ax._ukb_tick_fs = 13
-        ax._ukb_annotation_fs = 12
-        ax._ukb_legend_fs = 12
+        ax._ukb_title_fs = font_size("panel_label")
+        ax._ukb_label_fs = font_size("label")
+        ax._ukb_tick_fs = font_size("tick")
+        ax._ukb_annotation_fs = font_size("annot")
+        ax._ukb_legend_fs = font_size("legend")
 
     plot_collaboration_mix_share_stacked_area(df, start_year, end_year, ax=a, legend=False)
     plot_yearly_median_log_citations_by_group(
@@ -2118,7 +2119,7 @@ def plot_additional_publication_figure(
         b.text(.5, .5, "No group-years meet the reporting threshold",
                transform=b.transAxes, ha="center", va="center")
     for line in b.lines:
-        line.set(markeredgecolor="black", markeredgewidth=.5, markersize=6)
+        line.set(markeredgecolor="black", markeredgewidth=stroke("edge"), markersize=6)
     if plot_collaborator_concentration_curves(df, ax=c, legend=False) is None:
         c.text(.5, .5, "No organisation contributions", transform=c.transAxes,
                ha="center", va="center")
@@ -2212,15 +2213,15 @@ def plot_for_company_share_scatter(
         x_norm = (x_log - x_log.min()) / span
         size = 100 + 1650 * np.power(x_norm, 2.1)
 
-    fig, ax = plt.subplots(figsize=(10, 5.65), dpi=300)
+    fig, ax = plt.subplots(figsize=project_figsize("landscape"))
     sc = ax.scatter(
         x,
         y,
         c=c,
         s=size,
-        cmap=blue_colormap(),
+        cmap=figure_colormap(),
         edgecolor="black",
-        linewidth=0.4,
+        linewidth=stroke("edge"),
         alpha=0.9,
     )
 
@@ -2320,14 +2321,14 @@ def plot_yearly_metrics_dashboard(yearly_df: pd.DataFrame) -> None:
 
     years = yearly_df["year"].astype(int).tolist()
 
-    fig, axes = plt.subplots(1, 2, figsize=(14, 5.6), dpi=300)
+    fig, axes = plt.subplots(1, 2, figsize=project_figsize("wide"))
     color_map = SECTOR_COLORS
-    axes[0].plot(years, yearly_df["papers_total"], marker="o", linewidth=2, color="#274668", label="Total papers")
+    axes[0].plot(years, yearly_df["papers_total"], marker="o", linewidth=stroke("line"), color="#274668", label="Total papers")
     for label in color_map:
         slug = _sector_slug(label)
         col = f"papers_{slug}"
         if col in yearly_df.columns:
-            axes[0].plot(years, yearly_df[col], marker="o", linewidth=2, color=color_map[label], label=label)
+            axes[0].plot(years, yearly_df[col], marker="o", linewidth=stroke("line"), color=color_map[label], label=label)
     set_title(axes[0], "Annual paper volumes by taxonomy sector")
     axes[0].set_xlabel("Year")
     axes[0].set_ylabel("Paper count")
@@ -2338,7 +2339,7 @@ def plot_yearly_metrics_dashboard(yearly_df: pd.DataFrame) -> None:
         slug = _sector_slug(label)
         col = f"share_{slug}_pct"
         if col in yearly_df.columns:
-            axes[1].plot(years, yearly_df[col], marker="o", linewidth=2, color=color_map[label], label=label)
+            axes[1].plot(years, yearly_df[col], marker="o", linewidth=stroke("line"), color=color_map[label], label=label)
     set_title(axes[1], "Annual taxonomy sector shares")
     axes[1].set_xlabel("Year")
     axes[1].set_ylabel("Share of papers (%)")
@@ -2386,7 +2387,7 @@ def plot_company_geography_mix_over_time(
         mixed.append(100 * m_mixed / total)
         unknown.append(100 * m_unknown / total)
 
-    plt.figure(figsize=(11, 6), dpi=300)
+    plt.figure(figsize=project_figsize("wide"))
     plt.stackplot(
         year_range,
         uk_only,
@@ -2462,7 +2463,7 @@ def plot_new_vs_returning_company_collaborators(churn_df: pd.DataFrame) -> None:
     new_vals = churn_df["new_company_collaborators"].values
     returning_vals = churn_df["returning_company_collaborators"].values
 
-    plt.figure(figsize=(11, 6), dpi=300)
+    plt.figure(figsize=project_figsize("wide"))
     plt.bar(years, returning_vals, color="#416FA0", alpha=0.9, label="Returning")
     plt.bar(years, new_vals, bottom=returning_vals, color="#FEE7BA", alpha=0.92, label="New")
     set_title(plt.gca(), "Annual new vs returning company collaborators")
@@ -2582,14 +2583,14 @@ def plot_top_company_heatmap(company_year_df: pd.DataFrame) -> None:
     values = plot_df.drop(columns=["org"]).to_numpy(dtype=float)
     years = plot_df.columns[1:].tolist()
 
-    fig, ax = plt.subplots(figsize=(13, max(7.5, 0.5 * len(org_labels))), dpi=300,
+    fig, ax = plt.subplots(figsize=project_figsize(max(7.5, 0.5 * len(org_labels)) / 13),
                            layout="constrained")
-    ax._ukb_title_fs = 26
-    ax._ukb_label_fs = 17
-    ax._ukb_tick_fs = 13
-    ax._ukb_annotation_fs = 12
+    ax._ukb_title_fs = font_size("panel_label")
+    ax._ukb_label_fs = font_size("label")
+    ax._ukb_tick_fs = font_size("tick")
+    ax._ukb_annotation_fs = font_size("annot")
     ax._ukb_heatmap_edges = False
-    cmap = blue_cream_red_colormap()
+    cmap = figure_colormap()
     cmap.set_bad("white")
     im = ax.imshow(np.ma.masked_where(values <= 0, values), aspect="auto", cmap=cmap,
                     interpolation="nearest")
@@ -2614,11 +2615,11 @@ def plot_top_company_heatmap(company_year_df: pd.DataFrame) -> None:
             if v <= 0:
                 continue
             text_color = "white" if v >= np.nanpercentile(values, 70) else "black"
-            ax.text(j, i, f"{int(v)}", ha="center", va="center", fontsize=12, color=text_color)
+            ax.text(j, i, f"{int(v)}", ha="center", va="center", fontsize=font_size("annot"), color=text_color)
 
     cbar = fig.colorbar(im, ax=ax, fraction=0.046, pad=0.04)
-    cbar.ax._ukb_label_fs = 17
-    cbar.ax._ukb_tick_fs = 13
+    cbar.ax._ukb_label_fs = font_size("label")
+    cbar.ax._ukb_tick_fs = font_size("tick")
     cbar.set_label("Publications")
     finalize_figure(fig)
     show_figures('collaboration_top_company_heatmap', caption='Annual publication counts for the leading company collaborators. Each cell counts publications containing the company, once per company-publication pair; a publication may contribute to more than one company. Zero cells are white.')
@@ -2764,7 +2765,7 @@ def plot_for_share_table(for_df: pd.DataFrame, top_n: int = 15) -> None:
     x = np.arange(len(plot_df))
     width = 0.2
 
-    plt.figure(figsize=(12, 7), dpi=150)
+    plt.figure(figsize=project_figsize("landscape"))
     plt.barh(
         x - 1.5 * width,
         plot_df["share_hospital_clinical"] * 100,
@@ -2841,13 +2842,13 @@ def plot_uk_company_for_table(uk_for_df: pd.DataFrame, top_n: int = 15) -> None:
     plot_df = uk_for_df.sort_values("papers", ascending=False).head(top_n)
     plot_df = plot_df.sort_values("uk_company_share", ascending=True)
 
-    plt.figure(figsize=(10, 6), dpi=150)
+    plt.figure(figsize=project_figsize("landscape"))
     plt.barh(
         plot_df["l2_for_name"],
         plot_df["uk_company_share"] * 100,
         color="#416FA0",
         edgecolor="black",
-        linewidth=0.3,
+        linewidth=stroke("edge"),
     )
     set_title(plt.gca(), "UK company share by category_for_2020 level-2 FoR")
     plt.xlabel("Percent of papers")
@@ -3033,20 +3034,20 @@ def plot_country_map(country_df: pd.DataFrame, title: str, cmap_name: str = "civ
         print(f"No non-zero country counts to map: {title}")
         return
 
-    cmap = blue_colormap()
+    cmap = figure_colormap()
     norm = mcolors.Normalize(vmin=nonzero.min(), vmax=nonzero.max())
-    zero_color = "#FFFFFF"
+    zero_color = "white"
 
     colors = [zero_color if n == 0 else mcolors.to_hex(cmap(norm(n))) for n in world_counts["n_pubs"]]
 
     from matplotlib.gridspec import GridSpec
 
-    fig = plt.figure(figsize=(16, 7.5), dpi=300)
+    fig = plt.figure(figsize=project_figsize("wide"))
     gs = GridSpec(1, 2, figure=fig, width_ratios=[0.15, 4.5], wspace=0.05)
     ax_cbar = fig.add_subplot(gs[0, 0])
     ax_map = fig.add_subplot(gs[0, 1])
 
-    world_counts.plot(ax=ax_map, color=colors, linewidth=0.3, edgecolor="black")
+    world_counts.plot(ax=ax_map, color=colors, linewidth=stroke("edge"), edgecolor="black")
 
     set_title(ax_map, title, pad=12)
     ax_map.set_aspect("auto")
@@ -3216,7 +3217,7 @@ def plot_publication_figure(
     end_year: int = ANALYSIS_END_YEAR,
     citation_col: str = "times_cited",
     top_company_n: int = 15,
-    figsize: tuple[float, float] = (11, 7.5),
+    figsize: tuple[float, float] = project_figsize("landscape"),
     save_path: str | Path | None = None,
     save_formats: tuple[str, ...] = ("png", "pdf"),
 ) -> dict[str, Path]:
@@ -3254,17 +3255,17 @@ def plot_publication_figure(
                       + f"\n(n={len(values):,})")
         colors.append(color)
 
-    fig, ax = plt.subplots(figsize=figsize, dpi=300, layout="constrained")
-    ax._ukb_title_fs = 26
-    ax._ukb_label_fs = 17
-    ax._ukb_tick_fs = 13
-    ax._ukb_annotation_fs = 12
+    fig, ax = plt.subplots(figsize=figsize, layout="constrained")
+    ax._ukb_title_fs = font_size("panel_label")
+    ax._ukb_label_fs = font_size("label")
+    ax._ukb_tick_fs = font_size("tick")
+    ax._ukb_annotation_fs = font_size("annot")
     if data:
         boxes = ax.boxplot(data, patch_artist=True, tick_labels=labels,
                            orientation="horizontal", showfliers=False,
-                           medianprops={"color": "black", "linewidth": 1.5})
+                           medianprops={"color": "black", "linewidth": stroke("line")})
         for box, color in zip(boxes["boxes"], colors):
-            box.set(facecolor=color, edgecolor="black", linewidth=.6, alpha=1)
+            box.set(facecolor=color, edgecolor="black", linewidth=stroke("edge"), alpha=1)
     else:
         ax.text(.5, .5, "No citation data", transform=ax.transAxes, ha="center", va="center")
     set_title(ax, "A")

@@ -14,6 +14,7 @@ import pandas as pd
 import pytest
 
 from utils import data_analysis_04_non_academic_figures as F
+from utils.shared_style import font_size as FS
 from utils import shared_style as S
 
 
@@ -34,7 +35,7 @@ def test_attention_figure_contains_only_the_unchanged_annual_series(has_news):
     yearly = pd.DataFrame({"News mentions": [2, 5, 9], "Policy mentions": [1, 0, 3]},
                           index=[2013, 2014, 2015])
     original = yearly.copy(deep=True)
-    namespace = dict(plt=plt, yearly=yearly, HAS_NEWS=has_news,
+    namespace = dict(font_size=S.font_size, stroke=S.stroke, project_figsize=S.figsize, plt=plt, yearly=yearly, HAS_NEWS=has_news,
                      ANALYSIS_START_YEAR=2013, ANALYSIS_END_YEAR=2015,
                      df_plot=pd.DataFrame(index=range(12)), stats_text="Summary retained")
     with patch.object(F, "savefig") as save, patch.object(F, "show_figures") as show:
@@ -70,11 +71,11 @@ def test_attention_figure_contains_only_the_unchanged_annual_series(has_news):
         assert len(trend.lines) == 1
         assert "news-mention data are unavailable and are not plotted" in caption
     for ax in fig.axes:
-        assert ax.xaxis.label.get_size() == ax.yaxis.label.get_size() == 17
+        assert ax.xaxis.label.get_size() == ax.yaxis.label.get_size() == FS("label")
         assert all(spine.get_visible() for spine in ax.spines.values())
         box = ax.get_tightbbox(fig.canvas.get_renderer())
         assert fig.bbox.contains(*box.p0) and fig.bbox.contains(*box.p1)
-    assert all(text.get_size() == 13 for text in trend.get_legend().get_texts())
+    assert all(text.get_size() == FS("legend") for text in trend.get_legend().get_texts())
     pd.testing.assert_frame_equal(yearly, original)
     plt.close(fig)
 
@@ -96,7 +97,7 @@ def test_duplicate_scatter_removed_here_and_retained_in_later_main_figure():
 def test_annual_totals_still_include_records_without_positive_attention_scores():
     source = notebook_source()[CELL_ID]
     aggregation = source[source.index("yearly ="):source.index("# 4. PRINTED SUMMARY")]
-    namespace = dict(ANALYSIS_START_YEAR=2013, ANALYSIS_END_YEAR=2015,
+    namespace = dict(font_size=S.font_size, stroke=S.stroke, project_figsize=S.figsize, ANALYSIS_START_YEAR=2013, ANALYSIS_END_YEAR=2015,
                      df_plot=pd.DataFrame({"Year": [2013, 2013, 2015],
                                            "Altmetric Attention Score": [0, 2, 0],
                                            "News mentions": [5, 3, 0],

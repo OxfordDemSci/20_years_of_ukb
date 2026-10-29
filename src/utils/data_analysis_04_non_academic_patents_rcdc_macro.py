@@ -35,6 +35,7 @@ from utils import shared_paths as P
 from utils.shared_style import (
     NON_ACADEMIC_PALETTE, PNG_DPI, apply_typography, extended_palette, figure_export_formats, finalize_figure,
 )
+from utils.shared_style import figsize as project_figsize
 
 import numpy as np
 import pandas as pd
@@ -304,7 +305,7 @@ def summarize_communities(partition, label_counts, top_k=10):
 # --------------------------
 # Plot network with communities
 # --------------------------
-def plot_network(G, partition, outpath=result_path + "/network_plot.png", figsize=(12,10), weight_attr='weight'):
+def plot_network(G, partition, outpath=result_path + "/network_plot.png", figsize=project_figsize("standard"), weight_attr='weight'):
     # partition: dict label->comm
     apply_typography()
     communities = defaultdict(list)

@@ -126,18 +126,13 @@ def test_apply_style_sets_matplotlib_default_marker_size():
         assert plt.rcParams["lines.markersize"] == style["marker_size"]
 
 
-def test_blue_colormap_uses_only_the_project_blue_anchors():
-    cmap = shared_style.blue_colormap()
-    samples = cmap(np.linspace(0, 1, len(shared_style.BLUE_ANCHORS)))
-    assert [to_hex(color) for color in samples] == [
-        to_hex(color) for color in shared_style.palette(*shared_style.BLUE_ANCHORS)]
+def test_the_one_colormap_runs_through_the_project_palette():
+    cmap = shared_style.figure_colormap()
 
-
-def test_academic_impact_colormap_uses_project_palette_endpoints():
-    cmap = shared_style.academic_impact_colormap()
-
-    assert to_hex(cmap(0.0)) == shared_style.PALETTE_COLORS["cream"].lower()
-    assert to_hex(cmap(1.0)) == shared_style.PALETTE_COLORS["navy"].lower()
+    assert [to_hex(cmap(x)) for x in (0.0, 0.5, 1.0)] == [
+        to_hex(color) for color in shared_style.palette(*shared_style.FIGURE_COLORMAP_ANCHORS)]
+    assert [to_hex(c) for c in shared_style.ramp_colors(3)] == [
+        to_hex(cmap(x)) for x in (0.0, 0.5, 1.0)]
 
 
 def test_legacy_svg_and_json_requests_export_pdf_only(tmp_path):

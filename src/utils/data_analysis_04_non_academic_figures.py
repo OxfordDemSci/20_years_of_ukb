@@ -73,7 +73,7 @@ def trial_geography_figure(rows, *, style, world=None):
         world["iso3"] = world[iso]
         if "adm0_a3" in world:
             world["iso3"] = world["iso3"].where(world["iso3"] != "-99", world["adm0_a3"])
-    fig, axes = plt.subplots(len(rows), 1, figsize=(11.5, 4.25 * len(rows)), squeeze=False)
+    fig, axes = plt.subplots(len(rows), 1, figsize=S.figsize(4.25 * len(rows) / 11.5), squeeze=False)
     fig.subplots_adjust(left=.04, right=.98, bottom=.07, top=.95, hspace=.34)
     map_style = S.load_style("05_author_characteristics", activate=False)
     cmap = geography._map_colormap(map_style)
@@ -83,16 +83,16 @@ def trial_geography_figure(rows, *, style, world=None):
             ax, world, values, style, value_col="value", cmap=cmap,
             colorbar_label=f"{label} (log scale)", colorbar_orientation="horizontal",
         )
-        S.set_title(ax, chr(65 + index), fontsize=20, pad=8)
+        S.set_title(ax, chr(65 + index), fontsize=S.font_size("panel_label"), pad=8)
     finalize_figure(fig)
     return fig
 
 
 def trial_classification_figure(rows, *, style):
     """Pair raw/fractional rankings by vocabulary, preserving every input value."""
-    fig, axes = plt.subplots(len(rows), 2, figsize=(17, 5.5 * len(rows)),
+    fig, axes = plt.subplots(len(rows), 2, figsize=S.figsize(7.2 * len(rows) / 18),
                              squeeze=False, layout="constrained")
-    fig._ukb_annotation_fs = 12
+    fig._ukb_annotation_fs = S.font_size("annot")
     fig.get_layout_engine().set(w_pad=.06, h_pad=.06, wspace=.025, hspace=.025)
     panels = [(vocabulary, series, bool(column))
               for vocabulary, raw, fractional in rows
@@ -102,7 +102,7 @@ def trial_classification_figure(rows, *, style):
         positions = np.arange(len(ranked))
         color = style["c_gold"] if fractional else style["c_primary"]
         bars = ax.barh(positions, ranked.to_numpy(), height=.78, color=color,
-                       edgecolor="black", linewidth=.6)
+                       edgecolor="black", linewidth=S.stroke("edge"))
         ax.set_yticks(positions, [textwrap.fill(str(label), 34, break_long_words=False,
                                              break_on_hyphens=False)
                                  for label in ranked.index])
@@ -117,8 +117,8 @@ def trial_classification_figure(rows, *, style):
         for bar, value in zip(bars, ranked):
             ax.annotate(f"{value:.1f}" if fractional else f"{value:,.0f}",
                         (value, bar.get_y() + bar.get_height() / 2),
-                        xytext=(4, 0), textcoords="offset points", va="center", fontsize=12)
-        S.set_title(ax, chr(65 + index), fontsize=20, pad=8)
+                        xytext=(4, 0), textcoords="offset points", va="center", fontsize=S.font_size("annot"))
+        S.set_title(ax, chr(65 + index), fontsize=S.font_size("panel_label"), pad=8)
     finalize_figure(fig)
     return fig
 
@@ -129,22 +129,22 @@ def trial_icd_comparison_figure(rcdc_counts, comparison, *, total_trials, style)
         raise ValueError("The comparison must include every RCDC chapter.")
     paired = comparison.sort_values("RCDC", ascending=False, kind="stable")
     ranked = rcdc_counts.reindex(paired.index, fill_value=0)
-    fig, axes = plt.subplots(1, 2, figsize=(17, max(10, .57 * len(paired) + 1)),
+    fig, axes = plt.subplots(1, 2, figsize=S.figsize(max(10, .57 * len(paired) + 1) / 17),
                              sharex=True, sharey=True, layout="constrained")
     fig.get_layout_engine().set(w_pad=.12, h_pad=.12, wspace=.035)
     for ax in axes:
-        ax._ukb_title_fs = 24
-        ax._ukb_label_fs = 17
-        ax._ukb_tick_fs = 14
-        ax._ukb_annotation_fs = 13
-        ax._ukb_legend_fs = 14
+        ax._ukb_title_fs = S.font_size("panel_label")
+        ax._ukb_label_fs = S.font_size("label")
+        ax._ukb_tick_fs = S.font_size("tick")
+        ax._ukb_annotation_fs = S.font_size("annot")
+        ax._ukb_legend_fs = S.font_size("legend")
     colors = dict(zip(("MeSH", "RCDC"), S.palette("steel_blue", "red")))
     ax = axes[0]
     positions = np.arange(len(ranked))
     bars = ax.barh(positions, ranked.to_numpy(), height=.70, color=colors["RCDC"])
     labels = [f"{value:,.0f} ({value / total_trials:.0%})" if total_trials else f"{value:,.0f}"
               for value in ranked]
-    ax.bar_label(bars, labels=labels, padding=5, fontsize=13)
+    ax.bar_label(bars, labels=labels, padding=5, fontsize=S.font_size("annot"))
     chapter_labels = [textwrap.fill(" ".join(str(chapter).split()), 34,
                                    break_long_words=False, break_on_hyphens=False)
                       for chapter in paired.index]
@@ -158,7 +158,7 @@ def trial_icd_comparison_figure(rcdc_counts, comparison, *, total_trials, style)
         values = paired[source].to_numpy()
         bars = ax.barh(positions + offset, values, height=height, label=source, color=colors[source])
         ax.bar_label(bars, labels=[f"{value:,.0f}" if value else "" for value in values],
-                     padding=5, fontsize=13)
+                     padding=5, fontsize=S.font_size("annot"))
     ax.tick_params(axis="y", left=False, labelleft=False)
     ax.set_xlabel("Trials mapped from MeSH or RCDC")
     maximum = max(float(paired[["MeSH", "RCDC"]].to_numpy().max()), float(ranked.max())) if len(paired) else 0
@@ -168,7 +168,7 @@ def trial_icd_comparison_figure(rcdc_counts, comparison, *, total_trials, style)
     for index, ax in enumerate(axes):
         ax.grid(False)
         ax.xaxis.set_major_locator(MaxNLocator(nbins=5, integer=True))
-        S.set_title(ax, chr(65 + index), fontsize=24, pad=8)
+        S.set_title(ax, chr(65 + index), fontsize=S.font_size("panel_label"), pad=8)
     fig._ukb_caption_notes = [f"Panel A percentages use all {total_trials:,} included trials as the denominator."]
     finalize_figure(fig)
     return fig
@@ -181,7 +181,7 @@ def trial_papers_overview_figure(citations, papers_per_trial, most_linked_title,
                                 year_counts, positive_lags, journal_counts, *,
                                 style, start_year, end_year):
     """Four distributions beside one tall journal panel, with consistent callouts."""
-    fig = plt.figure(figsize=(20, 11), layout="constrained")
+    fig = plt.figure(figsize=S.figsize("wide"), layout="constrained")
     grid = fig.add_gridspec(2, 3, width_ratios=(1, 1, 1.05))
     axes = [fig.add_subplot(grid[0, 0]), fig.add_subplot(grid[0, 1]),
             fig.add_subplot(grid[1, 0]), fig.add_subplot(grid[1, 1]),
@@ -193,7 +193,7 @@ def trial_papers_overview_figure(citations, papers_per_trial, most_linked_title,
     def callout(ax, label, xy, position, *, curve=.22):
         return ax.annotate(
             label, xy=xy, xytext=position, textcoords="axes fraction",
-            ha="left", va="top", fontsize=13, color="black", bbox=dict(box_style),
+            ha="left", va="top", fontsize=S.font_size("annot"), color="black", bbox=dict(box_style),
             arrowprops=dict(arrowstyle="-|>", color=navy, lw=1.3,
                             connectionstyle=f"arc3,rad={curve}", shrinkA=6, shrinkB=8),
         )
@@ -204,10 +204,10 @@ def trial_papers_overview_figure(citations, papers_per_trial, most_linked_title,
     if raw.size:
         plotted = np.clip(raw, 1, None)
         ax.hist(plotted, bins=np.logspace(0, np.log10(plotted.max()) + .05, 20),
-                color=blue, edgecolor="black", linewidth=.6)
+                color=blue, edgecolor="black", linewidth=S.stroke("edge"))
         median = float(np.median(raw))
         marker = max(median, 1.)
-        ax.axvline(marker, ls="--", color=red, lw=1.5)
+        ax.axvline(marker, ls="--", color=red, lw=S.stroke("ref"))
         callout(ax, f"Median: {median:,.10g}", (marker, ax.get_ylim()[1] * .78), (.66, .88))
     ax.set_xscale("log")
     ax.set_xlabel("Times cited (log scale)")
@@ -215,8 +215,8 @@ def trial_papers_overview_figure(citations, papers_per_trial, most_linked_title,
 
     ax = axes[1]
     counts = papers_per_trial.sort_index()
-    bars = ax.bar(counts.index, counts.to_numpy(), color=cream, edgecolor="black", linewidth=.6)
-    ax.bar_label(bars, labels=[f"{value:,.0f}" for value in counts], padding=4, fontsize=13)
+    bars = ax.bar(counts.index, counts.to_numpy(), color=cream, edgecolor="black", linewidth=S.stroke("edge"))
+    ax.bar_label(bars, labels=[f"{value:,.0f}" for value in counts], padding=4, fontsize=S.font_size("annot"))
     if len(counts):
         largest = int(counts.index.max())
         ax.set_xlim(.2, largest + .65)
@@ -234,7 +234,7 @@ def trial_papers_overview_figure(citations, papers_per_trial, most_linked_title,
 
     ax = axes[2]
     ax.bar(year_counts.index.astype(int), year_counts.to_numpy(), color=blue,
-           edgecolor="black", linewidth=.6)
+           edgecolor="black", linewidth=S.stroke("edge"))
     ax.set_xlim(start_year - .9, end_year + 1)
     ax.set_xticks(S.year_ticks(start_year, end_year, step=3))
     ax.set_xlabel("Publication year of cited papers")
@@ -245,14 +245,14 @@ def trial_papers_overview_figure(citations, papers_per_trial, most_linked_title,
     lags = lags[np.isfinite(lags) & (lags > 0)]
     if lags.size:
         ax.hist(lags, bins=range(1, int(lags.max()) + 2), align="left",
-                color=cream, edgecolor="black", linewidth=.6)
+                color=cream, edgecolor="black", linewidth=S.stroke("edge"))
         median = float(np.median(lags))
         years = "three years" if median == 3 else f"{median:g} year{'s' if median != 1 else ''}"
-        ax.axvline(median, ls="--", color=red, lw=1.5)
+        ax.axvline(median, ls="--", color=red, lw=S.stroke("ref"))
         callout(ax, f"Median: {years}", (median, ax.get_ylim()[1] * .78), (.40, .93), curve=-.22)
     else:
         ax.text(.5, .5, "No positive lags", transform=ax.transAxes, ha="center", va="center",
-                fontsize=13, bbox=dict(box_style))
+                fontsize=S.font_size("annot"), bbox=dict(box_style))
     ax.xaxis.set_major_locator(MaxNLocator(nbins=6, integer=True))
     ax.set_xlabel("Paper-to-trial lag (years)\nPositive lags only")
     ax.set_ylabel("Trial-paper links")
@@ -260,25 +260,25 @@ def trial_papers_overview_figure(citations, papers_per_trial, most_linked_title,
     ax = axes[4]
     positions = np.arange(len(journal_counts))
     bars = ax.barh(positions, journal_counts.to_numpy(), color=red,
-                   edgecolor="black", linewidth=.6)
+                   edgecolor="black", linewidth=S.stroke("edge"))
     labels = [textwrap.fill(journal if "JAMA" not in journal else "JAMA", 23,
                             break_long_words=False, break_on_hyphens=False)
               for journal in journal_counts.index.astype(str)]
     ax.set_yticks(positions, labels)
-    ax.bar_label(bars, labels=[f"{value:,.0f}" for value in journal_counts], padding=5, fontsize=13)
+    ax.bar_label(bars, labels=[f"{value:,.0f}" for value in journal_counts], padding=5, fontsize=S.font_size("annot"))
     ax.margins(x=.18, y=.035)
     ax.xaxis.set_major_locator(MaxNLocator(nbins=5, integer=True))
     ax.set_xlabel("Number of papers")
     ax.set_ylabel("Journals of cited papers")
 
     for index, ax in enumerate(axes):
-        ax._ukb_label_fs = max(17, style["label_fs"])
-        ax._ukb_tick_fs = max(14, style["tick_fs"])
-        ax._ukb_annotation_fs = max(13, style["annot_fs"])
+        ax._ukb_label_fs = S.font_size("label")
+        ax._ukb_tick_fs = S.font_size("tick")
+        ax._ukb_annotation_fs = S.font_size("annot")
         ax.grid(False, which="both")
         if index != 4:
             ax.yaxis.set_major_locator(MaxNLocator(nbins=5, integer=True))
-        S.set_title(ax, chr(65 + index), fontsize=20, pad=8)
+        S.set_title(ax, chr(65 + index), fontsize=S.font_size("panel_label"), pad=8)
     finalize_figure(fig)
     return fig
 
@@ -308,7 +308,7 @@ def _heatmaps(fig):
         norm = Normalize(lo, hi if hi > lo else lo + 1)
         for im in group:
             im.set_norm(norm)
-            cmap = S.blue_cream_red_colormap()
+            cmap = S.figure_colormap()
             cmap.set_bad("white")
             im.set_cmap(cmap)
             ax = im.axes
@@ -322,9 +322,9 @@ def _heatmaps(fig):
             elif not getattr(ax, "_ukb_cell_edges", False):
                 ax._ukb_cell_edge_artists = [
                     ax.vlines(np.linspace(left, right, cols + 1), min(bottom, top),
-                              max(bottom, top), color="black", lw=.45, alpha=.65),
+                              max(bottom, top), color="black", lw=S.stroke("ref"), alpha=.65),
                     ax.hlines(np.linspace(bottom, top, rows + 1), left, right,
-                              color="black", lw=.45, alpha=.65),
+                              color="black", lw=S.stroke("ref"), alpha=.65),
                 ]
                 ax._ukb_cell_edges = True
             ax.grid(False, which="both")
@@ -348,9 +348,9 @@ def _heatmaps(fig):
                 cb.set_ticks(np.unique(np.r_[lo, ticks, hi]))
                 cb.formatter = FormatStrFormatter("%.1f")
                 cb.update_ticks()
-                cb.ax.tick_params(labelsize=getattr(cb.ax, "_ukb_tick_fs", 11), length=4)
-                cb.ax.xaxis.label.set_size(getattr(cb.ax, "_ukb_label_fs", 13))
-                cb.ax.yaxis.label.set_size(getattr(cb.ax, "_ukb_label_fs", 13))
+                cb.ax.tick_params(labelsize=getattr(cb.ax, "_ukb_tick_fs", S.font_size("tick")), length=4)
+                cb.ax.xaxis.label.set_size(getattr(cb.ax, "_ukb_label_fs", S.font_size("label")))
+                cb.ax.yaxis.label.set_size(getattr(cb.ax, "_ukb_label_fs", S.font_size("label")))
 
 
 def finalize_figure(fig):
@@ -365,11 +365,11 @@ def finalize_figure(fig):
         twin = any(np.allclose(bounds, other, atol=1e-5) for other in occupied)
         if not twin:
             letter = ax.get_title(loc="left") or chr(65 + len(occupied))
-            S.set_title(ax, letter.upper(), fontsize=getattr(ax, "_ukb_title_fs", 20), pad=8)
+            S.set_title(ax, letter.upper(), fontsize=getattr(ax, "_ukb_title_fs", S.font_size("panel_label")), pad=8)
             occupied.append(bounds)
-        ax.xaxis.label.set_size(getattr(ax, "_ukb_label_fs", 13))
-        ax.yaxis.label.set_size(getattr(ax, "_ukb_label_fs", 13))
-        ax.tick_params(axis="both", labelsize=getattr(ax, "_ukb_tick_fs", 11))
+        ax.xaxis.label.set_size(getattr(ax, "_ukb_label_fs", S.font_size("label")))
+        ax.yaxis.label.set_size(getattr(ax, "_ukb_label_fs", S.font_size("label")))
+        ax.tick_params(axis="both", labelsize=getattr(ax, "_ukb_tick_fs", S.font_size("tick")))
         for text in ax.texts:
             x, y = text.get_position()
             if (text.get_transform() == ax.transAxes and y >= 1
@@ -377,7 +377,7 @@ def finalize_figure(fig):
                 text.remove()
                 continue
             text.set_fontsize(getattr(ax, "_ukb_annotation_fs",
-                                     getattr(fig, "_ukb_annotation_fs", 10)))
+                                     getattr(fig, "_ukb_annotation_fs", S.font_size("annot"))))
         for line in ax.lines:
             from matplotlib.colors import to_rgba
             if to_rgba(line.get_color())[:3] == (1., 1., 1.):
@@ -385,30 +385,30 @@ def finalize_figure(fig):
                 line.set_linestyle(":")
                 line.set_markerfacecolor("white")
             if line.get_marker() not in (None, "None", "", " "):
-                line.set_markersize(7)
+                line.set_markersize(S.marker_size())
                 line.set_markeredgecolor("black")
-                line.set_markeredgewidth(.45)
+                line.set_markeredgewidth(S.stroke("edge"))
         ax.set_facecolor("white")
         for container in ax.containers:
             if isinstance(container, BarContainer):
                 for patch in container.patches:
                     patch.set_edgecolor("black")
-                    patch.set_linewidth(.6)
+                    patch.set_linewidth(S.stroke("edge"))
     _heatmaps(fig)
     for ax in fig.axes:
         if hasattr(ax, "_colorbar"):
-            ax.xaxis.label.set_size(getattr(ax, "_ukb_label_fs", 13))
-            ax.yaxis.label.set_size(getattr(ax, "_ukb_label_fs", 13))
-            ax.tick_params(labelsize=getattr(ax, "_ukb_tick_fs", 11))
+            ax.xaxis.label.set_size(getattr(ax, "_ukb_label_fs", S.font_size("label")))
+            ax.yaxis.label.set_size(getattr(ax, "_ukb_label_fs", S.font_size("label")))
+            ax.tick_params(labelsize=getattr(ax, "_ukb_tick_fs", S.font_size("tick")))
     for legend in [*fig.legends, *[ax.get_legend() for ax in fig.axes]]:
         if legend is None:
             continue
         font_size = getattr(legend.axes, "_ukb_legend_fs",
-                            getattr(fig, "_ukb_legend_fs", 11))
+                            getattr(fig, "_ukb_legend_fs", S.font_size("legend")))
         for text in [*legend.get_texts(), legend.get_title()]:
             text.set_fontsize(font_size)
         legend.set_frame_on(True)
-        legend.get_frame().set(facecolor="white", edgecolor="black", alpha=1, linewidth=.8)
+        legend.get_frame().set(facecolor="white", edgecolor="black", alpha=1, linewidth=S.stroke("edge"))
         # This helper is idempotent; multiline labels get equal-height rows.
         S.align_legend_rows(legend)
         if legend.axes is not None:
@@ -448,7 +448,7 @@ def bubble_callouts(ax, points, labels, sizes):
         obstacles.append(np.column_stack([x + radius * np.cos(angles),
                                           y + radius * np.sin(angles)]))
     obstacles = ax.transData.inverted().transform(np.vstack(obstacles))
-    font_size = getattr(ax, "_ukb_annotation_fs", getattr(ax.figure, "_ukb_annotation_fs", 10))
+    font_size = getattr(ax, "_ukb_annotation_fs", getattr(ax.figure, "_ukb_annotation_fs", S.font_size("annot")))
     return S.scatter_callouts(ax, points, labels, obstacles=obstacles, fontsize=font_size, width=27)
 
 

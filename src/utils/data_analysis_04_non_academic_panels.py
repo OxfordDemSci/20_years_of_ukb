@@ -132,7 +132,6 @@ ATTENTION_POLICY = "red"
 #: The policy choropleth's ramp: white through the palette's three blues. Built from the
 #: named palette rather than from a Matplotlib map so the map and the bars beside it are
 #: the same four colours.
-POLICY_MAP_RAMP = ["#FFFFFF", "blue", "steel_blue", "navy"]
 
 # =============================================================================
 # Organisation sector, for the clinical-trials "who runs them" panel
@@ -1221,16 +1220,16 @@ def build_panel_data(verbose: bool = True) -> dict:
 # impose its own geometry on the one it is sharing.
 
 import matplotlib.pyplot as plt                                        # noqa: E402
-from matplotlib.colors import LinearSegmentedColormap, LogNorm         # noqa: E402
+from matplotlib.colors import LogNorm         # noqa: E402
 from matplotlib.lines import Line2D                                    # noqa: E402
 from matplotlib.patches import Patch                                   # noqa: E402
 from matplotlib.ticker import FuncFormatter, MaxNLocator               # noqa: E402
-from contextlib import contextmanager                                  # noqa: E402
 
 from utils.shared_style import (                                       # noqa: E402
     apply_typography, grid_on, load_style, palette, panel_label,
-    semantic_colors, warm_cold_colormap,
+    semantic_colors, figure_colormap,
 )
+from utils.shared_style import font_size, stroke, neutral, figsize as project_figsize
 
 
 from utils.data_analysis_04_non_academic_figures import (
@@ -1242,39 +1241,6 @@ def _style():
     """The active style, so a draw function can read type sizes without an argument."""
     from utils import shared_style
     return shared_style._resolve(None)
-
-
-@contextmanager
-def _font_scale(factor):
-    """Draw the enclosed figure with every font size multiplied by `factor`.
-
-    The main panel and the SI panels want different type: the main figure is read at
-    single-column or full width in a paper, the SI panels on a screen at full page. Rather
-    than a second style section — which would be one more thing to keep in step with this
-    one — the scale is a single number in `04_non_academic_panels` and this multiplies the
-    `*_fs` keys through it, pushing the result into rcParams so axis labels and ticks move
-    with the annotations a draw function sizes by hand.
-
-    Restores the original style on the way out, including after an exception, so a failed
-    render cannot leave the kernel drawing everything at 1.32x.
-    """
-    from utils import shared_style
-    original = _style()
-    if not factor or factor == 1:
-        yield original
-        return
-    scaled = dict(original)
-    for key in ("title_fs", "label_fs", "tick_fs", "annot_fs", "legend_fs",
-                "body_fs", "panel_label_fs"):
-        if key in scaled:
-            scaled[key] = scaled[key] * factor
-    shared_style.use_style(scaled)
-    shared_style.apply_style(scaled)
-    try:
-        yield scaled
-    finally:
-        shared_style.use_style(original)
-        shared_style.apply_style(original)
 
 
 def _stream_colors() -> dict:
@@ -1289,7 +1255,7 @@ def _sector_colors() -> dict:
 #: borrowed from `stream_colors` at first, which meant the median line changed colour when
 #: a stream did and could land the same hue as the bars underneath it.
 REF_MEDIAN = ("--", "#E66859")      # palette red
-REF_MEAN = (":", "#3D3D3D")         # neutral dark grey
+REF_MEAN = (":", neutral("muted"))         # neutral dark grey
 
 
 def _ref_lines(ax, values, *, fmt="{:,.0f}", suffix="", loc="upper right"):
@@ -1297,32 +1263,19 @@ def _ref_lines(ax, values, *, fmt="{:,.0f}", suffix="", loc="upper right"):
     st = _style()
     for stat, (dash, color) in (("median", REF_MEDIAN), ("mean", REF_MEAN)):
         value = getattr(values, stat)()
-        ax.axvline(value, linestyle=dash, color=color, linewidth=1.6,
+        ax.axvline(value, linestyle=dash, color=color, linewidth=stroke("ref"),
                    label=f"{stat.title()} = {fmt.format(value)}{suffix}")
     ax.legend(loc=loc, fontsize=st["legend_fs"])
     return ax
 
 
-def _fs_scale(figure: str) -> float:
-    """Type scale for one figure, from `fs_scale` in the style section (default 1.0)."""
-    return float((_style().get("fs_scale") or {}).get(figure, 1.0))
-
-
 def _heat_cmap():
-    """The colormap every heatmap in this family uses: the palette's cold-to-warm ramp.
+    """The colormap every heatmap uses: the project's one ramp (D55).
 
-    One map, not one per panel: a reader who has learned that navy is a low count and red
-    a high one in panel D should not have to re-learn it in panel E.
-
-    Empty cells are drawn WHITE, not navy. On a cold-to-warm ramp zero sits at the dark
-    end, so an unmasked matrix renders "this combination does not occur" in the same
-    saturated navy as "this combination is rare" — and in a block-diagonal matrix, where
-    most cells are structurally empty, that turns the whole panel into a dark slab. The
-    caller passes NaN for empty and this map paints it white.
+    Empty cells are drawn WHITE: the caller passes NaN (or a mask) for "this combination
+    does not occur", so it never reads as the low end of the scale.
     """
-    cmap = warm_cold_colormap().copy()
-    cmap.set_bad("white")
-    return cmap
+    return figure_colormap()
 
 
 def _heat_values(frame):
@@ -1332,17 +1285,8 @@ def _heat_values(frame):
 
 
 def _heat_text_color(value, top):
-    """Black on the pale middle of the ramp, white on both saturated ends.
-
-    A cold-to-warm map is dark at the BOTTOM as well as at the top, so the usual
-    "light text above 60%" rule leaves the smallest cells as dark-on-dark.
-    """
-    return "white" if value > top * 0.72 or value < top * 0.16 else "black"
-
-
-def _seq_cmap(color, light="#FFFFFF"):
-    """White -> `color`, for a heatmap that stays inside the project palette."""
-    return LinearSegmentedColormap.from_list("brand_seq", [light, color], N=256)
+    """Black on the pale blue-cream body of the ramp, white on its saturated red end."""
+    return "white" if value > top * 0.85 else "black"
 
 
 def _thousands(ax, axis="y"):
@@ -1385,7 +1329,7 @@ def _hbar(ax, series, color, xlabel, *, ylabel=None, annotate=True, pct_of=None,
     labels = [_wrap(i, wrap) for i in series.index]
     ax.tick_params(axis="y", labelsize=_tick_fontsize(labels, st["tick_fs"]))
     bars = ax.barh(labels, series.values, color=color,
-                   edgecolor=st.get("edgecolor", "black"), linewidth=0.6)
+                   edgecolor=st.get("edgecolor", "black"), linewidth=stroke("edge"))
     if annotate and len(series):
         span = max(series.values) or 1
         for bar, value in zip(bars, series.values):
@@ -1426,12 +1370,12 @@ def _stacked_bars(ax, frame, colors, xlabel, ylabel, *, legend_title=None,
         values = frame[column].to_numpy(dtype=float)
         ax.bar(x, values, bottom=bottom, width=width, label=str(column),
                color=colors[str(column)] if isinstance(colors, dict) else colors,
-               edgecolor=st.get("edgecolor", "black"), linewidth=0.5)
+               edgecolor=st.get("edgecolor", "black"), linewidth=stroke("edge"))
         if annotate and segment_labels:
             for xi, value, base in zip(x, values, bottom):
                 if value >= tallest * min_label_share:
                     ax.text(xi, base + value / 2, f"{int(value):,}", ha="center",
-                            va="center", fontsize=st["annot_fs"] - 1, color="white",
+                            va="center", fontsize=font_size("small"), color="white",
                             fontweight="bold")
         bottom += values
     if annotate:
@@ -1464,8 +1408,8 @@ def _lines(ax, frame, colors, xlabel, ylabel, *, marker="o", labels=None,
     st = _style()
     for column in frame.columns:
         ax.plot(frame.index, frame[column].to_numpy(dtype=float),
-                marker=marker, markersize=7, linewidth=1.8,
-                markeredgecolor="white", markeredgewidth=0.5,
+                marker=marker, markersize=7, linewidth=stroke("line"),
+                markeredgecolor="white", markeredgewidth=stroke("edge"),
                 color=colors[str(column)] if isinstance(colors, dict) else colors,
                 label=(labels or {}).get(str(column), str(column)))
     ax.set_xlabel(xlabel)
@@ -1499,7 +1443,7 @@ def draw_reach(ax, D):
     bars = ax.barh(
         [_wrap(v, 26) for v in reach["linkage"]], reach["papers"],
         color=[colors[s] for s in reach["stream"]],
-        edgecolor=st.get("edgecolor", "black"), linewidth=0.6,
+        edgecolor=st.get("edgecolor", "black"), linewidth=stroke("edge"),
     )
     # Log scale. The linkages span two orders of magnitude — 192 publications cited by a
     # trial against 18,372 with a non-academic co-author — and on a linear axis the three
@@ -1532,7 +1476,7 @@ def draw_reach_by_year(ax, D):
     # patent and trial lines run behind it on their way to the top right.
     _lines(ax, frame, _stream_colors(), "Publication year",
            "Cumulative publications (log)", labels=labels,
-           legend_loc="lower right", grid=False, legend_fs=_style()["legend_fs"] - 2)
+           legend_loc="lower right", grid=False, legend_fs=font_size("small"))
     ax.set_yscale("log")
     _year_axis(ax)
     return ax
@@ -1575,7 +1519,7 @@ def draw_patent_topic_count(ax, D):
     values = values[values > 0]
     bins = np.arange(0.5, values.max() + 1.5, 1)
     ax.hist(values, bins=bins, color=_stream_colors()["patents"],
-            edgecolor=st.get("edgecolor", "black"), linewidth=0.6)
+            edgecolor=st.get("edgecolor", "black"), linewidth=stroke("edge"))
     _ref_lines(ax, values, fmt="{:.2f}")
     ax.set_xlabel("Research divisions per patent (at least 1)")
     ax.set_ylabel("Patents")
@@ -1601,7 +1545,7 @@ def draw_patent_country_topics(ax, D):
     ax.set_xticklabels(pivot.columns, fontsize=st["tick_fs"])
     ax.set_yticks(range(pivot.shape[0]))
     ax.set_yticklabels([_wrap(c, 22) for c in pivot.index],
-                       fontsize=st["tick_fs"] - 2)
+                       fontsize=font_size("tick"))
     ax.set_xlabel("Assignee country")
     ax.set_ylabel("Research division (FOR 2020)")
     for i in range(pivot.shape[0]):
@@ -1609,7 +1553,7 @@ def draw_patent_country_topics(ax, D):
             value = pivot.iat[i, j]
             if np.isfinite(value) and value > 0:
                 ax.text(j, i, f"{value:.0f}", ha="center", va="center",
-                        fontsize=st["annot_fs"] - 1,
+                        fontsize=font_size("small"),
                         color=_heat_text_color(value, pivot.to_numpy().max()))
     ax.figure.colorbar(image, ax=ax, fraction=0.03, pad=0.02,
                        label="% of the country's patents")
@@ -1660,9 +1604,9 @@ def draw_patent_lag(ax, D):
     lags = D["patents"]["paper_to_patent_lag"]
     bins = np.arange(lags.min() - 0.5, lags.max() + 1.5, 1)
     ax.hist(lags, bins=bins, color=_stream_colors()["patents"],
-            edgecolor=st.get("edgecolor", "black"), linewidth=0.6)
+            edgecolor=st.get("edgecolor", "black"), linewidth=stroke("edge"))
     ax.axvline(lags.median(), linestyle=REF_MEDIAN[0], color=REF_MEDIAN[1],
-               linewidth=1.6, label=f"Median = {lags.median():.0f} yr")
+               linewidth=stroke("ref"), label=f"Median = {lags.median():.0f} yr")
     ax.set_xlabel("Years from publication to patent priority date")
     ax.set_ylabel("Paper–patent links")
     ax.legend(loc="upper left", fontsize=st["legend_fs"])
@@ -1720,8 +1664,8 @@ def draw_trial_country_sector(ax, D):
     left = np.zeros(len(mat))
     for sector in mat.columns:
         values = mat[sector].to_numpy(dtype=float)
-        ax.barh(y, values, left=left, label=sector, color=colors.get(sector, "#B8B8B8"),
-                edgecolor=st.get("edgecolor", "black"), linewidth=0.4)
+        ax.barh(y, values, left=left, label=sector, color=colors.get(sector, neutral("missing")),
+                edgecolor=st.get("edgecolor", "black"), linewidth=stroke("edge"))
         left = left + values
     totals = mat.sum(axis=1).to_numpy()
     for yi, total in zip(y, totals):
@@ -1748,12 +1692,12 @@ def draw_trial_stage(ax, D):
     for i, column in enumerate(frame.columns):
         bars = ax.barh(y + i * height - 0.4 + height / 2, frame[column],
                        height=height, label=str(column),
-                       color=colors.get(str(column), "#BDBDBD"),
-                       edgecolor=st.get("edgecolor", "black"), linewidth=0.5)
+                       color=colors.get(str(column), neutral("missing")),
+                       edgecolor=st.get("edgecolor", "black"), linewidth=stroke("edge"))
         for bar, value in zip(bars, frame[column]):
             if value:
                 ax.text(value + 1, bar.get_y() + bar.get_height() / 2, f"{int(value)}",
-                        va="center", fontsize=st["annot_fs"] - 1)
+                        va="center", fontsize=font_size("small"))
     ax.set_yticks(y)
     ax.set_yticklabels(frame.index)
     ax.set_xlabel("Trials")
@@ -1803,7 +1747,7 @@ def _draw_trial_body_outline(ax):
         codes.extend([MplPath.CURVE4] * 3)
     vertices.append(start)
     codes.append(MplPath.CLOSEPOLY)
-    outline = dict(facecolor="white", edgecolor=palette("navy"), linewidth=1.05, zorder=1)
+    outline = dict(facecolor="white", edgecolor="black", linewidth=stroke("edge"), zorder=1)
     ax.add_patch(PathPatch(MplPath(vertices, codes), gid="trial-body-outline", **outline))
     ax.add_patch(Ellipse((5, 13.08), 1.20, 1.52, gid="trial-body-head", **outline))
 
@@ -1811,8 +1755,8 @@ def _draw_trial_body_outline(ax):
 def draw_trial_bodymap(ax, D):
     """Schematic disease coverage, with aligned labels and a true area/count scale."""
     counts = D["trials"]["icd_chapters"]
-    ax._ukb_annotation_fs = 12
-    ax._ukb_legend_fs = 11
+    ax._ukb_annotation_fs = font_size("annot")
+    ax._ukb_legend_fs = font_size("legend")
     _draw_trial_body_outline(ax)
     color = palette("steel_blue")
     area_per_trial = 8.
@@ -1822,30 +1766,30 @@ def draw_trial_bodymap(ax, D):
         x, y, short, side = ICD_BODY_POS[chapter]
         size = area_per_trial * value
         ax.scatter([x], [y], s=size, color=color, edgecolors="white",
-                   linewidths=1, zorder=4, gid=f"trial-chapter:{chapter}")
+                   linewidths=stroke("edge"), zorder=4, gid=f"trial-chapter:{chapter}")
         label = f"{short}\n{int(value)} trials"
         if side == "systemic":
             ax.annotate(label, (x, y), xytext=(18, 0), textcoords="offset points",
-                        ha="left", va="center", fontsize=12, zorder=5)
+                        ha="left", va="center", fontsize=font_size("annot"), zorder=5)
         else:
             left = side == "left"
             label = label.replace("/", "/\n")
             ax.annotate(
                 label, (x, y), xytext=(2.75 if left else 7.25, y),
-                ha="right" if left else "left", va="center", fontsize=12,
+                ha="right" if left else "left", va="center", fontsize=font_size("annot"),
                 bbox=dict(facecolor="white", edgecolor="none", pad=1.5),
                 arrowprops=dict(arrowstyle="-", color=palette("navy"), linewidth=.7,
                                 shrinkA=4, shrinkB=np.sqrt(size) / 2 + 2,
                                 connectionstyle="arc3,rad=0"),
                 zorder=5,
             )
-    ax.text(7.25, 5.90, "Systemic", fontsize=12, color=palette("navy"),
+    ax.text(7.25, 5.90, "Systemic", fontsize=font_size("annot"), color=palette("navy"),
             fontweight="bold", va="center")
     handles = [ax.scatter([], [], s=area_per_trial * value, color=color,
-                          edgecolors="white", linewidths=1, label=str(value))
+                          edgecolors="white", linewidths=stroke("edge"), label=str(value))
                for value in (10, 30, 50)]
     ax.legend(handles=handles, title="Trials", loc="lower center", ncol=3,
-              fontsize=11, title_fontsize=11, borderpad=.8, handleheight=2,
+              fontsize=font_size("legend"), title_fontsize=font_size("legend"), borderpad=.8, handleheight=2,
               handletextpad=.5, columnspacing=1.2, labelspacing=.6)
     ax.set_xlim(-.3, 10.3)
     ax.set_ylim(.05, 14.25)
@@ -1888,7 +1832,7 @@ def draw_trial_enrollment(ax, D):
     values = values[values > 0]
     bins = np.logspace(np.log10(values.min()), np.log10(values.max()), 24)
     ax.hist(values, bins=bins, color=palette("cream"),
-            edgecolor=st.get("edgecolor", "black"), linewidth=0.6)
+            edgecolor=st.get("edgecolor", "black"), linewidth=stroke("edge"))
     ax.set_xscale("log")
     _ref_lines(ax, values)
     ax.set_xlabel("Planned enrollment (log)")
@@ -1910,9 +1854,9 @@ def draw_trial_lag(ax, D):
     lags = D["trials"]["paper_to_trial_lag"]
     bins = np.arange(lags.min() - 0.5, lags.max() + 1.5, 1)
     ax.hist(lags, bins=bins, color=_stream_colors()["clinical_trials"],
-            edgecolor=st.get("edgecolor", "black"), linewidth=0.6)
+            edgecolor=st.get("edgecolor", "black"), linewidth=stroke("edge"))
     ax.axvline(lags.median(), linestyle=REF_MEDIAN[0], color=REF_MEDIAN[1],
-               linewidth=1.6, label=f"Median = {lags.median():.0f} yr")
+               linewidth=stroke("ref"), label=f"Median = {lags.median():.0f} yr")
     ax.set_xlabel("Years from publication to trial start")
     ax.set_ylabel("Paper–trial links")
     ax.legend(loc="upper left", fontsize=st["legend_fs"])
@@ -1978,16 +1922,13 @@ def draw_policy_country_map(ax, D):
     world = world[world["NAME"] != "Antarctica"]
     matched = int(world["documents"].notna().sum())
 
-    cmap = LinearSegmentedColormap.from_list(
-        "policy_seq",
-        [c if c.startswith("#") else palette(c) for c in POLICY_MAP_RAMP], N=256,
-    )
+    cmap = figure_colormap()
     world.plot(column="documents", ax=ax, cmap=cmap,
                norm=LogNorm(vmin=1, vmax=float(counts.max())),
-               edgecolor=st.get("edgecolor", "black"), linewidth=0.25,
+               edgecolor=st.get("edgecolor", "black"), linewidth=stroke("edge"),
                missing_kwds={"color": "white",
                              "edgecolor": st.get("edgecolor", "black"),
-                             "linewidth": 0.25})
+                             "linewidth": stroke("edge")})
     ax.set_xlim(-179, 179)
     ax.set_ylim(-58, 84)
     ax.set_axis_off()
@@ -1997,11 +1938,11 @@ def draw_policy_country_map(ax, D):
                                      norm=LogNorm(vmin=1, vmax=float(counts.max())))
     cbar = ax.figure.colorbar(mappable, ax=ax, fraction=0.030, pad=0.02,
                               shrink=0.72)
-    cbar.set_label("Policy documents (log)", fontsize=st["label_fs"] - 1)
+    cbar.set_label("Policy documents (log)", fontsize=font_size("label"))
     ticks = [t for t in (1, 3, 10, 30, 100) if t <= counts.max()]
     cbar.set_ticks(ticks)
     cbar.set_ticklabels([str(t) for t in ticks])
-    cbar.ax.tick_params(labelsize=st["tick_fs"] - 1)
+    cbar.ax.tick_params(labelsize=font_size("tick"))
 
     # Below the map, not on it: the Pacific is the only clear water wide enough to hold
     # this box, and a caption sitting in the Pacific reads as if it belonged to the
@@ -2033,7 +1974,7 @@ def draw_policy_concentration(ax, D):
     values = D["policy"]["policy_docs_per_paper"]
     bins = np.arange(0.5, values.max() + 1.5, 1)
     ax.hist(values, bins=bins, color=palette(POLICY_PRIMARY),
-            edgecolor=st.get("edgecolor", "black"), linewidth=0.6)
+            edgecolor=st.get("edgecolor", "black"), linewidth=stroke("edge"))
     ax.set_yscale("log")
     ax.set_xlabel("Policy documents citing the publication")
     ax.set_ylabel("UK Biobank publications (log)")
@@ -2051,7 +1992,7 @@ def draw_policy_top_papers(ax, D):
     _hbar(ax, D["policy"]["top_cited_papers"], palette(POLICY_PRIMARY),
           "Policy documents citing the publication", ylabel="UK Biobank publication",
           wrap=44)
-    ax.tick_params(axis="y", labelsize=_style()["tick_fs"] - 3)
+    ax.tick_params(axis="y", labelsize=font_size("tick"))
     return ax
 
 
@@ -2061,9 +2002,9 @@ def _attention_cloud(ax, frame, xcolumn, xlabel, *, top_padding=.08, color=None,
     """Use small uniform marks; the axes, rather than bubble area, encode values."""
     from matplotlib.colors import to_rgba
 
-    ax._ukb_label_fs = 14
-    ax._ukb_tick_fs = 12
-    ax._ukb_annotation_fs = 12
+    ax._ukb_label_fs = font_size("label")
+    ax._ukb_tick_fs = font_size("tick")
+    ax._ukb_annotation_fs = font_size("annot")
     # Apply transparency to fills only, keeping the fine black outlines legible.
     ax.scatter(frame[xcolumn], frame["Altmetric Attention Score"],
                s=24 if outlined else 14, marker="o",
@@ -2088,7 +2029,7 @@ def _attention_cloud(ax, frame, xcolumn, xlabel, *, top_padding=.08, color=None,
         else:
             setter(.8, 10)
     ax.grid(False, which="both")
-    ax.tick_params(axis="both", which="major", labelsize=12, length=4, width=1)
+    ax.tick_params(axis="both", which="major", labelsize=font_size("tick"), length=4, width=1)
     for side, spine in ax.spines.items():
         spine.set_visible(not outlined or side in ("left", "bottom"))
         spine.set_color("black")
@@ -2145,9 +2086,9 @@ def _attention_callouts(ax, points, labels, obstacles, *, below=False, _first_ca
                         label, point, xytext=(dx, dy), textcoords="offset points",
                         ha=("center" if abs(dy) > abs(dx) * .5 else
                             "left" if dx > 1 else "right" if dx < -1 else "center"),
-                        va="center", fontsize=12, zorder=5,
+                        va="center", fontsize=font_size("annot"), zorder=5,
                         bbox=dict(boxstyle="round,pad=.25", facecolor="white",
-                                  edgecolor=palette("navy"), linewidth=.7),
+                                  edgecolor="black", linewidth=stroke("edge")),
                         arrowprops=dict(arrowstyle="->", mutation_scale=9,
                                         color=palette("navy"), linewidth=.9,
                                         connectionstyle=f"arc3,rad={curve}", shrinkA=6, shrinkB=14),
@@ -2221,7 +2162,7 @@ def draw_altmetric_scatter(ax, D):
         points = top[["substantive", "Altmetric Attention Score"]].to_numpy(dtype=float)
         ax.scatter(points[:, 0], points[:, 1], s=70, marker="o",
                    color=palette(ATTENTION_SECONDARY),
-                   edgecolors="black", linewidths=.65, zorder=4)
+                   edgecolors="black", linewidths=stroke("edge"), zorder=4)
         labels = [_attention_paper_label(row) for _, row in top.iterrows()]
         _attention_callouts(
             ax, points, labels,
@@ -2249,11 +2190,11 @@ def draw_altmetric_distribution(ax, D):
     values = D["altmetric"]["score_distribution"]
     bins = np.logspace(0, np.log10(values.max()), 40)
     ax.hist(values, bins=bins, color=palette(ATTENTION_NEWS),
-            edgecolor=st.get("edgecolor", "black"), linewidth=0.5)
+            edgecolor=st.get("edgecolor", "black"), linewidth=stroke("edge"))
     ax.set_xscale("log")
     ax.set_yscale("log")
     ax.axvline(values.median(), linestyle=REF_MEDIAN[0], color=REF_MEDIAN[1],
-               linewidth=1.6, label=f"Median: {values.median():,.0f}")
+               linewidth=stroke("ref"), label=f"Median: {values.median():,.0f}")
     ax.set_xlabel("Altmetric Attention Score (log)")
     ax.set_ylabel("UK Biobank publications (log)")
     ax.legend(loc="upper right", fontsize=st["legend_fs"])
@@ -2270,7 +2211,7 @@ def draw_altmetric_mentions_by_year(ax, D):
     st = _style()
     frame = D["altmetric"]["mentions_by_year"]
     line_news, = ax.plot(frame.index, frame["News mentions"], marker="o", markersize=5,
-                         linewidth=1.8, color=palette(ATTENTION_NEWS),
+                         linewidth=stroke("line"), color=palette(ATTENTION_NEWS),
                          markeredgecolor="white", label="News (left)")
     ax.set_xlabel("Publication year")
     ax.set_ylabel("News mentions")
@@ -2278,7 +2219,7 @@ def draw_altmetric_mentions_by_year(ax, D):
     twin = ax.twinx()
     twin.spines["right"].set_visible(True)
     line_policy, = twin.plot(frame.index, frame["Policy mentions"], marker="s",
-                             markersize=5, linewidth=1.8,
+                             markersize=5, linewidth=stroke("line"),
                              color=palette(ATTENTION_POLICY),
                              markeredgecolor="white", label="Policy (right)")
     twin.set_ylabel("Policy mentions")
@@ -2342,7 +2283,7 @@ def draw_collab_sector_summary(ax, D, *, colors=None):
     series = summary.iloc[::-1]
     bars = ax.barh([_wrap(i, 22) for i in series.index], series.values,
                    color=[colors[i] for i in series.index],
-                   edgecolor=st.get("edgecolor", "black"), linewidth=0.6)
+                   edgecolor=st.get("edgecolor", "black"), linewidth=stroke("edge"))
     span = series.max()
     for bar, value in zip(bars, series.values):
         ax.text(value + span * 0.015, bar.get_y() + bar.get_height() / 2, f"{value:,}",
@@ -2363,7 +2304,7 @@ def draw_collab_sector_papers(ax, D, *, colors=None):
     n_corpus = D["counts"]["corpus"]
     bars = ax.barh([_wrap(i, 22) for i in series.index], series.values,
                    color=[colors[i] for i in series.index],
-                   edgecolor=st.get("edgecolor", "black"), linewidth=0.6)
+                   edgecolor=st.get("edgecolor", "black"), linewidth=stroke("edge"))
     span = series.max()
     for bar, value in zip(bars, series.values):
         ax.text(value + span * 0.015, bar.get_y() + bar.get_height() / 2,
@@ -2411,7 +2352,7 @@ def draw_collab_divisions(ax, D):
     series = frame["pct_company"].iloc[::-1]
     bars = ax.barh([_wrap(i, 26) for i in series.index], series.values,
                    color=palette("cream"),
-                   edgecolor=st.get("edgecolor", "black"), linewidth=0.6)
+                   edgecolor=st.get("edgecolor", "black"), linewidth=stroke("edge"))
     sizes = frame["size"].iloc[::-1]
     span = series.max()
     for bar, value, size in zip(bars, series.values, sizes):
@@ -2447,7 +2388,7 @@ def draw_collab_flag_overlap(ax, D):
     image = ax.imshow(values, aspect="auto", cmap=_heat_cmap(), vmin=0, vmax=100)
     ax.set_xticks(range(values.shape[1]))
     ax.set_xticklabels([_wrap(c, 11) for c in frame.columns],
-                       rotation=35, ha="right", fontsize=st["tick_fs"] - 2)
+                       rotation=35, ha="right", fontsize=font_size("tick"))
     # The row tick carries the row's own n: every cell in the row is a percentage OF
     # that number, and a row reading 90% off 365 papers and one reading 90% off 24,988
     # are not the same claim.
@@ -2457,7 +2398,7 @@ def draw_collab_flag_overlap(ax, D):
     totals = D["collaboration"]["flag_totals"]
     ax.set_yticks(range(values.shape[0]))
     ax.set_yticklabels([f"{label}\n(n={int(totals[label]):,})" for label in frame.index],
-                       fontsize=st["tick_fs"] - 2)
+                       fontsize=font_size("tick"))
     for i in range(values.shape[0]):
         for j in range(values.shape[1]):
             value = values[i, j]
@@ -2465,17 +2406,17 @@ def draw_collab_flag_overlap(ax, D):
             # say the unit, and eight per-cell percent signs across a half-width panel
             # cost more room than they buy.
             ax.text(j, i, f"{value:.1f}", ha="center", va="center",
-                    fontsize=st["annot_fs"] - 2,
+                    fontsize=font_size("small"),
                     color=_heat_text_color(value, 100))
     # The x label carries the whole sentence and there is no y label. The row ticks are
     # wide (a sector name over its n), and a y label outside them lands in whatever panel
     # shares the row — at half width there is no margin left to put it in.
     ax.set_xlabel("Co-occurring affiliation sector")
     cbar = ax.figure.colorbar(image, ax=ax, fraction=0.030, pad=0.02)
-    cbar.set_label("% of the row's publications", fontsize=st["label_fs"] - 1)
+    cbar.set_label("% of the row's publications", fontsize=font_size("label"))
     cbar.set_ticks([0, 20, 40, 60, 80, 100])
     cbar.set_ticklabels([f"{t}%" for t in (0, 20, 40, 60, 80, 100)])
-    cbar.ax.tick_params(labelsize=st["tick_fs"] - 1)
+    cbar.ax.tick_params(labelsize=font_size("tick"))
     for spine in ax.spines.values():
         spine.set_visible(True)
         spine.set_color("black")
@@ -2498,7 +2439,7 @@ def draw_collab_citations(ax, D):
         body.set_facecolor(color)
         body.set_edgecolor("black")
         body.set_alpha(0.85)
-        body.set_linewidth(0.6)
+        body.set_linewidth(stroke("edge"))
     for i, series in enumerate(data, start=1):
         ax.scatter([i], [series.median()], color="white", edgecolor="black",
                    zorder=5, s=28)
@@ -2689,32 +2630,30 @@ def figure_main(D, save=True):
     figure width in a paper rather than full page on a screen.
     """
     st = _style()
-    figsize = st["figsize_main"]
-    with _font_scale(_fs_scale("main")):
-        fig = _assemble(
-            [draw_reach_by_year,            # A
-             draw_patent_legal_status,      # B
-             draw_trials_by_year,           # C
-             draw_collab_sector_share,      # D
-             draw_altmetric_scatter,        # E - bottom row, left
-             draw_collab_flag_overlap],     # F - bottom row, right
-            3, 2, (figsize[0], figsize[1] * 1.30),
-            D, P.MAIN_FIGURE_STEMS[6], save=False,
-            slots=[(0, 0), (0, 1), (1, 0), (1, 1), (2, 0), (2, 1)],
-            hspace=0.40, wspace=0.34, height_ratios=[1.0, 1.0, 1.55],
-        )
-        # One major-tick grid across A-E, including decades on log axes. F already
-        # has heatmap cell boundaries and must not receive a second grid.
-        for ax in fig.axes:
-            ax.grid(False, which="both")
-        for ax in fig.axes[:5]:
-            grid_on(ax, axis="both", which="major", log=True)
-        from .shared_figure_captions import panel_caption
-        fig._ukb_caption = panel_caption(MAIN_CAPTION)
-        finalize_figure(fig)
-        if save:
-            savefig(fig, P.MAIN_FIGURE_STEMS[6])
-        return fig
+    fig = _assemble(
+        [draw_reach_by_year,            # A
+         draw_patent_legal_status,      # B
+         draw_trials_by_year,           # C
+         draw_collab_sector_share,      # D
+         draw_altmetric_scatter,        # E - bottom row, left
+         draw_collab_flag_overlap],     # F - bottom row, right
+        3, 2, project_figsize("tall"),
+        D, P.MAIN_FIGURE_STEMS[6], save=False,
+        slots=[(0, 0), (0, 1), (1, 0), (1, 1), (2, 0), (2, 1)],
+        hspace=0.40, wspace=0.34, height_ratios=[1.0, 1.0, 1.55],
+    )
+    # One major-tick grid across A-E, including decades on log axes. F already
+    # has heatmap cell boundaries and must not receive a second grid.
+    for ax in fig.axes:
+        ax.grid(False, which="both")
+    for ax in fig.axes[:5]:
+        grid_on(ax, axis="both", which="major", log=True)
+    from .shared_figure_captions import panel_caption
+    fig._ukb_caption = panel_caption(MAIN_CAPTION)
+    finalize_figure(fig)
+    if save:
+        savefig(fig, P.MAIN_FIGURE_STEMS[6])
+    return fig
 
 
 def figure_si_patents(D, save=True):
@@ -2728,38 +2667,35 @@ def figure_si_patents(D, save=True):
     `D["patents"]["paper_to_patent_lag"]`.
     """
     st = _style()
-    with _font_scale(_fs_scale("si1_patents")):
-        # The right column is the wider one: B stacks seven legal-status categories under
-        # a two-column legend and D is an eight-by-eight heatmap, where A and C are a
-        # ten-row bar chart and a four-bin histogram that read fine narrower.
-        return _assemble(
-            [draw_patent_topics,            # A
-             draw_patents_by_year,          # B
-             draw_patent_topic_count,       # C
-             draw_patent_country_topics],   # D
-            2, 2, st["figsize_si"], D, "04_02_supplementary_figure_01_patents", save=save,
-            hspace=0.45, wspace=0.40, width_ratios=[1.0, 1.3],
-        )
+    # The right column is the wider one: B stacks seven legal-status categories under
+    # a two-column legend and D is an eight-by-eight heatmap, where A and C are a
+    # ten-row bar chart and a four-bin histogram that read fine narrower.
+    return _assemble(
+        [draw_patent_topics,            # A
+         draw_patents_by_year,          # B
+         draw_patent_topic_count,       # C
+         draw_patent_country_topics],   # D
+        2, 2, project_figsize("standard"), D, "04_02_supplementary_figure_01_patents", save=save,
+        hspace=0.45, wspace=0.40, width_ratios=[1.0, 1.3],
+    )
 
 
 def figure_si_trials(D, save=True):
     """Four trial panels; lifecycle stages are retained only in Supplementary Fig. 22."""
     st = _style()
-    width, height = st["figsize_si"]
-    with _font_scale(_fs_scale("si2_clinical_trials")):
-        name = "04_03_supplementary_figure_02_clinical_trials"
-        fig = _assemble(
-            [draw_trial_bodymap,            # A
-             draw_trial_rcdc,               # B
-             draw_trial_enrollment,         # C
-             draw_trial_country_sector],    # D
-            2, 2, (width, height * 1.35), D, name,
-            save=False, hspace=0.28, wspace=0.42, height_ratios=[1.8, 1.0],
-        )
-        finalize_figure(fig)
-        if save:
-            savefig(fig, name)
-        return fig
+    name = "04_03_supplementary_figure_02_clinical_trials"
+    fig = _assemble(
+        [draw_trial_bodymap,            # A
+         draw_trial_rcdc,               # B
+         draw_trial_enrollment,         # C
+         draw_trial_country_sector],    # D
+        2, 2, project_figsize("square"), D, name,
+        save=False, hspace=0.28, wspace=0.42, height_ratios=[1.8, 1.0],
+    )
+    finalize_figure(fig)
+    if save:
+        savefig(fig, name)
+    return fig
 
 
 def figure_si_policy(D, save=True):
@@ -2781,20 +2717,19 @@ def figure_si_policy(D, save=True):
     those same colours. The geographic count scale remains sequential blue.
     """
     st = _style()
-    width, height = st["figsize_si"]
     name = "04_04_supplementary_figure_03_policy"
     fig = _assemble(
         [draw_policy_by_year, draw_policy_country_map, draw_policy_publishers,
          draw_policy_divisions],
-        2, 2, (width, height * 0.92), D, name,
+        2, 2, project_figsize("landscape"), D, name,
         save=False, hspace=0.42, wspace=0.85, height_ratios=[0.85, 1.15],
     )
     for ax in fig.axes:
-        ax._ukb_label_fs = 16
-        ax._ukb_tick_fs = 12
-        ax._ukb_annotation_fs = 12
-        ax._ukb_legend_fs = 12
-        ax._ukb_title_fs = 24
+        ax._ukb_label_fs = font_size("label")
+        ax._ukb_tick_fs = font_size("tick")
+        ax._ukb_annotation_fs = font_size("annot")
+        ax._ukb_legend_fs = font_size("legend")
+        ax._ukb_title_fs = font_size("panel_label")
     for ax in (fig.axes[0], fig.axes[2], fig.axes[3]):
         ax.set_axisbelow(True)
         ax.grid(False, which="both")
@@ -2808,18 +2743,17 @@ def figure_si_policy(D, save=True):
 def figure_si_altmetric(D, save=True):
     """A square 2x2 with shared news/policy colours and major-tick grids throughout."""
     st = _style()
-    side = st["figsize_si"][0]
     name = "04_05_supplementary_figure_04_altmetric"
     fig = _assemble(
         [draw_altmetric_distribution, draw_altmetric_mentions_by_year,
          draw_altmetric_coverage, draw_altmetric_vs_citations],
-        2, 2, (side, side), D, name, save=False, hspace=.28, wspace=.28,
+        2, 2, project_figsize("square"), D, name, save=False, hspace=.28, wspace=.28,
     )
     fig.subplots_adjust(left=.09, right=.91, bottom=.085, top=.905)
     for ax in fig.axes:
-        ax._ukb_label_fs = 14
-        ax._ukb_tick_fs = 12
-        ax._ukb_legend_fs = 12
+        ax._ukb_label_fs = font_size("label")
+        ax._ukb_tick_fs = font_size("tick")
+        ax._ukb_legend_fs = font_size("legend")
         ax.set_box_aspect(1)
         ax.grid(False, which="both")
     # Only the primary axis in B draws a grid; a second grid would imply alignment
@@ -2848,7 +2782,7 @@ def figure_si_collaboration(D, save=True):
          partial(draw_collab_sector_share, colors=colors),
          partial(draw_collab_company_by_year, colors=colors),
          draw_collab_top_companies, draw_collab_divisions],
-        3, 2, (17, 14), D, "04_06_supplementary_figure_05_collaboration", save=save,
+        3, 2, project_figsize("standard"), D, "04_06_supplementary_figure_05_collaboration", save=save,
         hspace=0.45, wspace=0.55,
     )
 

@@ -13,6 +13,11 @@ result as the active style and pushes it into rcParams, so the three original he
 (``apply_style``, ``extended_palette``, ``savefig``) keep working when called without an
 explicit ``style=`` argument — which is how the notebooks call them.
 
+Every size, stroke and colour a draw function needs comes from a helper rather than a
+literal (D55): ``figsize(<rung>)`` for the 18 in width and height ladder,
+``font_size(<role>)``, ``stroke(<role>)``, ``neutral(<role>)`` and ``figure_colormap()``.
+``tests/test_style_uniformity.py`` fails on a literal that bypasses them.
+
 ``semantic_colors`` exposes resolved ``*_colors`` mappings from the active style so
 metric identities can remain consistent across every figure in an analysis. The
 remaining public helpers centralize figure construction, panel lettering, axes,
@@ -69,21 +74,33 @@ PALETTE_COLORS = {
     "blue": "#74ADD1",
     "steel_blue": "#416FA0",
     "navy": "#274668",
-    "green": "#74D1AF",
+    # A 50% white tint of the red. It replaced the old green (#74D1AF) everywhere, so the
+    # palette is blues, cream and reds only.
+    "light_red": "#F2B4AC",
 }
 
 #: The same seven colours as an ordered list (the shape `style["colors"]` takes).
 PALETTE = list(PALETTE_COLORS.values())
 
-# Analysis 04 excludes green. A 50% white tint of the project red keeps its seventh
-# categorical series distinct without introducing another hue or shifting indices.
-NON_ACADEMIC_PALETTE = [*PALETTE[:6], "#F2B4AC"]
+#: Analysis 04's palette. Once 04 alone swapped green for light red; now every analysis
+#: does, so this is the same list under its older name.
+NON_ACADEMIC_PALETTE = list(PALETTE)
 
-# Ordered blue sequence used for normalized citation and author-impact measures. This is
-# the academic-impact ramp introduced with the shared project palette: low values remain
-# visible as cream, while the upper end resolves to the project's navy.
-ACADEMIC_IMPACT_ANCHORS = ("cream", "light_blue", "steel_blue", "navy")
-BLUE_ANCHORS = ("light_blue", "blue", "steel_blue", "navy")
+#: The only greys a figure may use (D55). Mirrors `style.base.neutral_colors`.
+NEUTRALS = {
+    "missing": "#B7B7B7",   # an absence (Unknown, no data), never a category
+    "muted": "#555555",     # secondary text, de-emphasised marks
+    "light": "#E5E5E5",     # backgrounds, inactive bands
+}
+
+#: Separators between filled areas (stacked segments, map borders); every other edge is black.
+EDGE_COLOR = "black"
+SEPARATOR_COLOR = "white"
+
+# D55: every exported figure is FIG_WIDTH inches wide and one of these height/width ratios,
+# so one set of font sizes prints at one size wherever the figure is scaled to page width.
+FIG_WIDTH = 18.0
+FIG_ASPECTS = {"wide": 0.5, "landscape": 0.625, "standard": 0.8, "square": 1.0, "tall": 1.25}
 
 
 def palette(*names):
@@ -101,6 +118,13 @@ def palette(*names):
     return picked[0] if len(picked) == 1 else picked
 
 
+def neutral(name):
+    """Look a grey up by role (``missing``, ``muted``, ``light``); raises on an unknown role."""
+    if name not in NEUTRALS:
+        raise KeyError(f"shared_style: unknown neutral {name!r}; known: {sorted(NEUTRALS)}")
+    return NEUTRALS[name]
+
+
 def use_style(style: dict) -> dict:
     """Register `style` as the active style for later style-less helper calls. Returns it."""
     global _ACTIVE
@@ -108,14 +132,75 @@ def use_style(style: dict) -> dict:
     return style
 
 
-def _resolve(style):
+_BASE: dict | None = None
+
+
+def _style_or_base(style=None):
+    """The given style, else the active one, else `style.base` — so legacy modules that
+    draw before any notebook registered a style still get the project sizes."""
+    global _BASE
     if style is not None:
         return style
-    if _ACTIVE is None:
-        raise RuntimeError(
-            "shared_style: no style given and none registered — call use_style(STYLE) first."
-        )
-    return _ACTIVE
+    if _ACTIVE is not None:
+        return _ACTIVE
+    if _BASE is None:
+        _BASE = (load_settings().get("style") or {}).get("base") or {}
+    return _BASE
+
+
+#: Text roles and the style key each reads. Four sizes in all: 22 · 16 · 14 · 13.
+FONT_ROLES = {
+    "panel_label": "panel_label_fs",
+    "title": "title_fs",
+    "label": "label_fs",
+    "tick": "tick_fs",
+    "legend": "legend_fs",
+    "annot": "annot_fs",
+    "small": "small_fs",
+}
+
+
+def font_size(role, style=None):
+    """The project font size (points) for a text role — never a literal at the call site."""
+    if role not in FONT_ROLES:
+        raise KeyError(f"shared_style: unknown font role {role!r}; known: {sorted(FONT_ROLES)}")
+    return _style_or_base(style)[FONT_ROLES[role]]
+
+
+#: Stroke roles: `edge` outlines filled marks, `line` draws a data series, `ref` a reference line.
+STROKE_ROLES = {"edge": "edge_linewidth", "line": "line_width", "ref": "ref_linewidth"}
+
+
+def stroke(role, style=None):
+    """The project line width (points) for a stroke role."""
+    if role not in STROKE_ROLES:
+        raise KeyError(f"shared_style: unknown stroke role {role!r}; known: {sorted(STROKE_ROLES)}")
+    return _style_or_base(style)[STROKE_ROLES[role]]
+
+
+def nearest_aspect(ratio):
+    """The ladder rung (name) closest to a height/width ratio."""
+    return min(FIG_ASPECTS, key=lambda name: abs(FIG_ASPECTS[name] - float(ratio)))
+
+
+def figsize(aspect="standard", style=None):
+    """``(width, height)`` in inches: the project width and one rung of the height ladder.
+
+    ``aspect`` is a rung name or a height/width ratio, which is snapped to the nearest
+    rung — so a data-driven layout (one bar row per field) still lands on the ladder.
+    """
+    style = _style_or_base(style)
+    width = float(style.get("fig_width", FIG_WIDTH))
+    aspects = style.get("fig_aspects") or FIG_ASPECTS
+    name = aspect if isinstance(aspect, str) else nearest_aspect(aspect)
+    if name not in aspects:
+        raise KeyError(f"shared_style: unknown figure aspect {name!r}; known: {sorted(aspects)}")
+    return (width, width * float(aspects[name]))
+
+
+def _resolve(style):
+    """The given style, else the registered one, else `style.base` (D55 keeps every size there)."""
+    return _style_or_base(style)
 
 
 def marker_size(style=None, *, scale=1.0):
@@ -264,6 +349,11 @@ def apply_style(style=None):
         "savefig.dpi": style["dpi"],  # exported
         "font.size": style.get("body_fs", style["annot_fs"]),
         "lines.markersize": style.get("marker_size", DEFAULT_MARKER_SIZE),
+        "lines.linewidth": style.get("line_width", 2.0),
+        # Edges are drawn only where a call asks for them (no force_edgecolor), but when
+        # they are drawn they are black at one width.
+        "patch.edgecolor": style.get("edgecolor", EDGE_COLOR),
+        "patch.linewidth": style.get("edge_linewidth", 0.6),
         "axes.titlesize": style["title_fs"],
         "axes.labelsize": style["label_fs"],
         "axes.linewidth": style.get("axes_linewidth", 0.8),
@@ -353,7 +443,7 @@ def grid_on(ax, axis="both", which="both", style=None, *, log=False, **kwargs):
     axis loses its grid — a log-x/linear-y panel keeps its horizontal lines — and
     `log=True` forces the grid on anyway. Set the scale BEFORE calling this.
     """
-    style = _resolve(style) if style is not None or _ACTIVE is not None else {}
+    style = _resolve(style)
     ls = kwargs.pop("linestyle", style.get("grid_linestyle", "--"))
     lw = kwargs.pop("linewidth", style.get("grid_linewidth", 0.6))
     color = kwargs.pop("color", style.get("grid_color", "#B0B0B0"))
@@ -388,7 +478,7 @@ def panel_label(ax, letter, style=None, *, x=None, y=None, ha="left", va="bottom
       headline figure letters a map, a network sidebar and three stacked charts inside one
       page, and no single title offset lands all five where a reader expects them.
     """
-    style = _resolve(style) if style is not None or _ACTIVE is not None else {}
+    style = _resolve(style)
     if fontsize is None:
         fontsize = style.get("panel_label_fs", style.get("title_fs", 14))
     if x is None and y is None:
@@ -427,11 +517,9 @@ def label_panels(axes, labels, style=None, **kwargs):
 # =============================================================================
 # Figure and axis construction
 # =============================================================================
-def new_figure(style=None, *, figsize=None, figsize_key="figsize_panel", **kwargs):
-    """Create a figure using a configured size unless one is supplied explicitly."""
-    style = _resolve(style)
-    resolved_size = style[figsize_key] if figsize is None else figsize
-    return plt.figure(figsize=resolved_size, **kwargs)
+def new_figure(style=None, *, aspect="standard", **kwargs):
+    """Create a figure at the project width and one rung of the height ladder (D55)."""
+    return plt.figure(figsize=figsize(aspect, style), **kwargs)
 
 
 def gridspec_figure(
@@ -439,18 +527,12 @@ def gridspec_figure(
     ncols,
     style=None,
     *,
-    figsize=None,
-    figsize_key="figsize_panel",
+    aspect="standard",
     figure_kwargs=None,
     **gridspec_kwargs,
 ):
     """Create a styled figure and its top-level GridSpec together."""
-    fig = new_figure(
-        style,
-        figsize=figsize,
-        figsize_key=figsize_key,
-        **dict(figure_kwargs or {}),
-    )
+    fig = new_figure(style, aspect=aspect, **dict(figure_kwargs or {}))
     return fig, fig.add_gridspec(nrows, ncols, **gridspec_kwargs)
 
 
@@ -459,20 +541,13 @@ def panel_grid(
     ncols,
     style=None,
     *,
-    figsize=None,
-    figsize_key="figsize_panel",
+    aspect="standard",
     adjust=None,
     **subplot_kwargs,
 ):
     """Create a regular styled subplot grid and apply optional fixed margins."""
-    style = _resolve(style)
-    resolved_size = style[figsize_key] if figsize is None else figsize
-    fig, axes = plt.subplots(
-        nrows,
-        ncols,
-        figsize=resolved_size,
-        **subplot_kwargs,
-    )
+    fig, axes = plt.subplots(nrows, ncols, figsize=figsize(aspect, style),
+                             **subplot_kwargs)
     if adjust:
         fig.subplots_adjust(**dict(adjust))
     return fig, axes
@@ -506,7 +581,7 @@ def style_axis(
     else:
         ax.grid(False, axis=grid_axis, which="both")
     if zero:
-        ax.axhline(0, color="black", linewidth=0.8)
+        ax.axhline(0, color="black", linewidth=stroke("ref", style))
     return ax
 
 
@@ -520,7 +595,7 @@ def black_legend(ax, style=None, **kwargs):
         framealpha=1,
         **kwargs,
     )
-    legend.get_frame().set_linewidth(style.get("legend_linewidth", 0.9))
+    legend.get_frame().set_linewidth(stroke("edge", style))
     return legend
 
 
@@ -590,8 +665,8 @@ def summary_box(
     box = {
         "boxstyle": "square,pad=0.35",
         "facecolor": "white",
-        "edgecolor": "k",
-        "linewidth": 0.9,
+        "edgecolor": "black",
+        "linewidth": stroke("edge", style),
         "alpha": 0.94,
     }
     box.update(dict(bbox_kws or {}))
@@ -693,12 +768,12 @@ def percent_axis(ax, *, axis="y", xmax=100, decimals=0):
     return ax
 
 
-def style_colorbar(colorbar, label=None, *, edgecolor="black", linewidth=0.8):
+def style_colorbar(colorbar, label=None, *, edgecolor="black", linewidth=None):
     """Apply the standard outline and optional label to a colorbar."""
     if label is not None:
         colorbar.set_label(label)
     colorbar.outline.set_edgecolor(edgecolor)
-    colorbar.outline.set_linewidth(linewidth)
+    colorbar.outline.set_linewidth(_style_or_base()["axes_linewidth"] if linewidth is None else linewidth)
     return colorbar
 
 
@@ -714,12 +789,8 @@ def mask_grid_region(ax, start, end=None, *, color="white", zorder=1.5):
     )
 
 
-#: The project's cold-to-warm ramp, walked through the palette itself: navy -> steel blue
-#: -> blue -> light blue -> cream -> red. It is the same idea as the `colors_scheme[3] ->
-#: colors_scheme[0]` (blue -> red) map the patents notebook built inline, but it passes
-#: through every colour the figures are already drawn in rather than interpolating between
-#: two of them, so a heatmap and the bars beside it belong to one palette.
-WARM_COLD_ANCHORS = ["navy", "steel_blue", "blue", "light_blue", "cream", "red"]
+#: The one continuous ramp (D55): light blue -> cream -> red, walked through the palette.
+FIGURE_COLORMAP_ANCHORS = ("light_blue", "cream", "red")
 
 
 def palette_colormap(*names, name="project_palette", reverse=False, n=256):
@@ -734,44 +805,69 @@ def palette_colormap(*names, name="project_palette", reverse=False, n=256):
     return LinearSegmentedColormap.from_list(name, colors, N=n)
 
 
-def academic_impact_colormap(reverse: bool = False):
-    """Return the project's cream-to-navy academic-impact ramp."""
-    return palette_colormap(
-        *ACADEMIC_IMPACT_ANCHORS,
-        name="academic_impact",
-        reverse=reverse,
-    )
+#: CIE L* added at the middle of the blue -> cream half of the ramp (none at the anchors).
+FIGURE_COLORMAP_LIFT = 8.0
+
+_D65 = (0.95047, 1.0, 1.08883)
+_SRGB_TO_XYZ = ((0.4124564, 0.3575761, 0.1804375),
+                (0.2126729, 0.7151522, 0.0721750),
+                (0.0193339, 0.1191920, 0.9503041))
 
 
-def blue_colormap():
-    """A blue sequence made only from project anchors, without a grey low end."""
-    return palette_colormap(*BLUE_ANCHORS, name="project_blues")
+def _srgb_to_lab(rgb):
+    import numpy as np
+
+    rgb = np.asarray(rgb, dtype=float)
+    linear = np.where(rgb <= 0.04045, rgb / 12.92, ((rgb + 0.055) / 1.055) ** 2.4)
+    xyz = np.asarray(_SRGB_TO_XYZ) @ linear / np.asarray(_D65)
+    f = np.where(xyz > (6 / 29) ** 3, np.cbrt(xyz), xyz / (3 * (6 / 29) ** 2) + 4 / 29)
+    return np.array([116 * f[1] - 16, 500 * (f[0] - f[1]), 200 * (f[1] - f[2])])
 
 
-def author_geography_colormap():
-    """The exact Blues ramp used by the author-characteristics main map."""
-    return plt.get_cmap("Blues")
+def _lab_to_srgb(lab):
+    import numpy as np
+
+    fy = (lab[0] + 16) / 116
+    f = np.array([fy + lab[1] / 500, fy, fy - lab[2] / 200])
+    xyz = np.where(f > 6 / 29, f ** 3, 3 * (6 / 29) ** 2 * (f - 4 / 29)) * np.asarray(_D65)
+    linear = np.clip(np.linalg.solve(np.asarray(_SRGB_TO_XYZ), xyz), 0, 1)
+    return np.where(linear <= 0.0031308, 12.92 * linear, 1.055 * linear ** (1 / 2.4) - 0.055)
 
 
-def blue_cream_red_colormap():
-    """The balanced three-colour ramp used in growth Supplementary Figure 1."""
-    return palette_colormap(
-        "light_blue", "cream", "red", name="blue_cream_red",
-    )
+def figure_colormap():
+    """The project's only continuous colormap (D55), for every heatmap, map and ramp.
+
+    Light blue -> cream -> red, blended in CIE Lab rather than sRGB. A straight blend
+    from the blue to the cream passes through a muddy sage that is in no palette, so
+    that half is also lifted in lightness (`FIGURE_COLORMAP_LIFT`) and stays clean.
+    The anchors themselves are unchanged. Masked and NaN cells are drawn white, so
+    "no data" never reads as a low value.
+    """
+    import numpy as np
+    from matplotlib.colors import ListedColormap, to_rgb
+
+    anchors = [_srgb_to_lab(to_rgb(color)) for color in palette(*FIGURE_COLORMAP_ANCHORS)]
+    colors = []
+    for t in np.linspace(0, 1, 256):
+        half = 0 if t <= 0.5 else 1
+        u = 2 * t - half
+        lab = (1 - u) * anchors[half] + u * anchors[half + 1]
+        if half == 0:
+            lab[0] += FIGURE_COLORMAP_LIFT * np.sin(np.pi * u)
+        colors.append(_lab_to_srgb(lab))
+    cmap = ListedColormap(colors, name="blue_cream_red")
+    cmap.set_bad("white")
+    return cmap
 
 
-def warm_cold_colormap(reverse: bool = False):
-    """The cold-to-warm palette ramp as a Matplotlib colormap (low = navy, high = red)."""
-    return palette_colormap(
-        *WARM_COLD_ANCHORS,
-        name="warm_cold",
-        reverse=reverse,
-    )
+#: The name every caption, test and older call site knows the one map by.
+blue_cream_red_colormap = figure_colormap
 
 
-def sequential_colormap(color):
-    """Return a light sequential map whose maximum is exactly ``color``."""
-    return sns.light_palette(color, as_cmap=True)
+def ramp_colors(n, *, low=0.0, high=1.0):
+    """``n`` discrete colours sampled evenly from the one colormap (ordered categories)."""
+    import numpy as np
+    return [figure_colormap()(x) for x in np.linspace(low, high, n)]
 
 
 def figure_export_formats(formats):
@@ -782,12 +878,38 @@ def figure_export_formats(formats):
     return list(dict.fromkeys(ext for ext in normalized if ext in {"png", "pdf"})) or ["pdf"]
 
 
+def fixed_width_bbox(fig, width=None):
+    """The tight bounding box of `fig`, widened to exactly `width` inches (D55).
+
+    `bbox_inches="tight"` crops each export to its own content, so two figures drawn at the
+    same width export at different widths and their text prints at different sizes. This
+    keeps the tight crop vertically but pads the horizontal crop out to the project width.
+    Content wider than that is a layout defect: it is exported uncropped and a warning names
+    the overflow, so the figure audit can find it.
+    """
+    import warnings
+    from matplotlib.transforms import Bbox
+
+    width = float(_style_or_base().get("fig_width", FIG_WIDTH)) if width is None else width
+    fig.canvas.draw()
+    pad = plt.rcParams["savefig.pad_inches"]
+    tight = fig.get_tightbbox(fig.canvas.get_renderer())
+    if tight.width > width + 1e-6:
+        warnings.warn(f"shared_style: figure content is {tight.width:.2f}in wide, wider than "
+                      f"the {width:g}in project width", stacklevel=3)
+        return tight.padded(pad)
+    # The horizontal margin is whatever the width leaves; only the vertical one is `pad`.
+    extra = (width - tight.width) / 2
+    return Bbox([[tight.x0 - extra, tight.y0 - pad], [tight.x1 + extra, tight.y1 + pad]])
+
+
 def savefig(fig, name, style=None, formats=None, dpi=None, caption=None, **kwargs):
     """Optionally persist a figure as PNG and/or PDF.
 
     `savedir` is anchored on the repo root when relative, so a figure lands in the same
     place whether the notebook was launched from the root or from src/data_analysis/.
-    PNG exports always use the project-wide ``PNG_DPI``. Legacy format requests
+    PNG exports always use the project-wide ``PNG_DPI``, and every export is exactly the
+    project width wide (`fixed_width_bbox`) unless the caller passes ``bbox_inches``. Legacy format requests
     cannot create SVG or JSON figure files. Saved paths are returned, while log
     messages always use repository-relative paths.
     """
@@ -808,10 +930,12 @@ def savefig(fig, name, style=None, formats=None, dpi=None, caption=None, **kwarg
     requested = figure_export_formats(requested)
     stem = str(Path(name).with_suffix("")) if Path(name).suffix else str(name)
     saved = []
+    if "bbox_inches" not in kwargs:
+        kwargs["bbox_inches"] = fixed_width_bbox(fig, style.get("fig_width", FIG_WIDTH))
     for ext in requested:
         dest = outdir / f"{stem}.{ext}"
         dest.parent.mkdir(parents=True, exist_ok=True)
-        save_kwargs = {"bbox_inches": "tight", "facecolor": "white", **kwargs}
+        save_kwargs = {"facecolor": "white", **kwargs}
         if ext == "png":
             save_kwargs["dpi"] = PNG_DPI
         fig.savefig(dest, format=ext, **save_kwargs)
@@ -831,6 +955,8 @@ def save_figure_file(fig, path, **kwargs):
     path = Path(path)
     path.parent.mkdir(parents=True, exist_ok=True)
     finalize_figure(fig)
+    if kwargs.get("bbox_inches") == "tight" or "bbox_inches" not in kwargs:
+        kwargs["bbox_inches"] = fixed_width_bbox(fig)
     if path.suffix.lower() == ".png":
         kwargs["dpi"] = PNG_DPI
     fig.savefig(path, **kwargs)
@@ -894,30 +1020,40 @@ def _resolve_refs(mapping, colors):
             for k, v in (mapping or {}).items()}
 
 
+#: The only keys a `style.notebooks.<stem>` section may set, besides `*_colors` and `c_*`.
+NOTEBOOK_KEYS = {"colors", "roles", "save", "formats", "savedir"}
+
+
 def load_style(notebook, path=None, activate=True) -> dict:
     """Build one notebook's STYLE from universal_settings.yml.
 
     `style.base` merged with `style.notebooks.<notebook>`; integer values under `roles`
-    and any `*_colors` mapping are resolved against the palette; `figsize*` lists become
-    tuples. With `activate` (the default) the result is registered via use_style and
-    pushed into rcParams, so `savefig(fig, name)` and `extended_palette(n)` need no
-    further argument.
+    and any `*_colors` mapping are resolved against the palette. With `activate` (the
+    default) the result is registered via use_style and pushed into rcParams, so
+    `savefig(fig, name)` and `extended_palette(n)` need no further argument.
+
+    A notebook section may set only its output location, its palette and its semantic
+    colours (`NOTEBOOK_KEYS`, `*_colors`, `c_*`). Typography, strokes and figure sizes
+    live in `base` alone (D55); a section that overrides one is a crash, not a drift.
     """
     cfg = (load_settings(path).get("style") or {})
     known = cfg.get("notebooks") or {}
     if notebook not in known:
         raise KeyError(f"universal_settings.yml has no style.notebooks.{notebook} "
                        f"(known: {sorted(known)})")
-    style = {**(cfg.get("base") or {}), **(known[notebook] or {})}
+    section = known[notebook] or {}
+    illegal = sorted(k for k in section if k not in NOTEBOOK_KEYS
+                     and not k.endswith("_colors") and not k.startswith("c_"))
+    if illegal:
+        raise KeyError(f"style.notebooks.{notebook} overrides base-only key(s) {illegal}; "
+                       "typography, strokes and figure sizes are set once in style.base (D55)")
+    style = {**(cfg.get("base") or {}), **section}
 
     colors = list(style.get("colors") or [])
     style["colors"] = colors
     for key in [k for k in style if k.endswith("_colors")]:
         style[key] = _resolve_refs(style[key], colors)
     style.update(_resolve_refs(style.pop("roles", None), colors))
-    for key, val in style.items():
-        if key.startswith("figsize") and isinstance(val, list):
-            style[key] = tuple(val)
 
     if activate:
         use_style(style)

@@ -7,10 +7,11 @@ from matplotlib.ticker import FuncFormatter, MaxNLocator, PercentFormatter
 import numpy as np
 
 from .shared_style import (
-    PNG_DPI, black_legend, blue_cream_red_colormap,
+    PNG_DPI, black_legend, figure_colormap,
     display_figure, finalize_figure, label_panels, load_style, palette, panel_grid, panel_label,
     style_axis, style_colorbar,
 )
+from .shared_style import font_size, stroke, figsize as project_figsize
 
 TRUE_GROUP = "Three-model TRUE agreement"
 REST_GROUP = "Rest: not three-model TRUE agreement"
@@ -104,14 +105,14 @@ def show_current_figure(result, stem):
 def plot_candidate_agreement(model_summary, vote_distribution, agreement_matrix, yearly):
     """Six complementary panels; agreement uses only jointly parsed predictions."""
     style = load_style("00_dataset")
-    fig, axes = plt.subplots(2, 3, figsize=(14.2, 8.3), layout="constrained")
+    fig, axes = plt.subplots(2, 3, figsize=project_figsize("landscape"), layout="constrained")
     fig.get_layout_engine().set(w_pad=.10, h_pad=.12, wspace=.07, hspace=.13)
     ax = axes[0, 0]
     x = np.arange(len(model_summary))
     ax.bar(x - .19, model_summary.true_percent_among_parsed, width=.36,
-           color=palette("red"), edgecolor=palette("navy"), linewidth=.6, label="TRUE among parsed")
+           color=palette("red"), edgecolor="black", linewidth=stroke("edge"), label="TRUE among parsed")
     ax.bar(x + .19, model_summary.parse_rate_percent, width=.36,
-           color=palette("light_blue"), edgecolor=palette("navy"), linewidth=.6, label="Parsed among all")
+           color=palette("light_blue"), edgecolor="black", linewidth=stroke("edge"), label="Parsed among all")
     ax.set_xticks(x, [name.replace("-", "\n", 1) for name in model_summary.display_name])
     ax.set(ylabel="Share of candidates", ylim=(0, 140))
     ax.set_yticks([0, 25, 50, 75, 100])
@@ -122,7 +123,7 @@ def plot_candidate_agreement(model_summary, vote_distribution, agreement_matrix,
     ax = axes[0, 1]
     votes = vote_distribution.set_index("n_true_votes").n_candidates.reindex(range(4), fill_value=0)
     bars = ax.bar(range(4), votes, color=[palette("steel_blue")] * 3 + [palette("red")],
-                  edgecolor=palette("navy"), linewidth=.6)
+                  edgecolor="black", linewidth=stroke("edge"))
     ax.bar_label(bars, labels=[f"{value:,}" for value in votes], padding=4, fontsize=style["annot_fs"])
     ax.set(xlabel="Number of TRUE predictions", ylabel="Candidates", xticks=range(4))
     ax.set_ylim(0, max(float(votes.max()), 1) * 1.22)
@@ -133,8 +134,8 @@ def plot_candidate_agreement(model_summary, vote_distribution, agreement_matrix,
     ax = axes[0, 2]
     values = np.ma.masked_invalid(100 * agreement_matrix.to_numpy(dtype=float))
     low, high = heatmap_limits(values)
-    image = ax.pcolormesh(values, cmap=blue_cream_red_colormap(), vmin=low, vmax=high,
-                         edgecolors=palette("navy"), linewidth=.6)
+    image = ax.pcolormesh(values, cmap=figure_colormap(), vmin=low, vmax=high,
+                         edgecolors="black", linewidth=stroke("edge"))
     labels = [name.replace("-", "\n", 1) for name in model_summary.display_name]
     ax.set_xticks(np.arange(len(labels)) + .5, labels)
     ax.set_yticks(np.arange(len(labels)) + .5, model_summary.display_name)
@@ -158,7 +159,7 @@ def plot_candidate_agreement(model_summary, vote_distribution, agreement_matrix,
             GROUP_COLORS, GROUP_LABELS):
         counts = series[key].astype(float)
         ax.plot(series.index, counts.where(counts.gt(0)), marker="o", markersize=4,
-                linewidth=1.7, color=color, label=label)
+                linewidth=stroke("line"), color=color, label=label)
     ax.set_yscale("log")
     ax.yaxis.set_major_formatter(FuncFormatter(lambda value, _: f"{value:,.0f}" if value >= 1 else f"{value:g}"))
     ax.set_ylabel("Candidates (log scale)")
@@ -168,7 +169,7 @@ def plot_candidate_agreement(model_summary, vote_distribution, agreement_matrix,
 
     ax = axes[1, 1]
     ax.plot(series.index, series.three_model_TRUE_agreement_rate_percent,
-            color=palette("red"), marker="o", markersize=4, linewidth=1.7)
+            color=palette("red"), marker="o", markersize=4, linewidth=stroke("line"))
     ax.set(ylabel="Unanimous TRUE / all candidates", ylim=(0, 105))
     _years(ax)
     _percent(ax)
@@ -177,7 +178,7 @@ def plot_candidate_agreement(model_summary, vote_distribution, agreement_matrix,
     ax = axes[1, 2]
     for model, color, label in zip(model_summary.model, MODEL_COLORS, model_summary.display_name):
         ax.plot(series.index, series[f"{model}_TRUE"], marker="o", markersize=4,
-                linewidth=1.7, color=color, label=label)
+                linewidth=stroke("line"), color=color, label=label)
     ax.set_ylabel("TRUE predictions")
     ax.set_ylim(bottom=0)
     ax.yaxis.set_major_locator(MaxNLocator(nbins=4, integer=True))
@@ -191,7 +192,7 @@ def plot_candidate_agreement(model_summary, vote_distribution, agreement_matrix,
 def plot_candidate_text(category_summary, tfidf_terms):
     """Combine mention/keyword profiles and signed, descriptive TF-IDF contrasts."""
     load_style("00_dataset")
-    fig = plt.figure(figsize=(15, 14), layout="constrained")
+    fig = plt.figure(figsize=project_figsize("square"), layout="constrained")
     fig.get_layout_engine().set(w_pad=.10, h_pad=.12, wspace=.12, hspace=.12)
     grid = fig.add_gridspec(2, 2, width_ratios=[1.12, 1])
     ax = fig.add_subplot(grid[:, 0])
@@ -201,7 +202,7 @@ def plot_candidate_text(category_summary, tfidf_terms):
     sizes = category_summary.groupby("binary_split").n_group.first()
     for offset, group, label, color in zip((-.19, .19), GROUPS, GROUP_LABELS, GROUP_COLORS):
         ax.barh(y + offset, pivot[group], height=.36, color=color,
-                edgecolor=palette("navy"), linewidth=.5, label=f"{label} (n={sizes[group]:,})")
+                edgecolor="black", linewidth=stroke("edge"), label=f"{label} (n={sizes[group]:,})")
     ax.set_yticks(y, [name.replace("explicit UKB", "Explicit UK Biobank mention") for name in pivot.index])
     ax.set(ylim=(len(pivot) + .8, -.8), xlim=(0, 105), xlabel="Candidates with cue in title or abstract")
     _percent(ax, axis="x")
@@ -220,7 +221,7 @@ def plot_candidate_text(category_summary, tfidf_terms):
         ax = fig.add_subplot(grid[row, 1])
         positions = np.arange(len(data))
         ax.barh(positions, sign * data[difference], color=color,
-                edgecolor=palette("navy"), linewidth=.5)
+                edgecolor="black", linewidth=stroke("edge"))
         ax.set_yticks(positions, data.term)
         ax.invert_yaxis()
         ax.set_xlim(0, max_difference * 1.05)
@@ -237,16 +238,16 @@ def plot_semantic_diagnostics(data):
     if not data.year_int.between(2013, 2025).all():
         raise ValueError("Semantic coordinates must describe the 2013–2025 analysis window.")
     style = load_style("00_dataset")
-    fig, axes = plt.subplots(1, 2, figsize=(12, 5.3), sharex=True, sharey=True, layout="constrained")
+    fig, axes = plt.subplots(1, 2, figsize=project_figsize("wide"), sharex=True, sharey=True, layout="constrained")
     fig.get_layout_engine().set(w_pad=.12, h_pad=.1, wspace=.10)
     for group, label, color in zip(GROUPS, GROUP_LABELS, GROUP_COLORS):
         subset = data.loc[data.binary_split.eq(group)]
         axes[0].scatter(subset.semantic_x, subset.semantic_y, s=9, alpha=.65, color=color,
                         linewidths=0, rasterized=True, label=label.replace(" ", "\n", 1))
-    black_legend(axes[0], style, loc="lower right", fontsize=style["legend_fs"] - 2,
+    black_legend(axes[0], style, loc="lower right", fontsize=font_size("legend"),
                  handlelength=1, handletextpad=.4, borderpad=.4, labelspacing=.5)
     points = axes[1].scatter(data.semantic_x, data.semantic_y, c=data.year_int.astype(int),
-                             norm=Normalize(2013, 2025), cmap=blue_cream_red_colormap(),
+                             norm=Normalize(2013, 2025), cmap=figure_colormap(),
                              s=9, alpha=.8, linewidths=0, rasterized=True)
     cbar = fig.colorbar(points, ax=axes[1], pad=.02, fraction=.04, ticks=[2013, 2016, 2019, 2022, 2025])
     style_colorbar(cbar, "Publication year")
@@ -261,7 +262,7 @@ def plot_semantic_diagnostics(data):
 def plot_consensus_validation(model_summary, yearly, category_summary):
     """Three consensus diagnostics; semantic projections are shown separately."""
     style = load_style("00_dataset")
-    fig = plt.figure(figsize=(14, 10.2), layout="constrained")
+    fig = plt.figure(figsize=project_figsize("standard"), layout="constrained")
     grid = fig.add_gridspec(2, 2, height_ratios=[1, 1.35])
     axes = [fig.add_subplot(grid[0, 0]), fig.add_subplot(grid[0, 1]),
             fig.add_subplot(grid[1, :])]
@@ -276,7 +277,7 @@ def plot_consensus_validation(model_summary, yearly, category_summary):
     ax = axes[0]
     for model, color, label in zip(model_summary.model, MODEL_COLORS, model_summary.display_name):
         ax.plot(series.index, series[f"{model}_TRUE"], marker="o", markersize=4,
-                linewidth=1.7, color=color, label=label)
+                linewidth=stroke("line"), color=color, label=label)
     ax.set(ylabel="TRUE predictions", ylim=(0, None))
     ax.yaxis.set_major_locator(MaxNLocator(nbins=5, integer=True))
     ax.yaxis.set_major_formatter(FuncFormatter(lambda value, _: f"{value:,.0f}"))
@@ -289,7 +290,7 @@ def plot_consensus_validation(model_summary, yearly, category_summary):
             GROUP_COLORS, GROUP_LABELS):
         counts = series[column].astype(float)
         ax.plot(series.index, counts.where(counts.gt(0)), marker="o", markersize=4,
-                linewidth=1.7, color=color, label=label)
+                linewidth=stroke("line"), color=color, label=label)
     ax.set_yscale("log")
     ax.minorticks_off()
     ax.yaxis.set_major_formatter(FuncFormatter(
@@ -305,7 +306,7 @@ def plot_consensus_validation(model_summary, yearly, category_summary):
     y = np.arange(len(pivot))
     for offset, group, label, color in zip((-.19, .19), GROUPS, GROUP_LABELS, GROUP_COLORS):
         ax.barh(y + offset, pivot[group], height=.36, color=color,
-                edgecolor=palette("navy"), linewidth=.5, label=f"{label} (n={sizes[group]:,})")
+                edgecolor="black", linewidth=stroke("edge"), label=f"{label} (n={sizes[group]:,})")
     labels = [name.replace("explicit UKB", "Explicit UK Biobank mention") for name in pivot.index]
     ax.set_yticks(y, labels)
     ax.set(ylim=(len(pivot) + 1.3, -.8), xlim=(0, 105), xlabel="Candidates with cue in title or abstract")
@@ -349,12 +350,12 @@ def plot_consensus_groups(group_distribution):
         "No TRUE votes / parsed non-positive": palette("steel_blue"),
         "No parsed model labels": palette("blue"),
     }
-    fig, ax = plt.subplots(figsize=(10.8, max(4.2, .6 * len(data) + 1.5)), layout="constrained")
+    fig, ax = plt.subplots(figsize=project_figsize(max(4.2, .6 * len(data) + 1.5) / 10.8), layout="constrained")
     fig.get_layout_engine().set(w_pad=.12, h_pad=.12)
     y = np.arange(len(data))
     bars = ax.barh(y, data.n_candidates, height=.66,
                    color=[colors.get(group, palette("blue")) for group in data.consensus_group],
-                   edgecolor=palette("navy"), linewidth=.6)
+                   edgecolor="black", linewidth=stroke("edge"))
     total = float(data.n_candidates.sum())
     annotations = []
     for count in data.n_candidates:

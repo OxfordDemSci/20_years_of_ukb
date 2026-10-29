@@ -133,16 +133,17 @@ DEC_M_MAIN = 5
 from matplotlib.colors import to_rgb                                   # noqa: E402
 
 from utils.shared_style import (                                        # noqa: E402
-    PALETTE_COLORS, academic_impact_colormap, facet_ylabel, grid_on, panel_label, savefig,
+    PALETTE_COLORS, facet_ylabel, grid_on, panel_label, savefig,
     year_ticks, scatter_callouts, black_legend, align_legend_rows,
 )
+from utils.shared_style import font_size, stroke, neutral, figsize
 
 
 #: Exact project colours; additional fields reuse hues with different line/marker styles.
 FIELD_CYCLE = [
     PALETTE_COLORS["red"],            # 1st field  — Epidemiology, the family's lead
     PALETTE_COLORS["navy"],
-    PALETTE_COLORS["green"],
+    PALETTE_COLORS["light_red"],
     PALETTE_COLORS["steel_blue"],
     PALETTE_COLORS["light_blue"],
     PALETTE_COLORS["blue"],
@@ -155,9 +156,9 @@ FIELD_CYCLE = [
 C_ABOVE, C_BELOW = PALETTE_COLORS["red"], PALETTE_COLORS["steel_blue"]
 
 #: Neutral ink for reference lines, parity rules and supporting annotations.
-C_INK = "#3D3D3D"
-C_MUTED = "#BDBDBD"
-C_QUADRANT = "#8A8A8A"
+C_INK = neutral("muted")
+C_MUTED = neutral("missing")
+C_QUADRANT = neutral("missing")
 
 #: Impact map axis ticks; `draw_impact_map` keeps the ones inside its limits.
 MAP_X_TICKS = (1 / 8, 1 / 4, 1 / 2, 1, 1.5, 2, 3, 4, 6, 8, 12, 16, 24)
@@ -419,7 +420,6 @@ def assert_parameters_match(D) -> None:
 # returns it. None creates a figure, sets a figure size, or calls savefig: the assembler
 # owns the page, so a panel cannot quietly impose its own geometry on the one it shares.
 
-from contextlib import contextmanager                                   # noqa: E402
 
 import matplotlib.pyplot as plt                                         # noqa: E402
 import matplotlib.ticker as mticker                                     # noqa: E402
@@ -433,39 +433,6 @@ def _style():
     """The active style, so a draw function can read type sizes without an argument."""
     from utils import shared_style
     return shared_style._resolve(None)
-
-
-@contextmanager
-def _font_scale(factor):
-    """Draw the enclosed figure with every font size multiplied by `factor`.
-
-    Same mechanism as the 04 family: the main figure is read at figure width in a paper
-    and the SI panels full page on a screen, so they want different type. One number per
-    figure in `fs_scale` rather than a second style section that would drift from this
-    one. Restores the original style on the way out, including after an exception.
-    """
-    from utils import shared_style
-    original = _style()
-    if not factor or factor == 1:
-        yield original
-        return
-    scaled = dict(original)
-    for key in ("title_fs", "label_fs", "tick_fs", "annot_fs", "legend_fs",
-                "body_fs", "panel_label_fs"):
-        if key in scaled:
-            scaled[key] = scaled[key] * factor
-    shared_style.use_style(scaled)
-    shared_style.apply_style(scaled)
-    try:
-        yield scaled
-    finally:
-        shared_style.use_style(original)
-        shared_style.apply_style(original)
-
-
-def _fs_scale(figure: str) -> float:
-    """Type scale for one figure, from `fs_scale` in the style section (default 1.0)."""
-    return float((_style().get("fs_scale") or {}).get(figure, 1.0))
 
 
 def _times_fmt(v, _=None):
@@ -526,10 +493,10 @@ def draw_activity_index(ax, D, top_m: int = ACT_TOP_M_MAIN):
     ypos = np.arange(len(tbl))
     colors = [C_ABOVE if a >= 1 else C_BELOW for a in tbl.activity]
     sizes = 24 + 260 * np.sqrt(tbl.ukbb / tbl.ukbb.max())
-    ax.hlines(ypos, 1.0, tbl.activity, color=colors, lw=1.6, alpha=0.55)
+    ax.hlines(ypos, 1.0, tbl.activity, color=colors, lw=stroke("ref"), alpha=0.55)
     ax.scatter(tbl.activity, ypos, s=sizes, color=colors, zorder=3,
-               edgecolor="black", linewidth=0.6)
-    ax.axvline(1.0, color=C_INK, lw=1.2)
+               edgecolor="black", linewidth=stroke("edge"))
+    ax.axvline(1.0, color=C_INK, lw=stroke("ref"))
     for y, a in zip(ypos, tbl.activity):
         left = a < 1.0
         ax.annotate(f"{a:.1f}x", (a, y), fontsize=st["annot_fs"],
@@ -544,7 +511,7 @@ def draw_activity_index(ax, D, top_m: int = ACT_TOP_M_MAIN):
     ax.set_xlim(tbl.activity.min() / 3.0, tbl.activity.max() * 3.0)
     ax.set_yticks(ypos)
     from textwrap import fill
-    ax.set_yticklabels([fill(lab, 36) for lab in tbl.label], fontsize=st["tick_fs"])
+    ax.set_yticklabels([fill(lab, 40) for lab in tbl.label], fontsize=st["tick_fs"])
     ax.set_ylim(-0.9, len(tbl) - 0.1)
     ax.set_xlabel(f"activity index, log scale\n({D['ACTIVITY_LABEL']})")
     grid_on(ax, axis="x")
@@ -592,7 +559,7 @@ def draw_impact_map(ax, D, top_m: int = MAP_M_MAIN, label_all: bool = False):
                    s=26 + 260 * np.sqrt(r.ukbb_papers / big.ukbb_papers.max()),
                    marker=styles[labels[code]]["marker"] if top else "o",
                    color=col, alpha=0.95 if top else 0.55, zorder=3 if top else 2,
-                   edgecolor="black", linewidth=0.6)
+                   edgecolor="black", linewidth=stroke("edge"))
 
     # Label the top-N (colour-matched to every other panel) plus whatever is extreme on
     # either axis — those are the points a reader will ask about.
@@ -605,9 +572,9 @@ def draw_impact_map(ax, D, top_m: int = MAP_M_MAIN, label_all: bool = False):
 
     # World parity is always drawn: every field sitting above it is part of the message,
     # and it is what the lower quadrants are "still above".
-    ax.axvline(1.0, color=C_INK, lw=1.2)
-    ax.axhline(ref, color=C_ABOVE, lw=1.4)
-    ax.axhline(1.0, color=C_INK, lw=1, ls=":")
+    ax.axvline(1.0, color=C_INK, lw=stroke("ref"))
+    ax.axhline(ref, color=C_ABOVE, lw=stroke("ref"))
+    ax.axhline(1.0, color=C_INK, lw=stroke("ref"), ls=":")
     ax.set_xscale("log")
     ax.set_yscale("log")
     for axis in (ax.xaxis, ax.yaxis):
@@ -718,9 +685,9 @@ def draw_top_decile_share(ax, D, label_chars: int = 22, pad_years: int = 6,
 
     ends = []
     for last, lab, col, s_ in series:
-        ax.plot(s_.index, s_.values, color=col, lw=2.2,
+        ax.plot(s_.index, s_.values, color=col, lw=stroke("line"),
                 marker=styles[lab]["marker"], ls=styles[lab]["linestyle"],
-                ms=st["marker_size"] * 0.8, markeredgecolor="black", markeredgewidth=.45)
+                ms=st["marker_size"] * 0.8, markeredgecolor="black", markeredgewidth=stroke("edge"))
         ends.append((last, float(s_.index[-1]), lab))
 
     lo = min(v for v, _, _ in ends)
@@ -744,10 +711,10 @@ def draw_top_decile_share(ax, D, label_chars: int = 22, pad_years: int = 6,
         long = sorted(sorted(range(len(entries)),
                              key=lambda i: -entries[i][2])[:rows - 1])
         order = [i for i in range(len(entries)) if i not in long] + long
-        handles = [Line2D([], [], color=entries[i][1], lw=2.2,
+        handles = [Line2D([], [], color=entries[i][1], lw=stroke("line"),
                           marker=styles[series[i][1]]["marker"],
                           ls=styles[series[i][1]]["linestyle"],
-                          markeredgecolor="black", markeredgewidth=.45,
+                          markeredgecolor="black", markeredgewidth=stroke("edge"),
                           ms=st["marker_size"] * 0.62, label=entries[i][0])
                    for i in order]
         handles.append(Line2D([], [], color=C_INK, lw=1, ls="--",
@@ -767,7 +734,7 @@ def draw_top_decile_share(ax, D, label_chars: int = 22, pad_years: int = 6,
                   borderaxespad=0.0, frameon=True, facecolor="white",
                   edgecolor="black", framealpha=1.0, fancybox=False,
                   borderpad=0.5)
-        leg.get_frame().set_linewidth(0.8)
+        leg.get_frame().set_linewidth(stroke("edge"))
         align_legend_rows(leg)
     else:
         # _nudge stacks the labels upward, so n labels need n x gap of axis; a gap tuned
@@ -783,7 +750,7 @@ def draw_top_decile_share(ax, D, label_chars: int = 22, pad_years: int = 6,
 
     # UK Biobank's overall share of this measure — the line a field has to beat to be one
     # of its stronger showings rather than simply a big field.
-    ax.axhline(overall, color=C_INK, lw=1, ls="--")
+    ax.axhline(overall, color=C_INK, lw=stroke("ref"), ls="--")
     # The axis is set from what was DRAWN, not from `share`: with `top_m` in force the
     # frame still holds the fields that were cut, and a cut field's floor or its extra
     # year would set limits nothing on the panel reaches.
@@ -902,7 +869,7 @@ def block_footprint_quality(fig, spec, D, nrow: int = 2, ncol: int = 4,
     """
     st = _style()
     top10, top50 = D["TOP10_COL"], D["TOP50_COL"]
-    gs = spec.subgridspec(nrow, ncol, hspace=0.52, wspace=0.30)
+    gs = spec.subgridspec(nrow, ncol, hspace=0.52, wspace=0.42)
 
     all_ = D["share_timeseries"]("n_papers")
     best = D["share_timeseries"](top10, denominator="n_papers")
@@ -940,7 +907,7 @@ def block_footprint_quality(fig, spec, D, nrow: int = 2, ncol: int = 4,
 
         ax.fill_between(idx, 0, b, color=col, alpha=0.85, lw=0)
         ax.fill_between(idx, b, h, color=col, alpha=0.18, lw=0)
-        ax.plot(idx, a, color=col, lw=1.8)
+        ax.plot(idx, a, color=col, lw=stroke("line"))
         facet_ylabel(ax, lab + " (%)", fontsize=st["label_fs"])
         ax.yaxis.set_major_formatter(mticker.FuncFormatter(_pct_fmt))
         ax.set_ylim(bottom=0)
@@ -982,7 +949,7 @@ def footprint_legend(fig, D, y=0.018, *, fontsize=None):
     leg = fig.legend(handles=[
         tuple(Patch(color=color, alpha=.85) for color in colors),
         tuple(Patch(color=color, alpha=.18) for color in colors),
-        tuple(Line2D([], [], color=color, lw=1.8) for color in colors)],
+        tuple(Line2D([], [], color=color, lw=stroke("line")) for color in colors)],
         labels=["in the field's most-cited 10%",
                 "above the field's median, outside the top 10%\n(pale-band % counts both bands)",
                 "all UK Biobank papers in the field"],
@@ -990,7 +957,7 @@ def footprint_legend(fig, D, y=0.018, *, fontsize=None):
         loc="lower center", bbox_to_anchor=(0.5, y), ncol=3, fontsize=fontsize or st["legend_fs"],
         frameon=True, facecolor="white", edgecolor="black", framealpha=1.0,
         fancybox=False, borderpad=0.6)
-    leg.get_frame().set_linewidth(0.8)
+    leg.get_frame().set_linewidth(stroke("edge"))
     return leg
 
 
@@ -1058,19 +1025,19 @@ def draw_growth_rates(ax, D):
 
     for y, (_, r) in zip(ypos, top.iterrows()):
         col = cols[r.label]
-        ax.plot([r.world_now, r.ukbb_now], [y, y], color=col, lw=2, alpha=0.45,
+        ax.plot([r.world_now, r.ukbb_now], [y, y], color=col, lw=stroke("line"), alpha=0.45,
                 zorder=2, solid_capstyle="round")
         ax.scatter(r.world_now, y, s=st["dot_marker_area"], facecolor="white",
-                   edgecolor=C_INK, linewidth=1.4, zorder=3)
+                   edgecolor=C_INK, linewidth=stroke("edge"), zorder=3)
         ax.scatter(r.ukbb_now, y,
                    s=34 + 220 * np.sqrt(r.ukbb_papers / top.ukbb_papers.max()),
-                   color=col, marker=markers[r.label], edgecolor="black", linewidth=0.6, zorder=4)
+                   color=col, marker=markers[r.label], edgecolor="black", linewidth=stroke("edge"), zorder=4)
         ax.annotate(f"{r.ukbb_now:.0f}%", (r.ukbb_now, y), xytext=(10, 0),
                     textcoords="offset points", va="center",
                     fontsize=st["annot_fs"], color=C_INK)
 
-    ax.axvline(0, color=C_INK, lw=1)
-    ax.axvline(D["UKBB_PACE"], color=C_ABOVE, lw=1.2, ls="--")
+    ax.axvline(0, color=C_INK, lw=stroke("ref"))
+    ax.axvline(D["UKBB_PACE"], color=C_ABOVE, lw=stroke("ref"), ls="--")
     ax.annotate(f"UK Biobank overall\n{D['UKBB_PACE']:.0f}%/yr",
                 (D["UKBB_PACE"], len(top) - 0.35), xytext=(5, 0),
                 textcoords="offset points", va="top", fontsize=st["annot_fs"],
@@ -1080,12 +1047,12 @@ def draw_growth_rates(ax, D):
     # second glyph on a row that already carries three.
     ax.annotate(f"acceleration\nvs {GROW_PREV[0]}–{GROW_PREV[1]}", (0.995, 0.995),
                 xycoords="axes fraction", ha="right", va="top",
-                fontsize=st["annot_fs"] - 1, color=C_INK)
+                fontsize=font_size("small"), color=C_INK)
     for y, (_, r) in zip(ypos, top.iterrows()):
         txt, c = ("new", C_INK) if r.accel != r.accel else (
             f"{r.accel:+.0f} pp", C_ABOVE if r.accel > 0 else C_BELOW)
         ax.annotate(txt, (0.995, y), xycoords=("axes fraction", "data"), ha="right",
-                    va="center", fontsize=st["annot_fs"] - 1, color=c)
+                    va="center", fontsize=font_size("small"), color=c)
 
     ax.set_yticks(ypos)
     from textwrap import fill
@@ -1125,20 +1092,20 @@ def draw_growth_trajectories(ax, D):
     for code, r in top.iterrows():
         s = uts[code].reindex(span).replace(0, np.nan).dropna()
         from textwrap import fill
-        ax.plot(s.index, s.values, color=cols[r.label], lw=2, marker=markers[r.label],
+        ax.plot(s.index, s.values, color=cols[r.label], lw=stroke("line"), marker=markers[r.label],
                 ls=styles[r.label]["linestyle"],
-                ms=st["marker_size"] * 0.8, markeredgecolor="black", markeredgewidth=.45,
+                ms=st["marker_size"] * 0.8, markeredgecolor="black", markeredgewidth=stroke("edge"),
                 label=fill(r.label, 30))
         ends.append((float(s.iloc[-1]), r.label))
     all_ukbb = totals.reindex(span)
-    ax.plot(all_ukbb.index, all_ukbb.values, color=C_INK, lw=2.4, ls="--", alpha=0.8,
+    ax.plot(all_ukbb.index, all_ukbb.values, color=C_INK, lw=stroke("line"), ls="--", alpha=0.8,
             label="All UK Biobank\nfield assignments")
     ends.append((float(all_ukbb.iloc[-1]), "ALL UK Biobank papers"))
 
     ax.set_yscale("log")
     ax.yaxis.set_major_formatter(mticker.FuncFormatter(lambda v, _: f"{v:,.0f}"))
     ax.yaxis.set_minor_formatter(mticker.NullFormatter())
-    ax.axvline(GROW_NOW[0], color=C_INK, ls="--", lw=1)
+    ax.axvline(GROW_NOW[0], color=C_INK, ls="--", lw=stroke("ref"))
     ax.set_xlim(GROW_PREV[0] - .2, GROW_NOW[1] + .2)
     ax.set_xticks(range(GROW_PREV[0], GROW_NOW[1] + 1, 2))
     ax.set_xlabel("Publication year")
@@ -1220,63 +1187,61 @@ def figure_main(D, save=True):
     fields, which needs the full width — and each of those eight is lettered D through K,
     because a reader citing "the genetics panel" needs an address for it.
 
-    Drawn at `fs_scale.main` — larger type than the SI pages, because this one is read at
-    figure width in a paper rather than full page on a screen.
+    Drawn square at the project width and type sizes (D55), like every other figure.
     """
     assert_parameters_match(D)
     st = _style()
-    with _font_scale(_fs_scale("main")):
-        fig = plt.figure(figsize=st["figsize_main"])
-        gs = fig.add_gridspec(4, 3, hspace=0.62, wspace=0.34,
-                              height_ratios=[1.0, 1.0, 0.82, 0.82],
-                              left=0.070, right=0.980, top=0.965, bottom=0.085)
-        ax_a = fig.add_subplot(gs[0:2, 0:2])     # impact map, two rows and two columns
-        ax_b = fig.add_subplot(gs[0, 2])         # activity index, top right
-        ax_c = fig.add_subplot(gs[1, 2])         # top-decile share, under it
-        # Reserve space below C for a readable key without extending its log scale.
-        position = ax_c.get_position()
-        ax_c.set_position([position.x0, position.y0 + .05,
-                           position.width, position.height - .025])
+    fig = plt.figure(figsize=figsize("square"))
+    gs = fig.add_gridspec(4, 3, hspace=0.68, wspace=0.34,
+                          height_ratios=[1.0, 1.0, 0.82, 0.82],
+                          left=0.070, right=0.980, top=0.965, bottom=0.110)
+    ax_a = fig.add_subplot(gs[0:2, 0:2])     # impact map, two rows and two columns
+    ax_b = fig.add_subplot(gs[0, 2])         # activity index, top right
+    ax_c = fig.add_subplot(gs[1, 2])         # top-decile share, under it
+    # Reserve space below C for a readable key without extending its log scale.
+    position = ax_c.get_position()
+    ax_c.set_position([position.x0, position.y0 + .05,
+                       position.width, position.height - .025])
 
-        draw_impact_map(ax_a, D, top_m=MAP_M_MAIN)
-        draw_activity_index(ax_b, D, top_m=ACT_TOP_M_MAIN)
-        # A third of the page width: eight direct labels and the empty years they need to
-        # sit in would leave the decade this panel is about squeezed into two thirds of
-        # its own axis, so here the fields go into a legend and the panel is cut to the
-        # five that reach furthest. SI 1B carries all 25, direct-labelled, at full width.
-        #
-        legend_fs = st.get("main_legend_fs", 14)
-        draw_top_decile_share(ax_c, D, label_chars=22, pad_years=1, top_m=DEC_M_MAIN,
-                              legend=True, legend_fontsize=legend_fs, legend_below=True)
-        block_footprint_quality(fig, gs[2:4, 0:3], D, letters="DEFGHIJK")
+    draw_impact_map(ax_a, D, top_m=MAP_M_MAIN)
+    draw_activity_index(ax_b, D, top_m=ACT_TOP_M_MAIN)
+    # A third of the page width: eight direct labels and the empty years they need to
+    # sit in would leave the decade this panel is about squeezed into two thirds of
+    # its own axis, so here the fields go into a legend and the panel is cut to the
+    # five that reach furthest. SI 1B carries all 25, direct-labelled, at full width.
+    #
+    legend_fs = st["legend_fs"]
+    draw_top_decile_share(ax_c, D, label_chars=22, pad_years=1, top_m=DEC_M_MAIN,
+                          legend=True, legend_fontsize=legend_fs, legend_below=True)
+    block_footprint_quality(fig, gs[2:4, 0:3], D, letters="DEFGHIJK")
 
-        for ax, letter in ((ax_a, "A"), (ax_b, "B"), (ax_c, "C")):
-            panel_label(ax, letter)
-        footprint_legend(fig, D, fontsize=legend_fs)
-        fig.canvas.draw()
-        label_bottom = ax_c.xaxis.label.get_window_extent(fig.canvas.get_renderer()).y0
-        legend_top = ax_c.transAxes.inverted().transform(
-            (0, label_bottom - 8 * fig.dpi / 72))[1]
-        ax_c.get_legend().set_bbox_to_anchor((0, legend_top, 1, 0))
-        fig._ukb_caption = (
-            "Academic position of UK Biobank research, 2015-2025. (A) Within-division "
-            "activity index versus relative mean normalised citation impact for the 16 "
-            "largest eligible fields; marker area reflects publication count. The red "
-            "horizontal line marks overall UK Biobank impact and the vertical line marks "
-            "activity parity; the dotted line marks the all-Dimensions citation average (1.0x). (B) Activity indices for the ten largest fields. "
-            "(C) Annual UK Biobank shares of field-specific top-decile citation pools "
-            "for the five leading fields by final-year share; the dashed line is the "
-            "pooled UK Biobank share. (D-K) UK Biobank publications as a percentage of all "
-            "publications in each of eight fields, partitioned into top-decile (solid) "
-            "and other above-median (pale) citation credit. In-band percentages are "
-            "final-year fractions of UK Biobank's own field output: in the top decile "
-            "(solid) and above the median, top decile included (pale). Citation "
-            "thresholds are measured separately by field and publication year; integer "
-            "ties can produce achieved fractions different from 10% and 50%."
-        )
+    for ax, letter in ((ax_a, "A"), (ax_b, "B"), (ax_c, "C")):
+        panel_label(ax, letter)
+    footprint_legend(fig, D, fontsize=legend_fs)
+    fig.canvas.draw()
+    label_bottom = ax_c.xaxis.label.get_window_extent(fig.canvas.get_renderer()).y0
+    legend_top = ax_c.transAxes.inverted().transform(
+        (0, label_bottom - 8 * fig.dpi / 72))[1]
+    ax_c.get_legend().set_bbox_to_anchor((0, legend_top, 1, 0))
+    fig._ukb_caption = (
+        "Academic position of UK Biobank research, 2015-2025. (A) Within-division "
+        "activity index versus relative mean normalised citation impact for the 16 "
+        "largest eligible fields; marker area reflects publication count. The red "
+        "horizontal line marks overall UK Biobank impact and the vertical line marks "
+        "activity parity; the dotted line marks the all-Dimensions citation average (1.0x). (B) Activity indices for the ten largest fields. "
+        "(C) Annual UK Biobank shares of field-specific top-decile citation pools "
+        "for the five leading fields by final-year share; the dashed line is the "
+        "pooled UK Biobank share. (D-K) UK Biobank publications as a percentage of all "
+        "publications in each of eight fields, partitioned into top-decile (solid) "
+        "and other above-median (pale) citation credit. In-band percentages are "
+        "final-year fractions of UK Biobank's own field output: in the top decile "
+        "(solid) and above the median, top decile included (pale). Citation "
+        "thresholds are measured separately by field and publication year; integer "
+        "ties can produce achieved fractions different from 10% and 50%."
+    )
 
-        if save:
-            savefig(fig, P.MAIN_FIGURE_STEMS[5])
+    if save:
+        savefig(fig, P.MAIN_FIGURE_STEMS[5])
     return fig
 
 
@@ -1289,120 +1254,117 @@ def figure_si_impact_map(D, save=True):
     pages cannot disagree about which 25.
     """
     st = _style()
-    with _font_scale(_fs_scale("si1_impact_map")):
-        fig, ax = plt.subplots(figsize=st["figsize_si_wide"])
-        draw_impact_map(ax, D, top_m=MAP_M_SI, label_all=True)
-        panel_label(ax, "A")
-        fig._ukb_caption = (
-            "Research specialisation and citation impact of UK Biobank publications, "
-            "2015-2025, across the 25 largest fields with both measures available. "
-            "The horizontal axis compares the field's share of UK Biobank output with "
-            "its reference-literature share within the same research division. The "
-            "vertical axis compares mean normalised citation impact with the same-field "
-            "reference. Both axes are logarithmic; marker area represents publication "
-            "count. The red line marks overall UK Biobank impact, and parity lines mark "
-            "a ratio of one. Curved arrows identify every field without covering its marker."
-        )
-        if save:
-            savefig(fig, "03_02_supplementary_figure_01_impact_map_full")
+    fig, ax = plt.subplots(figsize=figsize("standard"))
+    draw_impact_map(ax, D, top_m=MAP_M_SI, label_all=True)
+    panel_label(ax, "A")
+    fig._ukb_caption = (
+        "Research specialisation and citation impact of UK Biobank publications, "
+        "2015-2025, across the 25 largest fields with both measures available. "
+        "The horizontal axis compares the field's share of UK Biobank output with "
+        "its reference-literature share within the same research division. The "
+        "vertical axis compares mean normalised citation impact with the same-field "
+        "reference. Both axes are logarithmic; marker area represents publication "
+        "count. The red line marks overall UK Biobank impact, and parity lines mark "
+        "a ratio of one. Curved arrows identify every field without covering its marker."
+    )
+    if save:
+        savefig(fig, "03_02_supplementary_figure_01_impact_map_full")
     return fig
 
 
 def figure_si_top_decile(D, save=True):
     """SI 2: the map's 25 fields, in separate panels with a common log scale."""
     st = _style()
-    with _font_scale(_fs_scale("si2_top_decile")):
-        codes = list(map_fields(D, MAP_M_SI).index)
-        metric = CITE_SHARE_METRIC
-        share = D["share_timeseries"](metric, codes=codes)
-        share = share.loc[share.index.isin(D["CITE_YEARS"][metric])].where(lambda f: f > 0)
-        values = share.to_numpy()
-        lower, upper = np.nanmin(values) / 1.4, np.nanmax(values) * 1.5
-        win = D["CITE_WIN"]
-        overall = 100 * (D["ukbb"].loc[D["ukbb"].year.between(*win), metric].sum()
-                         / D["whole"].loc[D["whole"].year.between(*win), metric].sum())
-        fig, axes = plt.subplots(5, 5, figsize=st["figsize_si_grid"], sharex=True, sharey=True)
-        fig.subplots_adjust(left=.09, right=.98, bottom=.10, top=.96, wspace=.60, hspace=.45)
-        styles = field_line_styles(D, [D["label_of"](code) for code in codes])
-        for i, (ax, code) in enumerate(zip(axes.flat, codes)):
-            lab = D["label_of"](code)
-            s = share[code]
-            color = D["FIELD_COLORS"].get(lab, PALETTE_COLORS["steel_blue"])
-            ax.plot(s.index, s, color=color, lw=2, marker=styles[lab]["marker"], ms=6,
-                    markeredgecolor="black", markeredgewidth=.4)
-            ax.axhline(overall, color="black", lw=1, ls="--")
-            ax.set(yscale="log", ylim=(lower, upper))
-            ax.set_xticks(year_ticks(share.index.min(), share.index.max(), 5))
-            ax.yaxis.set_major_formatter(mticker.FuncFormatter(_pct_fmt))
-            ax.yaxis.set_minor_formatter(mticker.NullFormatter())
-            facet_ylabel(ax, lab, width=24)
-            ax.tick_params(labelleft=True)
-            grid_on(ax, which="major", alpha=.22)
-            panel_label(ax, chr(65 + i))
-            if i >= 20:
-                ax.set_xlabel("Publication year")
-        for ax in axes.flat[len(codes):]:
-            ax.set_visible(False)
-        fig.supylabel("UK Biobank share of the field's top-decile citation pool (log scale)", x=.005)
-        black_legend(fig, handles=[Line2D([], [], color="black", ls="--",
-                                         label=f"UK Biobank overall: {overall:.2f}%")],
-                     loc="lower center", bbox_to_anchor=(.5, .015))
-        fig._ukb_caption = (
-            "UK Biobank's share of the measured top-decile citation pool in its 25 largest "
-            "fields with available activity and citation-impact estimates (A-Y). All panels "
-            "use the same logarithmic percentage scale. Each numerator is the field-year "
-            "top-decile credit assigned to UK Biobank papers; its denominator is the "
-            "corresponding whole-database pool. Dashed lines mark the pooled UK Biobank "
-            "share across all fields in 2015-2025. Missing measurements and zeros are not "
-            "drawn on the logarithmic axes. These are the same fields as Supplementary Figure 1."
-        )
-        summary = []
-        for code in codes:
-            measured = share[code].dropna()
-            if not measured.empty:
-                summary.append({"code": code, "field": D["label_of"](code),
-                                "first_year": int(measured.index[0]),
-                                "last_year": int(measured.index[-1]),
-                                "first_share_pct": measured.iloc[0],
-                                "last_share_pct": measured.iloc[-1],
-                                "change_pp": measured.iloc[-1] - measured.iloc[0]})
-        fig._ukb_tables = {
-            "top_decile_share_endpoints.csv": pd.DataFrame(summary),
-            "top_decile_share_by_field_year.csv": share.rename_axis("year").reset_index(),
-        }
-        if save:
-            savefig(fig, "03_03_supplementary_figure_02_top_decile_share")
+    codes = list(map_fields(D, MAP_M_SI).index)
+    metric = CITE_SHARE_METRIC
+    share = D["share_timeseries"](metric, codes=codes)
+    share = share.loc[share.index.isin(D["CITE_YEARS"][metric])].where(lambda f: f > 0)
+    values = share.to_numpy()
+    lower, upper = np.nanmin(values) / 1.4, np.nanmax(values) * 1.5
+    win = D["CITE_WIN"]
+    overall = 100 * (D["ukbb"].loc[D["ukbb"].year.between(*win), metric].sum()
+                     / D["whole"].loc[D["whole"].year.between(*win), metric].sum())
+    fig, axes = plt.subplots(5, 5, figsize=figsize("square"), sharex=True, sharey=True)
+    fig.subplots_adjust(left=.09, right=.98, bottom=.10, top=.96, wspace=.60, hspace=.45)
+    styles = field_line_styles(D, [D["label_of"](code) for code in codes])
+    for i, (ax, code) in enumerate(zip(axes.flat, codes)):
+        lab = D["label_of"](code)
+        s = share[code]
+        color = D["FIELD_COLORS"].get(lab, PALETTE_COLORS["steel_blue"])
+        ax.plot(s.index, s, color=color, lw=stroke("line"), marker=styles[lab]["marker"], ms=6,
+                markeredgecolor="black", markeredgewidth=stroke("edge"))
+        ax.axhline(overall, color="black", lw=stroke("ref"), ls="--")
+        ax.set(yscale="log", ylim=(lower, upper))
+        ax.set_xticks(year_ticks(share.index.min(), share.index.max(), 5))
+        ax.yaxis.set_major_formatter(mticker.FuncFormatter(_pct_fmt))
+        ax.yaxis.set_minor_formatter(mticker.NullFormatter())
+        facet_ylabel(ax, lab, width=24)
+        ax.tick_params(labelleft=True)
+        grid_on(ax, which="major", alpha=.22)
+        panel_label(ax, chr(65 + i))
+        if i >= 20:
+            ax.set_xlabel("Publication year")
+    for ax in axes.flat[len(codes):]:
+        ax.set_visible(False)
+    fig.supylabel("UK Biobank share of the field's top-decile citation pool (log scale)", x=.005)
+    black_legend(fig, handles=[Line2D([], [], color="black", ls="--",
+                                     label=f"UK Biobank overall: {overall:.2f}%")],
+                 loc="lower center", bbox_to_anchor=(.5, .015))
+    fig._ukb_caption = (
+        "UK Biobank's share of the measured top-decile citation pool in its 25 largest "
+        "fields with available activity and citation-impact estimates (A-Y). All panels "
+        "use the same logarithmic percentage scale. Each numerator is the field-year "
+        "top-decile credit assigned to UK Biobank papers; its denominator is the "
+        "corresponding whole-database pool. Dashed lines mark the pooled UK Biobank "
+        "share across all fields in 2015-2025. Missing measurements and zeros are not "
+        "drawn on the logarithmic axes. These are the same fields as Supplementary Figure 1."
+    )
+    summary = []
+    for code in codes:
+        measured = share[code].dropna()
+        if not measured.empty:
+            summary.append({"code": code, "field": D["label_of"](code),
+                            "first_year": int(measured.index[0]),
+                            "last_year": int(measured.index[-1]),
+                            "first_share_pct": measured.iloc[0],
+                            "last_share_pct": measured.iloc[-1],
+                            "change_pp": measured.iloc[-1] - measured.iloc[0]})
+    fig._ukb_tables = {
+        "top_decile_share_endpoints.csv": pd.DataFrame(summary),
+        "top_decile_share_by_field_year.csv": share.rename_axis("year").reset_index(),
+    }
+    if save:
+        savefig(fig, "03_03_supplementary_figure_02_top_decile_share")
     return fig
 
 
 def figure_si_growth(D, save=True):
     """SI 3 — growth, not size. A growth result inside an impact analysis, hence SI."""
     st = _style()
-    with _font_scale(_fs_scale("si3_growth")):
-        fig = plt.figure(figsize=st["figsize_si"])
-        gs = fig.add_gridspec(1, 2, wspace=0.30, width_ratios=[1.15, 1.0],
-                             left=.23, right=.98, top=.96, bottom=.21)
-        axes = _assemble_axes(fig, gs, [(0, 0), (0, 1)])
-        draw_growth_rates(axes[0], D)
-        draw_growth_trajectories(axes[1], D)
-        for ax, letter in zip(axes, "AB"):
-            panel_label(ax, letter)
-        handles, labels = axes[1].get_legend_handles_labels()
-        black_legend(fig, handles=handles, labels=labels, loc="lower center", ncol=4,
-                     bbox_to_anchor=(.55, .01), fontsize=st["legend_fs"])
-        fig._ukb_caption = (
-            "Growth of UK Biobank research by field. (A) Compound annual growth during "
-            "2021-2025 for UK Biobank (filled markers) and the reference literature "
-            "(hollow markers). Fields are ranked by UK Biobank growth, requiring at least "
-            "five papers in 2021 and 20 in 2025. Filled-marker area reflects 2025 output. "
-            "The right-hand column gives the change in annual growth relative to 2017-2021, "
-            "in percentage points; 'new' denotes an unavailable earlier rate. "
-            "(B) Publication trajectories for the same fields, on a logarithmic axis. "
-            "The vertical dashed line marks 2021. The dashed curve sums UK Biobank "
-            "publication-field assignments, so papers in multiple fields contribute more "
-            "than once; the overall growth reference in A uses the same aggregate."
-        )
-        fig._ukb_tables = {"growth_rates_complete.csv": D["GROWTH"].reset_index()}
-        if save:
-            savefig(fig, "03_04_supplementary_figure_03_growth")
+    fig = plt.figure(figsize=figsize("landscape"))
+    gs = fig.add_gridspec(1, 2, wspace=0.30, width_ratios=[1.15, 1.0],
+                         left=.23, right=.98, top=.96, bottom=.21)
+    axes = _assemble_axes(fig, gs, [(0, 0), (0, 1)])
+    draw_growth_rates(axes[0], D)
+    draw_growth_trajectories(axes[1], D)
+    for ax, letter in zip(axes, "AB"):
+        panel_label(ax, letter)
+    handles, labels = axes[1].get_legend_handles_labels()
+    black_legend(fig, handles=handles, labels=labels, loc="lower center", ncol=4,
+                 bbox_to_anchor=(.55, .01), fontsize=st["legend_fs"])
+    fig._ukb_caption = (
+        "Growth of UK Biobank research by field. (A) Compound annual growth during "
+        "2021-2025 for UK Biobank (filled markers) and the reference literature "
+        "(hollow markers). Fields are ranked by UK Biobank growth, requiring at least "
+        "five papers in 2021 and 20 in 2025. Filled-marker area reflects 2025 output. "
+        "The right-hand column gives the change in annual growth relative to 2017-2021, "
+        "in percentage points; 'new' denotes an unavailable earlier rate. "
+        "(B) Publication trajectories for the same fields, on a logarithmic axis. "
+        "The vertical dashed line marks 2021. The dashed curve sums UK Biobank "
+        "publication-field assignments, so papers in multiple fields contribute more "
+        "than once; the overall growth reference in A uses the same aggregate."
+    )
+    fig._ukb_tables = {"growth_rates_complete.csv": D["GROWTH"].reset_index()}
+    if save:
+        savefig(fig, "03_04_supplementary_figure_03_growth")
     return fig

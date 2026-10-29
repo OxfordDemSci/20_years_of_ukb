@@ -14,6 +14,7 @@ import numpy as np
 import pandas as pd
 
 from utils import shared_patent_utils as P
+from utils.shared_style import font_size as FS
 from utils import shared_style as S
 
 
@@ -84,10 +85,10 @@ def test_patent_overview_layout_counts_styles_and_inputs_are_preserved():
     assert [ax.get_title(loc="left") for ax in (b, c, d)] == list("ABC")
     assert not any(ax.images for ax in fig.axes)
     for ax in (b, c, d):
-        assert ax._left_title.get_size() == 26
-        assert ax.xaxis.label.get_size() == ax.yaxis.label.get_size() == 17
-        assert all(text.get_size() == 13 for text in ax.get_xticklabels() + ax.get_yticklabels())
-        assert all(text.get_size() == 12 for text in ax.texts)
+        assert ax._left_title.get_size() == FS("panel_label")
+        assert ax.xaxis.label.get_size() == ax.yaxis.label.get_size() == FS("label")
+        assert all(text.get_size() == FS("tick") for text in ax.get_xticklabels() + ax.get_yticklabels())
+        assert all(text.get_size() == FS("annot") for text in ax.texts)
         assert ax.axison
         assert all(spine.get_linewidth() == 1
                    and to_hex(spine.get_edgecolor()) == "#000000"
@@ -97,7 +98,7 @@ def test_patent_overview_layout_counts_styles_and_inputs_are_preserved():
             "left": True, "bottom": True, "top": False, "right": False}
     assert not any(spine.get_visible() for spine in d.spines.values())
     assert not len(d.get_xticks()) and not len(d.get_yticks())
-    assert all(text.get_size() == 13 for text in c.get_legend().get_texts())
+    assert all(text.get_size() == FS("legend") for text in c.get_legend().get_texts())
     assert [text.get_text() for text in c.get_legend().get_texts()] == ["Mean: 2.25", "Median: 2"]
     # Two stacked distributions beside a full-height network, with no overlap.
     assert c.get_position().y1 < b.get_position().y0
@@ -195,7 +196,7 @@ def test_country_topic_summary_preserves_counts_and_uses_requested_styles():
         P.finalize_figure(fig)
         fig.canvas.draw()
     heatmap, bars, colorbar = fig.axes
-    assert tuple(fig.get_size_inches()) == (20, 7.5)
+    assert tuple(fig.get_size_inches()) == S.figsize("wide")
     assert '(C)' not in fig._ukb_caption
     assert 'Research fields of UK Biobank-linked patents by assignee country.' in fig._ukb_caption
     assert [ax.get_title(loc="left") for ax in (heatmap, bars)] == list("AB")
@@ -203,9 +204,9 @@ def test_country_topic_summary_preserves_counts_and_uses_requested_styles():
     assert heatmap.get_subplotspec().colspan.start == 0
     assert bars.get_subplotspec().colspan.start == 1
     for ax in (heatmap, bars):
-        assert ax.xaxis.label.get_size() == ax.yaxis.label.get_size() == 17
-        assert all(label.get_size() == 13 for label in ax.get_xticklabels() + ax.get_yticklabels())
-        assert all(text.get_size() == 12 for text in ax.texts)
+        assert ax.xaxis.label.get_size() == ax.yaxis.label.get_size() == FS("label")
+        assert all(label.get_size() == FS("tick") for label in ax.get_xticklabels() + ax.get_yticklabels())
+        assert all(text.get_size() == FS("annot") for text in ax.texts)
     assert all(spine.get_visible() and spine.get_linewidth() == 1
                and to_hex(spine.get_edgecolor()) == "#000000"
                for spine in heatmap.spines.values())
@@ -222,7 +223,7 @@ def test_country_topic_summary_preserves_counts_and_uses_requested_styles():
     assert [text.get_text() for text in bars.texts] == ["1.00", "4.00", "6.50"]
     assert "UK: An additional field" in bars.get_yticklabels()[-1].get_text()
     assert [label.get_text() for label in heatmap.get_xticklabels()] == ["US", "UK", "FR"]
-    assert colorbar.yaxis.label.get_size() == 15
+    assert colorbar.yaxis.label.get_size() == FS("label")
     renderer = fig.canvas.get_renderer()
     assert heatmap.get_tightbbox(renderer).x1 < bars.get_tightbbox(renderer).x0
     assert colorbar.get_tightbbox(renderer).x1 < bars.get_tightbbox(renderer).x0
@@ -284,8 +285,8 @@ def test_country_topic_status_summary_combines_three_panels_without_changing_dat
         color = P.PATENT_STATUS_COLORS[label.get_text()]
         assert to_hex(handle.get_facecolor()).upper() == color
         assert all(to_hex(bar.get_facecolor()).upper() == color for bar in group)
-        assert color != S.palette("green")
-        assert label.get_fontsize() == 12
+        assert color != "#74D1AF"
+        assert label.get_fontsize() == FS("legend")
     assert status.get_xlabel() == "Publication year"
     assert status.get_ylabel() == "Number of patents"
     assert "(C) Patent records by publication year" in fig._ukb_caption

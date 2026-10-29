@@ -11,6 +11,7 @@ import pandas as pd
 import pytest
 
 from utils import data_analysis_03_academic_impact_figures as figures
+from utils.shared_style import font_size as FS
 from utils import data_analysis_03_academic_impact_panels as panels
 from utils import shared_style as style
 from utils.shared_paths import ArtifactRegistry
@@ -157,7 +158,7 @@ def test_top_decile_pool_uses_white_bars_and_large_close_legend():
             assert bar.get_height() == 95
             assert bar.get_y() == 5
     legend = fig.legends[0]
-    assert all(text.get_fontsize() == 14 for text in legend.get_texts())
+    assert all(text.get_fontsize() == FS("legend") for text in legend.get_texts())
     assert legend.legend_handles[0].get_facecolor() == (1, 1, 1, 1)
     assert to_hex(legend.legend_handles[1].get_facecolor()) == to_hex(style.palette("steel_blue"))
     for ax in axes:
@@ -232,7 +233,7 @@ def test_main_impact_uses_palette_and_keeps_enlarged_legends_clear(main_impact_c
     assert "UK Biobank overall (0.41%)" in [t.get_text().replace("\n", " ")
                                            for t in legend.get_texts()]
     for key in (legend, fig.legends[0]):
-        assert all(t.get_fontsize() == 14 for t in key.get_texts())
+        assert all(t.get_fontsize() == FS("legend") for t in key.get_texts())
         bounds = key.get_window_extent(renderer)
         assert fig.bbox.x0 < bounds.x0 < bounds.x1 < fig.bbox.x1
     bounds = legend.get_window_extent(renderer)
@@ -357,7 +358,7 @@ def test_citation_overview_preserves_all_four_analyses_in_a_two_by_two_grid(pape
     a, b, c, d, colorbar = combined.axes
     for ax, letter, separate in zip([a, b, c, d], "ABCD", original):
         assert ax.get_title(loc="left") == letter
-        assert ax._left_title.get_fontsize() == 20
+        assert ax._left_title.get_fontsize() == FS("panel_label")
         assert ax.get_xlabel() == separate.axes[0].get_xlabel()
         assert ax.get_ylabel() == separate.axes[0].get_ylabel()
         assert f"({letter}) {separate._ukb_caption}" in combined._ukb_caption
@@ -428,7 +429,7 @@ def test_diagnostic_figures_have_letters_and_helvetica(papers):
                      figures.citation_cohorts, figures.citation_survival):
         fig = function(papers)
         assert fig.axes[0].get_title(loc="left") == "A"
-        assert fig.axes[0]._left_title.get_fontsize() == 20
+        assert fig.axes[0]._left_title.get_fontsize() == FS("panel_label")
         assert fig.axes[0].xaxis.label.get_fontfamily() == ["Helvetica"]
         assert fig._ukb_caption
         assert not fig.texts  # No prose footnotes or titles inside the artwork.

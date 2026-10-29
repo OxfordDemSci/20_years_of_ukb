@@ -37,6 +37,7 @@ from utils import shared_paths as P
 from utils.shared_style import (
     PALETTE, PNG_DPI, apply_typography, extended_palette, finalize_figure, palette, set_title,
 )
+from utils.shared_style import font_size, figsize as project_figsize
 from utils.shared_analysis_window import (
     ANALYSIS_START_DATE, ANALYSIS_START_YEAR, ANALYSIS_END_DATE, ANALYSIS_END_YEAR,
     filter_analysis_window,
@@ -893,7 +894,7 @@ def make_topic_year_tables_and_figures(
     y = share_mat_named.to_numpy().T
     labels = list(share_mat_named.columns)
 
-    fig, ax = plt.subplots(figsize=(13, 8))
+    fig, ax = plt.subplots(figsize=project_figsize("landscape"))
     ax.stackplot(years, y, labels=labels, alpha=0.88)
     set_title(ax, "Dynamic topic shares in UKB Showcase+ publications")
     ax.set_xlabel("Publication year")
@@ -901,7 +902,7 @@ def make_topic_year_tables_and_figures(
     ax.legend(loc="center left", bbox_to_anchor=(1.02, 0.5), frameon=False)
     save_mpl(fig, fig_dir, "bertopic_dynamic_streamgraph")
 
-    fig, ax = plt.subplots(figsize=(13, 9))
+    fig, ax = plt.subplots(figsize=project_figsize("landscape"))
 
     share_values = share_mat_named.copy()
 
@@ -929,7 +930,7 @@ def make_topic_year_tables_and_figures(
             col,
             va="center",
             ha="right",
-            fontsize=8,
+            fontsize=font_size("annot"),
         )
 
     set_title(ax, "Topic evolution as ridge waves")

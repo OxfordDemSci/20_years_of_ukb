@@ -22,9 +22,8 @@ from . import data_analysis_05_author_characteristics as A
 from . import shared_name_gender as NG
 from . import shared_paths as P
 from .shared_style import (
-    author_geography_colormap,
     black_legend,
-    blue_cream_red_colormap,
+    figure_colormap,
     compact_count,
     extended_palette,
     gridspec_figure,
@@ -38,13 +37,13 @@ from .shared_style import (
     percent_axis,
     save_figure,
     semantic_colors,
-    sequential_colormap,
     set_title,
     style_axis,
     style_colorbar,
     summary_box,
     year_ticks,
 )
+from .shared_style import font_size, stroke, figsize as project_figsize, neutral
 
 NATURAL_EARTH_URL = (
     "https://naturalearth.s3.amazonaws.com/110m_cultural/"
@@ -78,14 +77,8 @@ def _year_periods(n_periods=4):
 
 
 def _map_colormap(style):
-    """The choropleth ramp: white through to the geography domain colour.
-
-    Was Matplotlib's `cividis`, chosen for being colourblind-safe. A single-hue ramp off
-    the project's own navy is safe on the same grounds — it varies in lightness, not hue —
-    and it keeps the maps in the palette every other panel is drawn in (D29), so a map and
-    the bars beside it read as one figure rather than two.
-    """
-    return sequential_colormap(semantic_colors("domain_colors", style)["geography"])
+    """The choropleth ramp: the project's one colormap (D55), countries without data white."""
+    return figure_colormap()
 
 
 def _component_colors(style=None):
@@ -137,7 +130,7 @@ def _draw_top_country_bars(ax, core: A.CoreTables, style, n=8):
         top["share"],
         color=semantic_colors("domain_colors", style)["geography"],
         edgecolor="black",
-        linewidth=0.65,
+        linewidth=stroke("edge"),
     )
     ax.bar_label(bars, labels=[f"{value:.1f}%" for value in top["share"]], padding=4)
     ax.set_xlabel("Share of geolocated fractional credit")
@@ -192,7 +185,7 @@ def _draw_author_impact_portfolio(ax, impact: A.HeadlineImpactTables, style):
     y_high = float(positive.quantile(0.98))
     data["impact_plot"] = data["mean_impact_metric"].clip(y_low, y_high)
 
-    cmap = blue_cream_red_colormap()
+    cmap = figure_colormap()
     scatter = ax.scatter(
         data["showcase_paper_count"],
         data["impact_plot"],
@@ -202,11 +195,11 @@ def _draw_author_impact_portfolio(ax, impact: A.HeadlineImpactTables, style):
         norm=Normalize(0, 1),
         alpha=0.68,
         edgecolor="black",
-        linewidth=0.24,
+        linewidth=stroke("edge"),
         rasterized=True,
         zorder=3,
     )
-    ax.axhline(1, color=palette("red"), linewidth=1.5, linestyle="--", zorder=2)
+    ax.axhline(1, color=palette("red"), linewidth=stroke("ref"), linestyle="--", zorder=2)
     ax.annotate(
         "Field-and-year average (1x)",
         (0.985, 1),
@@ -275,7 +268,7 @@ def _draw_author_impact_portfolio(ax, impact: A.HeadlineImpactTables, style):
             textcoords="data",
             arrowprops={
                 "arrowstyle": "-|>",
-                "color": "#666666",
+                "color": neutral("muted"),
                 "linewidth": 0.75,
                 "mutation_scale": 8.5,
                 "connectionstyle": f"arc3,rad={curvature}",
@@ -292,7 +285,7 @@ def _draw_author_impact_portfolio(ax, impact: A.HeadlineImpactTables, style):
             _short_label(row.author_name, 25),
             ha="left",
             va="center",
-            fontsize=style["annot_fs"] - 1,
+            fontsize=font_size("small"),
             color="black",
             bbox={"facecolor": "white", "edgecolor": "none", "alpha": 1, "pad": 0.8},
             zorder=8,
@@ -301,9 +294,9 @@ def _draw_author_impact_portfolio(ax, impact: A.HeadlineImpactTables, style):
     cax = ax.inset_axes([0.785, 0.52, 0.19, 0.026])
     colorbar = ax.figure.colorbar(scatter, cax=cax, orientation="horizontal")
     colorbar.ax.xaxis.set_major_formatter(mticker.PercentFormatter(1))
-    colorbar.ax.tick_params(labelsize=style["annot_fs"] - 2, pad=1)
+    colorbar.ax.tick_params(labelsize=font_size("tick"), pad=1)
     style_colorbar(colorbar, "First/last/sole-author share")
-    colorbar.set_label("First/last/sole-author share", fontsize=style["annot_fs"] - 1)
+    colorbar.set_label("First/last/sole-author share", fontsize=font_size("label"))
 
     size_handles = [
         ax.scatter(
@@ -312,7 +305,7 @@ def _draw_author_impact_portfolio(ax, impact: A.HeadlineImpactTables, style):
             s=_portfolio_marker_area(value, style),
             facecolor=cmap(0.68),
             edgecolor="black",
-            linewidth=0.4,
+            linewidth=stroke("edge"),
             label=f"h = {value}",
         )
         for value in (5, 15, 30)
@@ -325,7 +318,7 @@ def _draw_author_impact_portfolio(ax, impact: A.HeadlineImpactTables, style):
         loc="lower right",
         bbox_to_anchor=(0.99, 0.02),
         ncol=1,
-        fontsize=style["annot_fs"] - 1,
+        fontsize=font_size("legend"),
         title_fontsize=style["annot_fs"],
         borderaxespad=0,
     )
@@ -336,8 +329,8 @@ def _draw_author_impact_portfolio(ax, impact: A.HeadlineImpactTables, style):
         transform=ax.transAxes,
         ha="left",
         va="top",
-        fontsize=style["annot_fs"] - 1,
-        color="#555555",
+        fontsize=font_size("small"),
+        color=neutral("muted"),
         bbox={"facecolor": "white", "edgecolor": "none", "alpha": 0.84, "pad": 0.6},
         zorder=6,
     )
@@ -346,23 +339,24 @@ def _draw_author_impact_portfolio(ax, impact: A.HeadlineImpactTables, style):
 def _draw_venue_impact(ax, impact: A.HeadlineImpactTables, style):
     """Draw the citation-stock ranking of eligible publication venues."""
     data = impact.venue_plot.copy()
-    cmap = blue_cream_red_colormap()
+    cmap = figure_colormap()
     normalizer = Normalize(data["papers"].min(), data["papers"].max())
     bars = ax.barh(
         np.arange(len(data)),
         data["total_citations"],
         color=cmap(normalizer(data["papers"])),
         edgecolor="black",
-        linewidth=0.55,
+        linewidth=stroke("edge"),
         height=0.72,
         zorder=3,
     )
     ax.set_yticks(
         np.arange(len(data)),
-        ["\n".join(wrap(str(value), width=26)) for value in data["venue"]],
+        ["\n".join(wrap(str(value), width=22)) for value in data["venue"]],
     )
     maximum = float(data["total_citations"].max())
-    ax.set_xlim(0, maximum * 1.34)
+    # Room for the "cites; papers" label beside the longest bar.
+    ax.set_xlim(0, maximum * 1.85)
     for bar, row in zip(bars, data.itertuples(index=False)):
         ax.text(
             bar.get_width() + maximum * 0.014,
@@ -370,7 +364,7 @@ def _draw_venue_impact(ax, impact: A.HeadlineImpactTables, style):
             f"{compact_count(row.total_citations)} cites; {row.papers:,} papers",
             ha="left",
             va="center",
-            fontsize=style["annot_fs"] - 2,
+            fontsize=font_size("small"),
             color="black",
         )
     ax.set_xlabel("Total citations")
@@ -383,14 +377,14 @@ def _draw_venue_impact(ax, impact: A.HeadlineImpactTables, style):
     ax.xaxis.set_major_formatter(
         mticker.FuncFormatter(lambda value, _: compact_count(value, digits=0))
     )
-    ax.tick_params(axis="y", labelsize=style["tick_fs"] - 3)
+    ax.tick_params(axis="y", labelsize=font_size("tick"))
     style_axis(ax, style, grid_axis="x")
 
     mapper = plt.cm.ScalarMappable(norm=normalizer, cmap=cmap)
     mapper.set_array([])
     colorbar = ax.figure.colorbar(mapper, ax=ax, fraction=0.032, pad=0.018)
     style_colorbar(colorbar, "Number of papers")
-    colorbar.ax.tick_params(labelsize=style["annot_fs"] - 1)
+    colorbar.ax.tick_params(labelsize=font_size("tick"))
 
 
 def plot_headline_figure(
@@ -406,12 +400,12 @@ def plot_headline_figure(
         2,
         1,
         style,
-        figsize_key="figsize_headline",
-        left=0.045,
+        aspect="square",
+        left=0.095,
         right=0.985,
-        bottom=0.055,
-        top=0.965,
-        hspace=0.17,
+        bottom=0.045,
+        top=0.97,
+        hspace=0.16,
         height_ratios=[1.72, 1],
     )
     outer = page[0].subgridspec(
@@ -426,7 +420,7 @@ def plot_headline_figure(
         height_ratios=[1.72, 1],
         hspace=0.14,
     )
-    right = outer[1].subgridspec(3, 1, hspace=0.44)
+    right = outer[1].subgridspec(3, 1, hspace=0.52)
     network_row = left[0].subgridspec(
         1,
         2,
@@ -450,7 +444,7 @@ def plot_headline_figure(
         1,
         2,
         width_ratios=[1.34, 1],
-        wspace=0.29,
+        wspace=0.46,
     )
     ax_g = fig.add_subplot(impact_row[0])
     ax_h = fig.add_subplot(impact_row[1])
@@ -474,7 +468,7 @@ def plot_headline_figure(
         height=0.62,
         color=colors["author_metrics"],
         edgecolor="black",
-        linewidth=0.65,
+        linewidth=stroke("edge"),
     )
     labels = [
         f"Top {percentage:g}%"
@@ -486,7 +480,7 @@ def plot_headline_figure(
         bars,
         labels=[f"{share:.1f}%" for share in concentration["credit_share_percent"]],
         padding=4,
-        fontsize=style["annot_fs"] + 1,
+        fontsize=font_size("annot"),
         fontweight="bold",
     )
     ax_b.set_xlabel("Fractional credit share", labelpad=2)
@@ -515,9 +509,9 @@ def plot_headline_figure(
         color=colors["name_gender"],
         marker="o",
         markeredgecolor="black",
-        markeredgewidth=0.5,
+        markeredgewidth=stroke("edge"),
         markersize=marker_size(style, scale=0.85),
-        linewidth=2.3,
+        linewidth=stroke("line"),
         label="Female-name share",
     )
     ax_d.set(
@@ -539,7 +533,7 @@ def plot_headline_figure(
         colorbar_label="Fractional publication credit",
         scale="linear",
         colorbar_orientation="vertical",
-        cmap=author_geography_colormap(),
+        cmap=figure_colormap(),
     )
 
     # F: institutional concentration over time.
@@ -550,8 +544,8 @@ def plot_headline_figure(
         color=palette("cream"),
         marker="o",
         markeredgecolor="black",
-        markeredgewidth=0.5,
-        linewidth=2.4,
+        markeredgewidth=stroke("edge"),
+        linewidth=stroke("line"),
         label="Top 10 institutions",
     )
     ax_f.plot(
@@ -560,8 +554,8 @@ def plot_headline_figure(
         color=colors["author_metrics"],
         marker="s",
         markeredgecolor="black",
-        markeredgewidth=0.5,
-        linewidth=2.0,
+        markeredgewidth=stroke("edge"),
+        linewidth=stroke("line"),
         label="Leading institution",
     )
     ax_f.set(
@@ -619,7 +613,7 @@ def plot_author_metrics_supplement(core: A.CoreTables, style):
         2,
         2,
         style,
-        figsize=(style["figsize_panel"][0], 1.15 * style["figsize_panel"][1]),
+        aspect="standard",
         adjust={
             "left": 0.08,
             "right": 0.98,
@@ -633,7 +627,7 @@ def plot_author_metrics_supplement(core: A.CoreTables, style):
     ax = axes[0, 0]
     thresholds = np.arange(1, int(metrics["n_ukb_papers"].max()) + 1)
     survival = np.array([(metrics["n_ukb_papers"] >= value).mean() * 100 for value in thresholds])
-    ax.plot(thresholds, survival, color=colors["productivity"], linewidth=2.5)
+    ax.plot(thresholds, survival, color=colors["productivity"], linewidth=stroke("line"))
     ax.set_xscale("log")
     ax.set_yscale("log")
     ax.set(
@@ -674,7 +668,7 @@ def plot_author_metrics_supplement(core: A.CoreTables, style):
         bins=bins,
         color=colors["h_index"],
         edgecolor="black",
-        linewidth=0.55,
+        linewidth=stroke("edge"),
         label="Histogram",
     )
     if shown_h.nunique() > 1:
@@ -688,7 +682,7 @@ def plot_author_metrics_supplement(core: A.CoreTables, style):
             kde_x,
             kde_density * len(shown_h) * (bins[1] - bins[0]),
             color=colors["h_index_kde"],
-            linewidth=2.5,
+            linewidth=stroke("line"),
             label="KDE",
             zorder=3,
         )
@@ -704,7 +698,7 @@ def plot_author_metrics_supplement(core: A.CoreTables, style):
         s=16,
         facecolor=colors["association"],
         edgecolor="black",
-        linewidth=0.25,
+        linewidth=stroke("edge"),
         alpha=0.55,
         rasterized=True,
     )
@@ -742,17 +736,17 @@ def plot_author_metrics_supplement(core: A.CoreTables, style):
         vmin=h_min if h_min < h_max else h_min - 0.5,
         vmax=h_max if h_min < h_max else h_max + 0.5,
     )
-    h_cmap = blue_cream_red_colormap()
+    h_cmap = figure_colormap()
     bars = ax.barh(
         labels,
         leaders["ukb_h_index"],
         color=h_cmap(h_norm(h_values)),
         edgecolor="black",
-        linewidth=0.6,
+        linewidth=stroke("edge"),
     )
     ax.set_xlabel("UK Biobank h-index")
     # Reserve room for the count labels before the shared lower-right colourbar.
-    x_max = max(140, 1.8 * leaders["ukb_h_index"].max())
+    x_max = max(170, 2.2 * leaders["ukb_h_index"].max())
     ax.set_xlim(0, x_max)
     ax.xaxis.set_major_locator(mticker.MultipleLocator(20))
     style_axis(ax, style, grid=False)
@@ -767,7 +761,7 @@ def plot_author_metrics_supplement(core: A.CoreTables, style):
             )
         ],
         padding=4,
-        fontsize=style["annot_fs"] - 1,
+        fontsize=font_size("small"),
         zorder=3,
     )
     colorbar_ax = ax.inset_axes(_BAR_COLORBAR_BOUNDS)
@@ -777,7 +771,7 @@ def plot_author_metrics_supplement(core: A.CoreTables, style):
         orientation="vertical",
     )
     colorbar.set_ticks(np.unique([h_min, (h_min + h_max) / 2, h_max]))
-    colorbar.ax.tick_params(labelsize=style["annot_fs"] - 1, length=3, pad=2)
+    colorbar.ax.tick_params(labelsize=font_size("tick"), length=3, pad=2)
     style_colorbar(colorbar)
     for ax in axes.flat:
         ax.grid(False, which="minor", axis="both")
@@ -795,7 +789,7 @@ def plot_gender_supplement(core: A.CoreTables, style):
         2,
         2,
         style,
-        figsize=(0.94 * style["figsize_panel"][0], 1.15 * style["figsize_panel"][1]),
+        aspect="standard",
         adjust={
             "left": 0.09,
             "right": 0.98,
@@ -816,7 +810,7 @@ def plot_gender_supplement(core: A.CoreTables, style):
         labels=["Female", "Male", "Unknown/androgynous"],
         colors=[colors["Female"], colors["Male"], colors["Unknown"]],
         alpha=0.88,
-        linewidth=0.4,
+        linewidth=stroke("edge"),
         edgecolor="black",
     )
     ax.set(xlabel="Publication year", ylabel="Author-paper pairs", xticks=year_ticks(year["year"].min(), year["year"].max(), 3))
@@ -828,7 +822,7 @@ def plot_gender_supplement(core: A.CoreTables, style):
     coverage_styles = {
         "Strict dictionary": {"color": palette("navy"), "marker": "^", "linestyle": "--"},
         "Expanded dictionary": {"color": colors["Male"], "marker": "s", "linestyle": "-"},
-        "Offline ensemble": {"color": palette("green"), "marker": "D", "linestyle": "-"},
+        "Offline ensemble": {"color": palette("light_blue"), "marker": "D", "linestyle": "-"},
         "Primary + identity linkage": {"color": colors["Female"], "marker": "o", "linestyle": "-"},
     }
     coverage_labels = {
@@ -842,10 +836,10 @@ def plot_gender_supplement(core: A.CoreTables, style):
         ax.plot(
             values["year"],
             values["coverage_percent"],
-            linewidth=2.0,
+            linewidth=stroke("line"),
             markersize=marker_size(style, scale=0.80),
             markeredgecolor="black",
-            markeredgewidth=0.65,
+            markeredgewidth=stroke("edge"),
             label=coverage_labels[stage],
             **plot_style,
         )
@@ -871,7 +865,7 @@ def plot_gender_supplement(core: A.CoreTables, style):
         fmt="o",
         color=colors["Female"],
         markeredgecolor="black",
-        markeredgewidth=0.7,
+        markeredgewidth=stroke("edge"),
         ecolor="black",
         elinewidth=1.2,
         capsize=3,
@@ -893,13 +887,13 @@ def plot_gender_supplement(core: A.CoreTables, style):
         vmin=share_min if share_min < share_max else share_min - 0.5,
         vmax=share_max if share_min < share_max else share_max + 0.5,
     )
-    share_cmap = blue_cream_red_colormap()
+    share_cmap = figure_colormap()
     bars = ax.barh(
         labels,
         field["female_name_share"],
         color=share_cmap(share_norm(shares)),
         edgecolor="black",
-        linewidth=0.6,
+        linewidth=stroke("edge"),
     )
     ax.bar_label(bars, labels=[f"{v:.1f}%" for v in field["female_name_share"]], padding=4)
     ax.set_xlabel("Female share of classified names")
@@ -915,7 +909,7 @@ def plot_gender_supplement(core: A.CoreTables, style):
     )
     colorbar.set_ticks(np.unique([share_min, (share_min + share_max) / 2, share_max]))
     colorbar.ax.yaxis.set_major_formatter(mticker.PercentFormatter(100, decimals=1))
-    colorbar.ax.tick_params(labelsize=style["annot_fs"] - 1, length=3, pad=2)
+    colorbar.ax.tick_params(labelsize=font_size("tick"), length=3, pad=2)
     style_colorbar(colorbar)
 
     label_panels(axes, "ABCD", style)
@@ -982,9 +976,9 @@ def _draw_country_map(
         cmap=cmap,
         norm=norm,
         # Hatching distinguishes missing records from the lowest measured value.
-        missing_kwds={"color": "#EFEFEF", "edgecolor": "black", "hatch": "///"},
+        missing_kwds={"color": neutral("light"), "edgecolor": "black", "hatch": "///"},
         edgecolor="black",
-        linewidth=0.38,
+        linewidth=stroke("edge"),
     )
     scalar = plt.cm.ScalarMappable(cmap=cmap, norm=norm)
     if colorbar_orientation == "vertical":
@@ -1012,7 +1006,7 @@ def plot_geography_maps_supplement(core: A.CoreTables, style, world=None):
         3,
         1,
         style,
-        figsize=(11.5, 12.5),
+        aspect="square",
         left=0.04,
         right=0.98,
         bottom=0.045,
@@ -1079,11 +1073,11 @@ def _draw_cumulative_country_reach(ax, core: A.CoreTables, style):
         years,
         values,
         color=color,
-        linewidth=2.4,
+        linewidth=stroke("line"),
         marker="o",
         markersize=marker_size(style, scale=0.9),
         markeredgecolor="black",
-        markeredgewidth=0.6,
+        markeredgewidth=stroke("edge"),
     )
     ax.fill_between(years, 0, values, color=color, alpha=0.10, linewidth=0)
     ax.annotate(
@@ -1094,7 +1088,7 @@ def _draw_cumulative_country_reach(ax, core: A.CoreTables, style):
         ha="right",
         va="bottom",
         color=color,
-        fontsize=style["annot_fs"] + 1,
+        fontsize=font_size("annot"),
         fontweight="bold",
     )
     ax.set(
@@ -1123,7 +1117,7 @@ def _draw_country_basis_agreement(ax, core: A.CoreTables, style):
         [lower, upper],
         color="black",
         linestyle="--",
-        linewidth=1.2,
+        linewidth=stroke("line"),
         zorder=1,
     )
     ax.scatter(
@@ -1132,7 +1126,7 @@ def _draw_country_basis_agreement(ax, core: A.CoreTables, style):
         s=marker_area(style, scale=0.72),
         color=geography_color,
         edgecolor="black",
-        linewidth=0.55,
+        linewidth=stroke("edge"),
         alpha=0.72,
         zorder=2,
     )
@@ -1148,7 +1142,7 @@ def _draw_country_basis_agreement(ax, core: A.CoreTables, style):
         s=marker_area(style, scale=1.05),
         color=highlight_color,
         edgecolor="black",
-        linewidth=0.75,
+        linewidth=stroke("edge"),
         zorder=3,
     )
     label_layout = {
@@ -1174,7 +1168,7 @@ def _draw_country_basis_agreement(ax, core: A.CoreTables, style):
             bbox={"facecolor": "white", "edgecolor": "none", "alpha": 0.96, "pad": 1},
             arrowprops={
                 "arrowstyle": "-|>",
-                "color": "#3F3F3F",
+                "color": neutral("muted"),
                 "connectionstyle": f"arc3,rad={curvature}",
                 "linewidth": 1.0,
                 "mutation_scale": 11,
@@ -1198,7 +1192,7 @@ def _draw_country_basis_agreement(ax, core: A.CoreTables, style):
         marker="D",
         facecolor=geography_color,
         edgecolor="black",
-        linewidth=0.9,
+        linewidth=stroke("edge"),
         zorder=4,
     )
     endpoint_labels = [
@@ -1243,7 +1237,7 @@ def _draw_country_basis_agreement(ax, core: A.CoreTables, style):
             bbox={"facecolor": "white", "edgecolor": "none", "alpha": 0.9, "pad": 1},
             arrowprops={
                 "arrowstyle": "-|>",
-                "color": "#555555",
+                "color": neutral("muted"),
                 "connectionstyle": f"arc3,rad={curvature}",
                 "linewidth": 0.9,
                 "mutation_scale": 10,
@@ -1306,7 +1300,7 @@ def _draw_country_period_composition(ax, core: A.CoreTables, style, n=8):
 
     positive = matrix.to_numpy()[matrix.to_numpy() > 0]
     norm = LogNorm(vmin=float(positive.min()), vmax=float(positive.max()))
-    cmap = blue_cream_red_colormap()
+    cmap = figure_colormap()
     image = ax.pcolormesh(
         np.arange(len(periods) + 1) - 0.5,
         np.arange(len(top_iso3) + 1) - 0.5,
@@ -1314,8 +1308,8 @@ def _draw_country_period_composition(ax, core: A.CoreTables, style, n=8):
         cmap=cmap,
         norm=norm,
         shading="flat",
-        edgecolors=palette("navy"),
-        linewidth=0.6,
+        edgecolors="black",
+        linewidth=stroke("edge"),
     )
     ax.invert_yaxis()
     for row, iso3 in enumerate(matrix.index):
@@ -1348,7 +1342,7 @@ def _draw_country_period_composition(ax, core: A.CoreTables, style, n=8):
             len(top_iso3),
             fill=False,
             edgecolor="black",
-            linewidth=0.8,
+            linewidth=stroke("edge"),
         )
     )
     style_axis(ax, style, grid=False)
@@ -1371,11 +1365,11 @@ def _draw_country_diversity(ax, core: A.CoreTables, style):
         annual["year"],
         annual["effective_entities"],
         color=color,
-        linewidth=1.5,
+        linewidth=stroke("line"),
         marker="o",
         markersize=marker_size(style, scale=0.9),
         markeredgecolor="black",
-        markeredgewidth=0.55,
+        markeredgewidth=stroke("edge"),
         zorder=2,
     )
     ax.set(
@@ -1393,7 +1387,7 @@ def plot_geography_metrics_supplement(core: A.CoreTables, style):
         2,
         2,
         style,
-        figsize=(14.5, 14.5),
+        aspect="square",
         adjust={
             "left": 0.105,
             "right": 0.98,
@@ -1455,8 +1449,9 @@ def plot_institution_supplement(core: A.CoreTables, style):
         2,
         2,
         style,
+        aspect="landscape",
         width_ratios=[1.7, 1],
-        left=0.14,
+        left=0.18,
         right=0.98,
         bottom=0.09,
         top=0.95,
@@ -1483,9 +1478,9 @@ def plot_institution_supplement(core: A.CoreTables, style):
             [display.get(key, key) for key in matrix.index],
             values,
             left=left,
-            color=field_colors.get(field, "#B7B7B7"),
+            color=field_colors.get(field, neutral("missing")),
             edgecolor="black",
-            linewidth=0.45,
+            linewidth=stroke("edge"),
             label=_field_label(field),
         )
         left += values
@@ -1496,11 +1491,11 @@ def plot_institution_supplement(core: A.CoreTables, style):
         style,
         title="FOR division",
         loc="lower right",
-        fontsize=style["legend_fs"] - 1,
+        fontsize=font_size("legend"),
     )
 
     annual = core.institution_by_year.sort_values("year")
-    ax_b.plot(annual["year"], annual["cumulative_entities"], color=palette("red"), marker="o", markeredgecolor="black", linewidth=2.3)
+    ax_b.plot(annual["year"], annual["cumulative_entities"], color=palette("red"), marker="o", markeredgecolor="black", linewidth=stroke("line"))
     ax_b.set(xlabel="Publication year", ylabel="Cumulative institutions", xticks=year_ticks(annual["year"].min(), annual["year"].max(), 3))
     style_axis(ax_b, style)
 
@@ -1515,7 +1510,7 @@ def plot_institution_supplement(core: A.CoreTables, style):
         ),
         color=palette("steel_blue"),
         edgecolor="black",
-        linewidth=0.4,
+        linewidth=stroke("edge"),
         alpha=0.45,
         rasterized=True,
     )
@@ -1764,8 +1759,8 @@ def _draw_component_network(ax, network, style, *, compact=False, meta_ax=None):
 
     labels = {
         "isolate": "Isolates",
-        "small": "Small components (2-5)",
-        "intermediate": "Intermediate components (6-55)",
+        "small": "Small (2-5)",
+        "intermediate": "Intermediate (6-55)",
         "giant": "Giant component",
     }
     handles = [
@@ -1776,7 +1771,7 @@ def _draw_component_network(ax, network, style, *, compact=False, meta_ax=None):
             linestyle="None",
             markerfacecolor=colors[key],
             markeredgecolor="black",
-            markeredgewidth=0.5,
+            markeredgewidth=stroke("edge"),
             markersize=marker_size(style),
             label=labels[key],
         )
@@ -1791,13 +1786,13 @@ def _draw_component_network(ax, network, style, *, compact=False, meta_ax=None):
             "bbox_to_anchor": (1.0, 0.95),
             "borderaxespad": 0,
             "ncol": 1,
-            "fontsize": style["legend_fs"] - 1,
+            "fontsize": font_size("small"),
         }
         if meta_ax is not None
         else {
             "loc": "lower left",
             "ncol": 2 if compact else 4,
-            "fontsize": style["legend_fs"] - (2 if compact else 1),
+            "fontsize": font_size("legend"),
         }
     )
     black_legend(
@@ -1815,7 +1810,7 @@ def _draw_component_network(ax, network, style, *, compact=False, meta_ax=None):
             transform=meta_ax.transAxes,
             ha="left",
             va="top",
-            fontsize=style["annot_fs"] + 2,
+            fontsize=font_size("annot"),
             fontweight="bold",
         )
         meta_ax.text(
@@ -1825,7 +1820,7 @@ def _draw_component_network(ax, network, style, *, compact=False, meta_ax=None):
             transform=meta_ax.transAxes,
             ha="left",
             va="top",
-            fontsize=style["annot_fs"] - 1,
+            fontsize=font_size("small"),
         )
         meta_ax.text(
             0.0,
@@ -1834,7 +1829,7 @@ def _draw_component_network(ax, network, style, *, compact=False, meta_ax=None):
             transform=meta_ax.transAxes,
             ha="left",
             va="top",
-            fontsize=style["annot_fs"] + 2,
+            fontsize=font_size("annot"),
             fontweight="bold",
         )
         meta_ax.text(
@@ -1844,7 +1839,7 @@ def _draw_component_network(ax, network, style, *, compact=False, meta_ax=None):
             transform=meta_ax.transAxes,
             ha="left",
             va="top",
-            fontsize=style["annot_fs"] - 1,
+            fontsize=font_size("small"),
         )
         meta_ax.text(
             0.0,
@@ -1853,7 +1848,7 @@ def _draw_component_network(ax, network, style, *, compact=False, meta_ax=None):
             transform=meta_ax.transAxes,
             ha="left",
             va="bottom",
-            fontsize=style["annot_fs"] - 1,
+            fontsize=font_size("small"),
             fontfamily="Helvetica",
             fontweight="bold",
         )
@@ -1868,11 +1863,11 @@ def _draw_component_network(ax, network, style, *, compact=False, meta_ax=None):
                     transform=meta_ax.transAxes,
                     facecolor=colors[key],
                     edgecolor="black",
-                    linewidth=0.6,
+                    linewidth=stroke("edge"),
                     clip_on=False,
                 )
             )
-            if share >= 0.08:
+            if share >= 0.15:
                 meta_ax.text(
                     left + share / 2,
                     0.085,
@@ -1880,7 +1875,7 @@ def _draw_component_network(ax, network, style, *, compact=False, meta_ax=None):
                     transform=meta_ax.transAxes,
                     ha="center",
                     va="center",
-                    fontsize=style["annot_fs"] - 2,
+                    fontsize=font_size("small"),
                     fontweight="bold",
                     # Only the navy giant is dark enough to carry white text; the
                     # intermediate class is now light blue, so it reads in black.
@@ -1905,7 +1900,7 @@ def _draw_component_network(ax, network, style, *, compact=False, meta_ax=None):
             y=0.985 if not compact else 0.01,
             ha="right",
             va="top" if not compact else "bottom",
-            fontsize=style["annot_fs"] - (1 if compact else 0),
+            fontsize=font_size("small"),
             bbox_kws={"alpha": 0.92},
         )
     ax.set_aspect("equal")
@@ -1947,9 +1942,9 @@ def _draw_community_composition(ax, core, network, style, n=12):
             [f"C{community}" for community in matrix.index],
             values,
             left=left,
-            color=fields.get(field, "#C8C8C8"),
+            color=fields.get(field, neutral("missing")),
             edgecolor="black",
-            linewidth=0.35,
+            linewidth=stroke("edge"),
             label=_field_label(field),
         )
         left += values
@@ -1960,7 +1955,7 @@ def _draw_community_composition(ax, core, network, style, n=12):
         style,
         title="Modal FOR division",
         loc="lower right",
-        fontsize=style["legend_fs"] - 2,
+        fontsize=font_size("legend"),
         ncol=1,
     )
 
@@ -1974,6 +1969,7 @@ def plot_network_supplement(core: A.CoreTables, network: A.NetworkTables, style)
         3,
         3,
         style,
+        aspect="landscape",
         width_ratios=[1.35, 1, 1],
         left=0.075,
         right=0.98,
@@ -1994,7 +1990,7 @@ def plot_network_supplement(core: A.CoreTables, network: A.NetworkTables, style)
         width=0.72,
         color=component_colors["Giant component"],
         edgecolor="black",
-        linewidth=0.55,
+        linewidth=stroke("edge"),
     )
     ax_b.bar_label(
         bars,
@@ -2027,7 +2023,7 @@ def plot_network_supplement(core: A.CoreTables, network: A.NetworkTables, style)
         gridsize=34,
         mincnt=1,
         bins="log",
-        cmap=sequential_colormap(author_color),
+        cmap=figure_colormap(),
         edgecolors="none",
         rasterized=True,
     )
@@ -2062,7 +2058,7 @@ def plot_network_supplement(core: A.CoreTables, network: A.NetworkTables, style)
         tie_distribution["tie_share_percent"],
         color=tie_palette,
         edgecolor="black",
-        linewidth=0.55,
+        linewidth=stroke("edge"),
     )
     ax_d.bar_label(
         bars,
@@ -2097,7 +2093,7 @@ def plot_network_supplement(core: A.CoreTables, network: A.NetworkTables, style)
             marker=component_markers.get(component_class, "o"),
             color=rank_size_colors.get(component_class, author_color),
             edgecolor="black",
-            linewidth=0.25,
+            linewidth=stroke("edge"),
             alpha=0.78,
             rasterized=True,
             label=component_class,
@@ -2124,7 +2120,7 @@ def plot_network_supplement(core: A.CoreTables, network: A.NetworkTables, style)
         ax_e,
         style,
         loc="lower left",
-        fontsize=style["legend_fs"] - 3,
+        fontsize=font_size("legend"),
         ncol=1,
     )
 
@@ -2133,14 +2129,14 @@ def plot_network_supplement(core: A.CoreTables, network: A.NetworkTables, style)
     sensitivity = summaries["network_hyperauthorship_sensitivity.csv"].iloc[::-1]
     y = np.arange(len(sensitivity))
     retained = sensitivity["retained_percent"].to_numpy()
-    ax_f.hlines(y, retained, 100, color="#8B8B8B", linewidth=1.5, zorder=1)
+    ax_f.hlines(y, retained, 100, color=neutral("missing"), linewidth=stroke("ref"), zorder=1)
     ax_f.scatter(
         np.full(len(y), 100),
         y,
         s=marker_area(style),
         facecolor=author_color,
         edgecolor="black",
-        linewidth=0.9,
+        linewidth=stroke("edge"),
         zorder=3,
         label="All papers",
     )
@@ -2151,7 +2147,7 @@ def plot_network_supplement(core: A.CoreTables, network: A.NetworkTables, style)
         marker="s",
         color=palette("red"),
         edgecolor="black",
-        linewidth=0.6,
+        linewidth=stroke("edge"),
         zorder=3,
         label=f"Teams <= {A.HYPERAUTHOR_THRESHOLD}",
     )

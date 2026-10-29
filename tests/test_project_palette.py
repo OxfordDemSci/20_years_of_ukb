@@ -11,7 +11,12 @@ import numpy as np
 import pandas as pd
 
 from utils import shared_style as S
+from utils.shared_style import font_size as FS
 from utils import data_analysis_04_non_academic_figures as F
+
+
+#: The palette's old seventh colour; light red replaced it in every analysis.
+RETIRED_GREEN = "#74D1AF"
 
 
 def test_every_notebook_style_uses_the_same_palette_and_semantic_roles():
@@ -19,23 +24,32 @@ def test_every_notebook_style_uses_the_same_palette_and_semantic_roles():
     assert settings["base"]["colors"] == S.PALETTE
     for name in settings["notebooks"]:
         style = S.load_style(name, activate=False)
-        expected = S.NON_ACADEMIC_PALETTE if name.startswith("04_non_academic") else S.PALETTE
+        expected = (S.NON_ACADEMIC_PALETTE if name.startswith(("01_growth", "04_non_academic"))
+                    else S.PALETTE)
         assert style["colors"] == expected, name
-        if "c_green" in style:
-            assert style["c_green"] == S.palette("green"), name
+        assert "c_green" not in style, name
         if "c_gold" in style:
             assert style["c_gold"] == S.palette("cream"), name
         if "c_accent" in style:
             assert style["c_accent"] == S.palette("red"), name
 
 
+def test_growth_indicators_share_the_non_academic_stream_colours():
+    growth = S.semantic_colors("metric_colors", S.load_style("01_growth", activate=False))
+    streams = S.semantic_colors("stream_colors", S.load_style("04_non_academic_panels", activate=False))
+    pairs = {"publications": "publications", "patents": "patents",
+             "clinical_trials": "clinical_trials", "policy_documents": "policy",
+             "altmetric": "altmetric", "cross_sector": "collaboration"}
+    for metric, stream in pairs.items():
+        assert growth[metric] == streams[stream], metric
+    assert RETIRED_GREEN not in growth.values()
+
+
 def test_non_academic_sources_and_colour_cycles_cannot_reintroduce_green():
     from IPython.core.inputtransformer2 import TransformerManager
     from matplotlib.colors import to_rgb
-    green = S.palette("green")
+    green = RETIRED_GREEN
     for name in S.load_settings()["style"]["notebooks"]:
-        if not name.startswith("04_non_academic"):
-            continue
         style = S.load_style(name)
         assert green not in style["colors"]
         assert "c_green" not in style
@@ -121,16 +135,16 @@ def test_icd_annotations_are_bar_centred_with_constant_padding_and_matching_lege
         np.testing.assert_allclose(centre(a), (centre(m) + centre(r)) / 2, atol=1e-12)
     assert left.texts[-1].get_text() == "0 (0%)"
     for ax in fig.axes:
-        assert ax._left_title.get_size() == 24
-        assert ax.xaxis.label.get_size() == ax.yaxis.label.get_size() == 17
-        assert all(t.get_size() == 14 for t in ax.get_xticklabels() + ax.get_yticklabels())
+        assert ax._left_title.get_size() == FS("panel_label")
+        assert ax.xaxis.label.get_size() == ax.yaxis.label.get_size() == FS("label")
+        assert all(t.get_size() == FS("tick") for t in ax.get_xticklabels() + ax.get_yticklabels())
         assert ax.xaxis.label.get_fontfamily() == ["Helvetica"]
         assert len(ax.patches) == len(ax.texts)
         visible = []
         for bar, annotation in zip(ax.patches, ax.texts):
             np.testing.assert_allclose(annotation.xy, [bar.get_width(), bar.get_y() + bar.get_height() / 2])
             assert annotation.get_position() == (5, 0)
-            assert annotation.get_fontsize() == 13
+            assert annotation.get_fontsize() == FS("annot")
             if not annotation.get_text():
                 assert bar.get_width() == 0
                 continue
@@ -144,7 +158,7 @@ def test_icd_annotations_are_bar_centred_with_constant_padding_and_matching_lege
         assert fig.bbox.contains(*box.p0) and fig.bbox.contains(*box.p1)
     assert {to_hex(bar.get_facecolor()).upper() for bar in fig.axes[0].patches} == {S.palette("red")}
     legend = fig.axes[1].get_legend()
-    assert all(t.get_size() == 14 for t in legend.get_texts())
+    assert all(t.get_size() == FS("legend") for t in legend.get_texts())
     for container, handle, label in zip(fig.axes[1].containers, legend.legend_handles, legend.get_texts()):
         color = S.palette("steel_blue" if label.get_text() == "MeSH" else "red")
         assert to_hex(handle.get_facecolor()).upper() == color
@@ -169,7 +183,7 @@ def test_three_route_icd_comparison_uses_blue_and_gold_with_matching_legend():
                               index=["Chapter A", "Chapter B", "Chapter C"])
     original = comparison.copy(deep=True)
     fig, axes = plt.subplots(1, 2, figsize=(12, 5))
-    namespace = dict(axes=axes, np=np, comp3=comparison, STYLE=style, set_title=S.set_title)
+    namespace = dict(font_size=S.font_size, stroke=S.stroke, project_figsize=S.figsize, axes=axes, np=np, comp3=comparison, STYLE=style, set_title=S.set_title)
     exec(compile(code, "three_route_icd", "exec"), namespace)
     for _ in range(2):
         F.finalize_figure(fig)
@@ -200,7 +214,7 @@ def test_trial_starts_panel_uses_yellow_and_preserves_study_type_colours():
                                           "Observational", "Observational"],
                            "start_year": [2022, 2023, 2023, 2025]})
     original = trials.copy(deep=True)
-    namespace = dict(plt=plt, np=np, STYLE=style, df_ct=trials,
+    namespace = dict(font_size=S.font_size, stroke=S.stroke, project_figsize=S.figsize, plt=plt, np=np, STYLE=style, df_ct=trials,
                      STAGE_ORDER=["Planned", "Ongoing", "Completed"],
                      ANALYSIS_START_YEAR=2022, ANALYSIS_END_YEAR=2025,
                      set_title=S.set_title)
