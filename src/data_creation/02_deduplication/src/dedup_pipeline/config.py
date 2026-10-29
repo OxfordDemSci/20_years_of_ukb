@@ -1,5 +1,7 @@
 """Configuration shared across the deduplication pipeline."""
 
+ID_COLUMN_ALIASES = ("id", "publication_id", "dimensions_id", "pub_id")
+
 # Ranked keys in descending importance for presence-only informativeness scoring.
 RANKED_COLS = [
     "id", "date_imported_gbq", "year", "doi", "isbn", "title", "abstract", "category_for",
@@ -48,3 +50,14 @@ def build_presence_weights(zero_id_weight=False):
     if zero_id_weight:
         weights["id"] = 0.0
     return weights
+
+
+def resolve_id_column(column_names):
+    """Return the publication-id column used by a raw parquet schema."""
+    lookup = {name.casefold(): name for name in column_names}
+    for alias in ID_COLUMN_ALIASES:
+        if alias.casefold() in lookup:
+            return lookup[alias.casefold()]
+    raise ValueError(
+        f"no publication id column found; accepted aliases are {ID_COLUMN_ALIASES}"
+    )

@@ -1,3 +1,3 @@
-"""Refactored A–E deduplication pipeline."""
+"""Duplicate identification and staged A–E publication merge pipeline."""
 
-__version__ = "1.0.0"
+__version__ = "1.2.0"

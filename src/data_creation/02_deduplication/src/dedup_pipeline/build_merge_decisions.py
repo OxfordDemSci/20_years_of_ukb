@@ -3,10 +3,29 @@
 import glob
 import json
 import os
+import shutil
 
 import polars as pl
 
 from .config import EMPTY_LOSER_SCHEMA, EMPTY_PATCH_SCHEMA, IGNORE_PATCH_COLS
+
+
+def route_frame_by_shard(frame, column, route_dir):
+    """Write one compact decision parquet per affected raw shard."""
+    if os.path.exists(route_dir):
+        shutil.rmtree(route_dir)
+    os.makedirs(route_dir, exist_ok=True)
+    if frame.height == 0:
+        return 0
+
+    count = 0
+    for key, part in frame.partition_by(column, as_dict=True).items():
+        shard = key[0] if isinstance(key, tuple) else key
+        part.write_parquet(
+            os.path.join(route_dir, f"{shard}.parquet"), compression="zstd"
+        )
+        count += 1
+    return count
 
 
 def write_empty_stage_d(out_dir, message):
@@ -23,12 +42,22 @@ def is_list_like(value):
     return isinstance(value, (list, tuple))
 
 
+def is_missing_value(value):
+    if value is None:
+        return True
+    if isinstance(value, str):
+        return value.strip() == ""
+    if isinstance(value, (list, tuple, dict)):
+        return len(value) == 0
+    return False
+
+
 def coalesce_scalar(winner_val, loser_vals):
     """For scalar fields, fill winner only if the winner value is missing."""
-    if winner_val is not None:
+    if not is_missing_value(winner_val):
         return winner_val, None
     for loser_id, value in loser_vals:
-        if value is not None:
+        if not is_missing_value(value):
             return value, loser_id
     return None, None
 
@@ -37,11 +66,22 @@ def merge_lists(winner_val, loser_vals, cap):
     """For list fields, take the ordered union of winner and loser values."""
     out, seen, src_ids = [], set(), set()
 
+    def stable_item_key(value):
+        try:
+            hash(value)
+            return ("scalar", value)
+        except TypeError:
+            return (
+                "structured",
+                json.dumps(value, sort_keys=True, ensure_ascii=False, default=str),
+            )
+
     def add_many(seq):
         changed = False
         for x in seq:
-            if x not in seen:
-                seen.add(x)
+            key = stable_item_key(x)
+            if key not in seen:
+                seen.add(key)
                 out.append(x)
                 changed = True
                 if cap and len(out) >= cap:
@@ -86,22 +126,22 @@ def build_patch_for_group(gdf, winner_row, list_cap):
         loser_vals = [((r["id"], r["file"]), r.get(col, None)) for r in losers]
 
         probe = win_val
-        if probe is None:
+        if is_missing_value(probe):
             for _, value in loser_vals:
-                if value is not None:
+                if not is_missing_value(value):
                     probe = value
                     break
 
         if is_list_like(probe):
             merged, src_ids = merge_lists(win_val, loser_vals, list_cap)
-            if merged is not None and (win_val is None or merged != win_val):
+            if merged is not None and (is_missing_value(win_val) or merged != win_val):
                 patch[col] = merged
                 if src_ids:
                     columns_filled[col] = [f"{i}:{f}" for i, f in src_ids]
                     used_sources.update(src_ids)
         else:
             filled, src = coalesce_scalar(win_val, loser_vals)
-            if win_val is None and filled is not None:
+            if is_missing_value(win_val) and filled is not None:
                 patch[col] = filled
                 if src:
                     columns_filled[col] = f"{src[0]}:{src[1]}"
@@ -155,7 +195,11 @@ def stage_d_build_patches(scores_dir, keep_decisions_path, out_dir, list_cap=200
         .select(["cluster_id", pl.col("id"), pl.col("file")])
     )
     losers_df.write_parquet(os.path.join(out_dir, "loser_list.parquet"), compression="zstd")
+    loser_route_count = route_frame_by_shard(
+        losers_df, "file", os.path.join(out_dir, "losers_by_file")
+    )
     print(f"[D] loser_list written: {os.path.join(out_dir, 'loser_list.parquet')} (rows={losers_df.height})")
+    print(f"[D] routed loser decisions to {loser_route_count} shard files")
 
     keep_map = {
         r["cluster_id"]: (r["canonical_id"], r["canonical_file"])
@@ -192,10 +236,20 @@ def stage_d_build_patches(scores_dir, keep_decisions_path, out_dir, list_cap=200
             print(f"[D] processed {idx}/{n_clusters} clusters...")
 
     if out_rows:
-        pl.DataFrame(out_rows).write_parquet(os.path.join(out_dir, "merge_patches.parquet"), compression="zstd")
+        patches = pl.DataFrame(out_rows)
+        patches.write_parquet(os.path.join(out_dir, "merge_patches.parquet"), compression="zstd")
+        patch_route_count = route_frame_by_shard(
+            patches, "canonical_file", os.path.join(out_dir, "patches_by_file")
+        )
         print(f"[D] merge_patches written: {os.path.join(out_dir, 'merge_patches.parquet')} (rows={len(out_rows)})")
+        print(f"[D] routed merge patches to {patch_route_count} shard files")
     else:
         pl.DataFrame(EMPTY_PATCH_SCHEMA).write_parquet(
             os.path.join(out_dir, "merge_patches.parquet"), compression="zstd"
+        )
+        route_frame_by_shard(
+            pl.DataFrame(EMPTY_PATCH_SCHEMA),
+            "canonical_file",
+            os.path.join(out_dir, "patches_by_file"),
         )
         print("[D] no patches needed; wrote empty merge_patches.")

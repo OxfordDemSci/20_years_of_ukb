@@ -2,7 +2,7 @@
 
 import argparse
 
-from .pipeline import run_pipeline
+from .deduplication_pipeline import run_pipeline
 
 
 def build_parser():

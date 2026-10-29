@@ -1,24 +1,181 @@
-# Deduplication pipeline: staged A–E implementation
+# Publication deduplication: identify, cluster, merge
+
+This directory contains two connected commands:
+
+1. `01_identify_duplicate_publications.py` reads one or more publication parquet files and writes duplicate-evidence parquet files.
+2. `02_deduplicate_and_merge_publications.py` consumes that evidence, builds transitive clusters, selects canonical records, fills missing fields and removes redundant occurrences.
+
+The stages are separate deliberately. Duplicate identification is read-only and can be inspected before the merge command changes any raw shard.
+
+Use Python 3.10 or newer. Install the pinned dependencies and run the commands
+from this directory:
+
+```bash
+python -m pip install -r requirements.txt
+```
+
+## Step 1: identify duplicate publications
+
+Run the identifier on a single parquet file:
+
+```bash
+python src/01_identify_duplicate_publications.py \
+  --input /data/publications.parquet \
+  --out-dir /data/duplicate_matches
+```
+
+Run it on several files, a directory, or glob patterns:
+
+```bash
+python src/01_identify_duplicate_publications.py \
+  --input /data/publication_shards /archive/more_publications_*.parquet \
+  --out-dir /data/duplicate_matches
+```
+
+Each input parquet filename must have a unique stem. The stem becomes the `file` value used by the merge pipeline to find the corresponding raw shard.
+
+### Identification rules
+
+The exact rule links two records when at least two non-empty values agree among:
+
+- author-list hash
+- DOI
+- PMID
+- PMCID
+- arXiv identifier
+- Altmetric identifier
+- ISBN
+- eISBN
+- reference-list hash
+
+Existing author/reference hashes are used when supplied. Otherwise, equality hashes are generated from the available `authors` and `reference_ids` values. The SQLite engine uses canonical SHA-256 hashes; the scalable engine uses Polars' vectorised hash implementation under the pinned dependency version. Identifier prefixes, DOI URLs, whitespace and common missing-value representations are normalised before comparison. Empty strings and empty collections never create matches.
+
+The text rule applies deterministic MinHash locality-sensitive hashing separately to original titles, preferred titles and preferred abstracts. Candidate pairs are retained only after their token-set Jaccard similarity has been calculated exactly and found to be at least `0.80`. The threshold, signature size, band count and minimum token counts are configurable.
+
+Approximate text matching can be omitted when only identifier evidence is wanted:
+
+```bash
+python src/01_identify_duplicate_publications.py \
+  --input /data/publication_shards \
+  --out-dir /data/duplicate_matches \
+  --methods exact
+```
+
+### Large collections
+
+For thousands of shards or hundreds of millions of rows, use the disk-backed
+DuckDB engine for the global exact-evidence pass:
+
+```bash
+python src/01_identify_duplicate_publications.py \
+  --input /data/publication_shards \
+  --out-dir /data/duplicate_matches \
+  --engine duckdb \
+  --methods exact \
+  --duckdb-memory-limit 32GB \
+  --duckdb-threads 16 \
+  --keep-work-db
+```
+
+This engine:
+
+- reads only the identifier/hash columns, not titles, abstracts or unrelated metadata;
+- normalises one source shard at a time into compressed parquet;
+- groups records by every populated pair of exact fields instead of enumerating
+  all record pairs;
+- uses DuckDB for parallel scans and disk spilling when a grouping exceeds RAM;
+- skips field combinations that cannot contain a duplicate;
+- emits the same Stage-A-compatible evidence schema as the original engine.
+
+Add `--resume-normalization` on a restarted run to reuse completed normalized
+shards. Cached shards are reused only when the source file size and modification
+time still match. Retain `--keep-work-db` if restartability is required.
+
+The scalable engine intentionally supports `--methods exact` only. A global
+three-field MinHash pass over roughly 200 million title/abstract records creates
+billions of LSH entries and should be treated as a separate blocked or distributed
+job. The practical two-pass strategy is to run exact matching across the entire
+corpus, then run the original MinHash engine on a deliberately reduced candidate
+collection, such as records lacking strong external identifiers. This avoids an
+apparently convenient command silently exhausting node memory.
+
+### Column handling
+
+Only a publication identifier is mandatory. Common aliases such as `publication_id`, `dimensions_id`, `pubmed_id`, `digital_object_identifier`, `preferred_title` and `preferred_abstract` are resolved automatically. Missing optional columns are recorded in:
+
+```text
+duplicate_matches/diagnostics/duplicate_identification_summary.json
+```
+
+Additional source-specific aliases can be supplied as JSON:
+
+```json
+{
+  "id": ["custom_publication_id"],
+  "doi": ["custom_doi"],
+  "authors": ["custom_author_payload"]
+}
+```
+
+```bash
+python src/01_identify_duplicate_publications.py \
+  --input /data/publications.parquet \
+  --out-dir /data/duplicate_matches \
+  --column-map column_aliases.example.json
+```
+
+Edit a copy of `column_aliases.example.json` when the external parquet schema
+uses additional names. No source-data path is stored in the repository.
+
+Rows without an identifier are skipped and counted. Repeated `(file, id)` keys are rejected because the downstream merge pipeline cannot safely distinguish two rows with the same identifier in the same physical shard. Very large exact-match blocks and LSH buckets are also skipped and reported to prevent empty, malformed or boilerplate values from generating quadratic numbers of links.
+
+### Handoff to the merge pipeline
+
+Every top-level parquet produced by the identifier has this schema:
+
+| Column | Meaning |
+|---|---|
+| `id` | Publication identifier used in the raw shard. |
+| `file` | Input parquet stem. |
+| `match_group` | Pair- or group-specific key consumed by Stage A. |
+| `columns` | JSON provenance ignored by Stage A. |
+
+The output directory can therefore be passed directly as `--step5-dir`:
+
+```bash
+python src/02_deduplicate_and_merge_publications.py \
+  --step5-dir /data/duplicate_matches \
+  --raw-base-dir /data/publication_shards \
+  --out-dir /data/dedup_run
+```
+
+Review the diagnostic summary and run the merge pipeline on a copy when validating a new source schema, because Stage E replaces affected raw shards.
 
 
 ## Folder structure
 
 ```text
 .
+├── .gitignore
 ├── README.md
+├── column_aliases.example.json
 ├── requirements.txt
 └── src/
-    ├── run_dedup_pipeline.py
+    ├── 01_identify_duplicate_publications.py
+    ├── 02_deduplicate_and_merge_publications.py
     └── dedup_pipeline/
         ├── __init__.py
-        ├── cli.py
         ├── config.py
-        ├── pipeline.py
-        ├── stage_a.py
-        ├── stage_b.py
-        ├── stage_c.py
-        ├── stage_d.py
-        ├── stage_e.py
+        ├── duplicate_identification_cli.py
+        ├── duplicate_identification.py
+        ├── scalable_duplicate_identification.py
+        ├── deduplication_cli.py
+        ├── deduplication_pipeline.py
+        ├── build_duplicate_clusters.py
+        ├── route_duplicate_records.py
+        ├── select_canonical_records.py
+        ├── build_merge_decisions.py
+        ├── apply_deduplication.py
         └── union_find.py
 ```
 
@@ -26,23 +183,29 @@
 
 | File | Purpose |
 |---|---|
-| `src/run_dedup_pipeline.py` | Simple direct-run entry point. Use this if you want to run the whole pipeline from the folder root. |
-| `src/dedup_pipeline/cli.py` | Defines command-line arguments. |
-| `src/dedup_pipeline/pipeline.py` | Orchestrates Stage A → Stage B → Stage C → Stage D → Stage E. |
+| `src/01_identify_duplicate_publications.py` | Direct-run entry point for duplicate identification. |
+| `src/02_deduplicate_and_merge_publications.py` | Simple direct-run entry point. Use this if you want to run the whole pipeline from the folder root. |
+| `src/dedup_pipeline/duplicate_identification_cli.py` | Defines duplicate-identification command-line arguments. |
+| `src/dedup_pipeline/duplicate_identification.py` | Normalises publication fields and generates exact and text-match evidence. |
+| `src/dedup_pipeline/scalable_duplicate_identification.py` | Provides shard-wise normalization and DuckDB-backed exact matching for large collections. |
+| `src/dedup_pipeline/deduplication_cli.py` | Defines command-line arguments. |
+| `src/dedup_pipeline/deduplication_pipeline.py` | Orchestrates Stage A → Stage B → Stage C → Stage D → Stage E. |
 | `src/dedup_pipeline/config.py` | Stores ranked columns, empty output schemas, and scoring weight construction. |
 | `src/dedup_pipeline/union_find.py` | Disjoint-set / union-find implementation used by Stage A. |
-| `src/dedup_pipeline/stage_a.py` | Builds duplicate clusters from step-5 matching parquet files. |
-| `src/dedup_pipeline/stage_b.py` | Groups duplicate ids by raw shard so each raw file is touched once later. |
-| `src/dedup_pipeline/stage_c.py` | Scores candidate duplicate rows and selects one winner per cluster. |
-| `src/dedup_pipeline/stage_d.py` | Builds field-wise winner enrichment patches and loser deletion list. |
-| `src/dedup_pipeline/stage_e.py` | Applies deletes and patches to raw shards using atomic replacement. |
+| `src/dedup_pipeline/build_duplicate_clusters.py` | Builds duplicate clusters from step-5 matching parquet files. |
+| `src/dedup_pipeline/route_duplicate_records.py` | Groups duplicate ids by raw shard so each raw file is touched once later. |
+| `src/dedup_pipeline/select_canonical_records.py` | Scores candidate duplicate rows and selects one winner per cluster. |
+| `src/dedup_pipeline/build_merge_decisions.py` | Builds field-wise winner enrichment patches and loser deletion lists, routed by shard. |
+| `src/dedup_pipeline/apply_deduplication.py` | Reads per-shard decisions and applies deletes and patches using atomic replacement. |
 
 ---
 
-## Input
+## Step 2: deduplicate and merge publications
+
+### Merge-stage input
 
 1. Raw datasets (`0000–4999`), stored as parquet shards.
-2. Lots of parquet files containing duplicated data based on distinct matching criteria, for example:
+2. Parquet files containing duplicate evidence, either generated by Step 1 above or supplied from another matching process, for example:
    - title and author match
    - `pmid + doi + reference_id` match
    - Jaccard match by title
@@ -615,7 +778,7 @@ OUT/
 From the folder root:
 
 ```bash
-python src/run_dedup_pipeline.py \
+python src/02_deduplicate_and_merge_publications.py \
   --step5-dir /well/mills/projects/scientometric/cache/columndeduplication \
   --raw-base-dir /well/mills/projects/scientometric/data_copy \
   --out-dir /well/mills/projects/scientometric/data_copy_cache/dedup_run \
@@ -629,7 +792,7 @@ Alternative module-style run from inside `src/`:
 
 ```bash
 cd src
-python -m dedup_pipeline.cli \
+python -m dedup_pipeline.deduplication_cli \
   --step5-dir /well/mills/projects/scientometric/cache/columndeduplication \
   --raw-base-dir /well/mills/projects/scientometric/data_copy \
   --out-dir /well/mills/projects/scientometric/data_copy_cache/dedup_run \
@@ -737,7 +900,7 @@ Before running Stage E on the real raw directory, it is safer to do one of the f
 Example single-shard Stage E test through the full pipeline:
 
 ```bash
-python src/run_dedup_pipeline.py \
+python src/02_deduplicate_and_merge_publications.py \
   --step5-dir /well/mills/projects/scientometric/cache/columndeduplication \
   --raw-base-dir /well/mills/projects/scientometric/data_copy \
   --out-dir /well/mills/projects/scientometric/data_copy_cache/dedup_run_test_one \
@@ -749,7 +912,6 @@ python src/run_dedup_pipeline.py \
 ```
 
 This still runs Stages A–D normally, but Stage E only applies changes to one affected raw shard.
-
 
 ---
 
