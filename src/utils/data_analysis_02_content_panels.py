@@ -505,11 +505,15 @@ def _topic_legend_labels(labels, width=36):
 
 
 def _composition_legend(ax, handles, *, labelspacing=.4):
-    return black_legend(
+    legend = black_legend(
         ax, _style(), handles=handles, loc="upper left", bbox_to_anchor=(0, -.20, 1, 0),
         mode="expand",
         ncol=3, borderaxespad=0, handlelength=1.25, columnspacing=.9,
         labelspacing=labelspacing, fontsize=_style()["legend_fs"])
+    # Columns start level at the top (not on the first row's baseline), so a wrapped
+    # first label does not push its neighbours down.
+    legend._legend_handle_box.align = "top"
+    return legend
 
 
 def _align_legend_heights(*axes):
@@ -525,6 +529,30 @@ def _align_legend_heights(*axes):
             font_pixels = legend.get_texts()[0].get_fontsize() * fig.dpi / 72
             spacing = legend.labelspacing + (target - height) / ((rows - 1) * font_pixels)
             _composition_legend(ax, legend.get_patches(), labelspacing=spacing)
+    for ax in axes:
+        _spread_legend_columns(ax.get_legend())
+
+
+def _spread_legend_columns(legend):
+    """Spread each column's rows over the tallest column, so wrapped labels in one
+    column don't leave the other columns bunched at the top of the frame. Measured at
+    draw time, after any later font-size pass."""
+    columns = legend._legend_handle_box.get_children()
+    base = [column.sep for column in columns]
+    draw = legend.draw
+
+    def spread_then_draw(renderer):
+        for column, sep in zip(columns, base):
+            column.sep = sep
+        heights = [column.get_bbox(renderer).height for column in columns]
+        points = renderer.points_to_pixels(1.)
+        for column, height in zip(columns, heights):
+            rows = len(column.get_children())
+            if rows > 1:
+                column.sep += (max(heights) - height) / ((rows - 1) * points)
+        return draw(renderer)
+
+    legend.draw = spread_then_draw
 
 
 def _align_topic_legend(ax, right, *, gap=.016):
@@ -560,7 +588,7 @@ def _missing_panel(ax, title, note):
 
 
 def draw_share_stream(ax, block, title, *, label_min=None, callout_gap=None,
-                      show_year_n=False, xlabel="Publication year"):
+                      show_year_n=False, xlabel="Publication year", ymax=100):
     """A compact 100% stream with a bounded legend, suitable for a half-page panel."""
     band = block["band"]
     named = [label for label in band if label != OTHER_LABEL]
@@ -572,8 +600,8 @@ def draw_share_stream(ax, block, title, *, label_min=None, callout_gap=None,
                  edgecolor="white", linewidth=stroke("edge"))
     _years(ax)
     ax.set_xlabel(xlabel)
-    ax.set_ylim(0, 100)
-    ax.set_yticks([0, 25, 50, 75, 100])
+    ax.set_ylim(0, ymax)
+    ax.set_yticks(np.arange(0, ymax + 1e-9, 25 if ymax > 60 else 10))
     ax.yaxis.set_major_formatter(PercentFormatter(100, decimals=0))
     measure = ("Share of field assignments" if block["weight"] == "n_papers"
                else "Share of fractional paper credit")
@@ -583,19 +611,21 @@ def draw_share_stream(ax, block, title, *, label_min=None, callout_gap=None,
         name = f"Other ({block['n_other']} categories)" if label == OTHER_LABEL else label
         handles.append(Patch(facecolor=color, edgecolor="black", linewidth=stroke("edge"),
                              label=fill(str(name), width=25)))
-    _composition_legend(ax, handles)
+    # The stack builds upward from the first band, so the key lists it last: read
+    # top-down, legend and stack name the bands in the same order.
+    _composition_legend(ax, handles[::-1])
     return ax
 
 
-def draw_for_stream(ax, D):
-    return draw_share_stream(ax, D["for"], "Fields of Research, Level 4")
+def draw_for_stream(ax, D, ymax=100):
+    return draw_share_stream(ax, D["for"], "Fields of Research, Level 4", ymax=ymax)
 
 
-def draw_rcdc_stream(ax, D):
-    return draw_share_stream(ax, D["rcdc"], "RCDC categories")
+def draw_rcdc_stream(ax, D, ymax=100):
+    return draw_share_stream(ax, D["rcdc"], "RCDC categories", ymax=ymax)
 
 
-def draw_topic_stream(ax, D):
+def draw_topic_stream(ax, D, ymax=None):
     """Selected-topic widths are annual shares of all assigned papers, not renormalised."""
     block = D["topics"]
     if not block["available"]:
@@ -610,7 +640,7 @@ def draw_topic_stream(ax, D):
     _years(ax)
     maximum = selected.sum(axis=1, min_count=1).max()
     upper = max(10, 10 * np.ceil(maximum / 10)) if np.isfinite(maximum) else 100
-    ax.set_ylim(0, upper)
+    ax.set_ylim(0, upper if ymax is None else max(ymax, maximum))
     ax.yaxis.set_major_formatter(PercentFormatter(100, decimals=0))
     ax.set_ylabel("BERTopic topics\nShare of topic-assigned publications")
     grid_on(ax, axis="x", which="major", linestyle="--", alpha=.3)
@@ -618,7 +648,8 @@ def draw_topic_stream(ax, D):
     handles = [Patch(facecolor=color, edgecolor="black", linewidth=stroke("edge"),
                      label=legend_labels[label])
                for color, label in zip(colors, keep)]
-    black_legend(ax, _style(), handles=handles, loc="center left", bbox_to_anchor=(1.025, .5),
+    # Top-down, as the bands are stacked: the first topic sits at the bottom.
+    black_legend(ax, _style(), handles=handles[::-1], loc="center left", bbox_to_anchor=(1.025, .5),
               borderaxespad=0, handlelength=1.3,
               labelspacing=.5, fontsize=_style()["legend_fs"])
     return ax
@@ -665,15 +696,19 @@ def thin_years_note(D):
             "Missing classifications are excluded from composition denominators.")
 
 
+#: Main-figure y ceilings (%), just above each panel's tallest stacked share.
+MAIN_YMAX = {"for": 90, "rcdc": 55, "topics": 62}
+
+
 def figure_main(D, save=True):
     """FOR and RCDC side by side, with thematic waves across the lower row."""
     fig = plt.figure(figsize=figsize("standard"))
     ax_for = fig.add_axes([.075, .64, .39, .29])
     ax_rcdc = fig.add_axes([.575, .64, .39, .29])
     ax_topic = fig.add_axes([.075, .14, .65, .31])
-    draw_for_stream(ax_for, D)
-    draw_rcdc_stream(ax_rcdc, D)
-    draw_topic_stream(ax_topic, D)
+    draw_for_stream(ax_for, D, ymax=MAIN_YMAX["for"])
+    draw_rcdc_stream(ax_rcdc, D, ymax=MAIN_YMAX["rcdc"])
+    draw_topic_stream(ax_topic, D, ymax=MAIN_YMAX["topics"])
     if D["topics"]["available"]:
         draw_count_strip(ax_topic, D["topics"], "Assigned\npapers\nper year")
     for ax, letter, title in ((ax_for, "A", "Fields of Research, Level 4"),
@@ -681,7 +716,8 @@ def figure_main(D, save=True):
         _heading(ax, letter, title)
     panel_label(ax_topic, "C", _style())
     _align_legend_heights(ax_for, ax_rcdc)
-    _align_topic_legend(ax_topic, ax_rcdc.get_position().x1)
+    # The wider gap keeps the count strip's last bar and label clear of the legend.
+    _align_topic_legend(ax_topic, ax_rcdc.get_position().x1, gap=.045)
     from .shared_figure_captions import panel_caption
     captions = dict(MAIN_CAPTION)
     if not D["topics"]["available"]:

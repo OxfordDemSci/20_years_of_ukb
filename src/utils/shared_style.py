@@ -118,6 +118,20 @@ def palette(*names):
     return picked[0] if len(picked) == 1 else picked
 
 
+#: The order a figure takes palette colours in when it needs only some of them (D56):
+#: dark blue and red first, then the yellow, then the lighter shades. Two colours are
+#: navy + red, three add cream, and so on. `PALETTE` keeps its own order because the
+#: yaml's integer role indices point into it.
+CATEGORICAL_ORDER = ("navy", "red", "cream", "steel_blue", "light_red", "blue", "light_blue")
+
+
+def categorical_colors(n):
+    """The first ``n`` colours of `CATEGORICAL_ORDER` as a list (``n`` at most 7)."""
+    if not 0 <= n <= len(CATEGORICAL_ORDER):
+        raise ValueError(f"shared_style: categorical_colors takes 0-{len(CATEGORICAL_ORDER)}, got {n}")
+    return [PALETTE_COLORS[name] for name in CATEGORICAL_ORDER[:n]]
+
+
 def neutral(name):
     """Look a grey up by role (``missing``, ``muted``, ``light``); raises on an unknown role."""
     if name not in NEUTRALS:
@@ -391,15 +405,19 @@ def apply_style(style=None):
         "pdf.fonttype": 42,
         "ps.fonttype": 42,
     })
-    sns.set_palette(style["colors"])
+    sns.set_palette(categorical_colors(len(CATEGORICAL_ORDER)) if set(style["colors"]) == set(PALETTE)
+                    else style["colors"])
     apply_typography()
 
 
 def extended_palette(n, style=None):
-    """N colours interpolated across the brand colours (for >len(colors) categories)."""
+    """N colours for N categories: `CATEGORICAL_ORDER` up to seven (D56), interpolated
+    across the brand colours beyond that."""
     style = _resolve(style)
     from matplotlib.colors import LinearSegmentedColormap
     if n <= len(style["colors"]):
+        if set(style["colors"]) == set(PALETTE):
+            return categorical_colors(n)
         return style["colors"][:n]
     cmap = LinearSegmentedColormap.from_list("brand", style["colors"], N=256)
     return [cmap(i / (n - 1)) for i in range(n)]
@@ -775,6 +793,21 @@ def style_colorbar(colorbar, label=None, *, edgecolor="black", linewidth=None):
     colorbar.outline.set_edgecolor(edgecolor)
     colorbar.outline.set_linewidth(_style_or_base()["axes_linewidth"] if linewidth is None else linewidth)
     return colorbar
+
+
+def plot_no_data(ax, frame, *, linewidth=None, zorder=None):
+    """Countries without data on a map (D56): white, light-grey ``///`` hatch, black outline.
+
+    `frame` is the GeoDataFrame of those countries. The hatch takes its colour from the
+    patch edge, so the outline is drawn in a second pass to keep it black.
+    """
+    if frame is None or len(frame) == 0:
+        return
+    extra = {} if zorder is None else {"zorder": zorder}
+    frame.plot(ax=ax, facecolor="white", edgecolor=NEUTRALS["missing"], hatch="///",
+               linewidth=0, **extra)
+    frame.boundary.plot(ax=ax, color=EDGE_COLOR,
+                        linewidth=stroke("edge") if linewidth is None else linewidth, **extra)
 
 
 def mask_grid_region(ax, start, end=None, *, color="white", zorder=1.5):

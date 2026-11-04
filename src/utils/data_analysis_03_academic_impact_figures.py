@@ -57,11 +57,11 @@ def _field_handles(D):
                    label=fill(lab, 27)) for lab in D["TOP_LABELS"]]
 
 
-def _field_grid(D, *, bottom=.15):
+def _field_grid(D, *, bottom=.15, wspace=.55):
     n = len(D["TOP_LABELS"])
     fig, axes = plt.subplots(int(np.ceil(n / 4)), 4, figsize=S.figsize("wide"), squeeze=False)
     fig.subplots_adjust(left=.08, right=.96, top=.94, bottom=bottom,
-                        hspace=.48, wspace=.55)
+                        hspace=.48, wspace=wspace)
     axes = axes.ravel()
     for i, (ax, label) in enumerate(zip(axes, D["TOP_LABELS"])):
         S.panel_label(ax, chr(65 + i))
@@ -134,9 +134,8 @@ def annual_growth_speed(D):
 
 def activity_over_time(D):
     fig, axes = plt.subplots(1, 2, figsize=S.figsize("landscape"), gridspec_kw={"width_ratios": [1, 1.15]})
-    fig.subplots_adjust(left=.20, right=.98, bottom=.30, top=.95, wspace=.3)
-    left = axes[0].get_position()
-    axes[0].set_position([left.x0, .12, left.width, left.y1 - .12])
+    # A and B share one axis height; B's key sits inside its own headroom.
+    fig.subplots_adjust(left=.14, right=.98, bottom=.12, top=.95, wspace=.3)
     P.draw_activity_index(axes[0], D, top_m=20)
     annual = pd.DataFrame({y: D["activity_index"]((y, y))
                            for y in sorted(D["whole"].year.unique())}).T
@@ -152,20 +151,16 @@ def activity_over_time(D):
     axes[1].axhline(1, color="black", ls="--", lw=S.stroke("ref"))
     axes[1].set_xticks(S.year_ticks(annual.index.min(), annual.index.max(), 3))
     axes[1].yaxis.set_major_formatter(mticker.FuncFormatter(lambda v, _: f"{v:g}x"))
+    # Data fill the lower ~79% of the log axis, leaving just the top for the key.
+    lo, hi = np.nanmin(annual.to_numpy()) / 1.3, np.nanmax(annual.to_numpy()) * 1.15
+    axes[1].set_ylim(lo, 10 ** (np.log10(lo) + (np.log10(hi) - np.log10(lo)) / .79))
     S.style_axis(axes[1], grid_kws={"which": "major", "alpha": .25})
     S.label_panels(axes, "AB")
     legend = S.black_legend(axes[1], handles=_field_handles(D), ncol=2,
-                            loc="upper center", borderaxespad=0, fontsize=S.font_size("legend"),
+                            loc="upper center", borderaxespad=.4, fontsize=S.font_size("legend"),
                             columnspacing=1, handletextpad=.5, handlelength=1.8)
     S.align_legend_rows(legend)
     S.finalize_figure(fig)
-    fig.draw_without_rendering()
-    # This key describes B alone; keep a fixed 10-point gap below its x-axis label.
-    label = axes[1].xaxis.label.get_window_extent().transformed(fig.transFigure.inverted())
-    right = axes[1].get_position()
-    legend.set_bbox_to_anchor((right.x0 + right.width / 2,
-                               label.y0 - 10 / (72 * fig.get_figheight())),
-                              transform=fig.transFigure)
     ranking = (D["ukbb"].loc[D["ukbb"].year >= P.ANALYSIS_MIN]
                .groupby(["code", "for_label"])[D["VALUE"]].sum()
                .nlargest(20).rename("publications").reset_index())
@@ -175,7 +170,8 @@ def activity_over_time(D):
                    "indices for the 20 largest UK Biobank fields; marker size encodes publication "
                    "count. (B) Annual activity indices for the leading eight fields, restricted "
                    "to field-years with at least ten UK Biobank publications. An index of one "
-                   "indicates the same relative concentration as the reference literature.")
+                   "indicates the same relative concentration as the reference literature. "
+                   + axes[0]._ukb_acronyms)
 
 
 def citation_measure_comparison(D, min_docs=20):
@@ -256,7 +252,9 @@ def top_decile_pool(D):
         measured = frame.pivot_table(index="year", columns="code", values=f"{column}_docs", aggfunc="sum")
         return values.where(measured > 0)
     whole, ukb = pool(D["whole"]), pool(D["ukbb"])
-    fig, axes = _field_grid(D, bottom=.13)
+    # Extra room between columns: each panel's right (share) axis precedes the next
+    # panel's field label.
+    fig, axes = _field_grid(D, bottom=.13, wspace=.75)
     legend_handles = []
     rows = []
     for ax, code, lab in zip(axes, D["TOP_CODES"], D["TOP_LABELS"]):
@@ -288,7 +286,6 @@ def top_decile_pool(D):
                      "change_pp": ratio.loc[last] - ratio.loc[first],
                      "fold_change": ratio.loc[last] / ratio.loc[first] if ratio.loc[first] > 0 else np.nan})
     fig._ukb_tables = {"top_decile_pool_summary.csv": pd.DataFrame(rows)}
-    fig.supylabel("Publications in the field's top-decile pool", x=.005)
     _legend(fig, legend_handles, 3, fontsize=S.font_size("legend"))
     return _finish(fig, "Size of each field's measured top-decile citation pool and UK "
                    "Biobank's contribution, across eight leading fields (A-H). Stacked white "
@@ -446,7 +443,7 @@ def disciplinary_composition(analysis_papers, for_long, TOP_N=15, *, ax=None):
     values = discipline_plot.fractional_paper_count
     colors = S.figure_colormap()(values / values.max())
     bars = ax.barh(np.arange(len(values)), values, color=colors, height=.7, edgecolor="black", lw=S.stroke("edge"))
-    ax.set_yticks(np.arange(len(values)), [fill(t, 36) for t in discipline_plot.for_name])
+    ax.set_yticks(np.arange(len(values)), [P.short_field(t) for t in discipline_plot.for_name])
     ax.set(xlabel="Fractional publication count", xlim=(0, values.max() * 1.28))
     ax.grid(False)
     for bar, row in zip(bars, discipline_plot.itertuples()):
@@ -458,7 +455,8 @@ def disciplinary_composition(analysis_papers, for_long, TOP_N=15, *, ax=None):
     return _finish(fig, "Pooled disciplinary composition of Showcase+ publications, "
                    "2013-2025. Each paper contributes equally across its assigned four-digit "
                    "Fields of Research. Bars show the 15 largest fields; percentages use "
-                   "all included publications, including unclassified papers, as denominator.")
+                   "all included publications, including unclassified papers, as denominator. "
+                   + P.acronym_key(discipline_plot.for_name))
 
 
 def cumulative_citation_stock(analysis_papers, *, ax=None):
@@ -522,7 +520,7 @@ def field_citation_stock(for_long, TOP_N=15, *, ax=None, cax=None):
     cmap = S.figure_colormap()
     bars = ax.barh(np.arange(len(field_plot)), field_plot.fractional_citations,
                    color=cmap(norm(field_plot.fractional_papers)), edgecolor="black", lw=S.stroke("edge"))
-    ax.set_yticks(np.arange(len(field_plot)), [fill(t, 34) for t in field_plot.for_name])
+    ax.set_yticks(np.arange(len(field_plot)), [P.short_field(t) for t in field_plot.for_name])
     maximum = field_plot.fractional_citations.max()
     ax.set(xlim=(0, maximum * 1.22), xlabel="Fractionally allocated citations")
     ax.xaxis.set_major_formatter(mticker.EngFormatter())
@@ -542,7 +540,8 @@ def field_citation_stock(for_long, TOP_N=15, *, ax=None, cax=None):
                    "stock among Showcase+ papers published in 2013-2025. Both papers and "
                    "their snapshot citations are divided equally across assigned four-digit "
                    "fields. Bar length shows citations and colour shows fractional publication "
-                   "count, scaled to the observed range among the displayed fields.")
+                   "count, scaled to the observed range among the displayed fields. "
+                   + P.acronym_key(field_plot.for_name))
 
 
 def citation_concentration(analysis_papers, *, ax=None):
@@ -744,11 +743,12 @@ def citation_survival(analysis_papers, *, ax=None):
     ax.set(xscale="log", xlim=(x_min, x_max), ylim=(0, 103),
            xlabel=metric_label + " (log scale)", ylabel="Publications at or above threshold (%)")
     ax.yaxis.set_major_formatter(mticker.PercentFormatter(100))
+    # One key in the empty upper-right corner: the summary, then the threshold shares.
     S.summary_box(ax, f"Median: {valid_metric.median():.2f}\n90th percentile: "
-                  f"{valid_metric.quantile(.9):.2f}\nn = {len(valid_metric):,}",
+                  f"{valid_metric.quantile(.9):.2f}\nn = {len(valid_metric):,}\n\n"
+                  + "\n".join(f"At least {r.threshold:g}: {r.percent_at_or_above:.1f}%"
+                               for r in visible.itertuples()),
                   x=.97, y=.96, ha="right", va="top")
-    S.summary_box(ax, "\n".join(f"At least {r.threshold:g}: {r.percent_at_or_above:.1f}%"
-                  for r in visible.itertuples()), x=.97, y=.08, ha="right", va="bottom")
     _table(fig, "fig07_normalised_citation_thresholds.csv", threshold_summary)
     benchmark = ("Values above one exceed the metric's reference benchmark."
                  if metric_short in {"FCR", "RCR"} else
@@ -762,7 +762,8 @@ def citation_survival(analysis_papers, *, ax=None):
 def citation_overview(analysis_papers, for_long, TOP_N=15):
     """Assemble the four publication-level diagnostics without changing their tables."""
     fig, axes = plt.subplots(2, 2, figsize=S.figsize("landscape"))
-    fig.subplots_adjust(left=.20, right=.98, bottom=.07, top=.96, wspace=.34, hspace=.22)
+    # Wide enough a gap that D's y-label clears C's colorbar label.
+    fig.subplots_adjust(left=.16, right=.98, bottom=.07, top=.96, wspace=.45, hspace=.22)
     position = axes[1, 0].get_position()
     cax = fig.add_axes([position.x1 + .01, position.y0 + .05 * position.height,
                        .012, .9 * position.height])

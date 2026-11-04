@@ -35,7 +35,7 @@ if TYPE_CHECKING:
 
 from utils import shared_paths as P
 from utils.shared_style import (
-    PALETTE, PNG_DPI, apply_typography, extended_palette, finalize_figure, palette, set_title,
+    PALETTE, PNG_DPI, apply_typography, categorical_colors, extended_palette, finalize_figure, palette, set_title,
 )
 from utils.shared_style import font_size, figsize as project_figsize
 from utils.shared_analysis_window import (
@@ -85,7 +85,7 @@ mpl.rcParams.update(
         "xtick.labelsize": 11,
         "ytick.labelsize": 11,
         "legend.fontsize": 10,
-        "axes.prop_cycle": mpl.cycler(color=PALETTE),
+        "axes.prop_cycle": mpl.cycler(color=categorical_colors(7)),
         "axes.spines.top": False,
         "axes.spines.right": False,
     }
@@ -288,7 +288,7 @@ def style_plotly_figure(fig):
     """Apply the manuscript palette, font and title policy to topic diagnostics."""
     scale = [[0., palette("light_blue")], [.5, palette("cream")], [1., palette("red")]]
     fig.update_layout(
-        colorway=PALETTE,
+        colorway=categorical_colors(7),
         font={"family": "Helvetica"},
         legend={"font": {"family": "Helvetica"}, "title": {"font": {"family": "Helvetica"}}},
     )

@@ -34,6 +34,7 @@ from .shared_style import (
     palette,
     panel_grid,
     panel_label,
+    plot_no_data,
     percent_axis,
     save_figure,
     semantic_colors,
@@ -77,7 +78,8 @@ def _year_periods(n_periods=4):
 
 
 def _map_colormap(style):
-    """The choropleth ramp: the project's one colormap (D55), countries without data white."""
+    """The choropleth ramp: the project's one colormap (D55); no-data countries are
+    drawn separately by `shared_style.plot_no_data` (white, grey hatch)."""
     return figure_colormap()
 
 
@@ -975,11 +977,11 @@ def _draw_country_map(
         column=value_col,
         cmap=cmap,
         norm=norm,
-        # Hatching distinguishes missing records from the lowest measured value.
-        missing_kwds={"color": neutral("light"), "edgecolor": "black", "hatch": "///"},
         edgecolor="black",
         linewidth=stroke("edge"),
     )
+    # Hatching distinguishes missing records from the lowest measured value.
+    plot_no_data(ax, merged[merged[value_col].isna()])
     scalar = plt.cm.ScalarMappable(cmap=cmap, norm=norm)
     if colorbar_orientation == "vertical":
         colorbar_ax = ax.inset_axes([-0.055, 0.08, 0.025, 0.84])

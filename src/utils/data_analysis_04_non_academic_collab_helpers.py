@@ -19,7 +19,7 @@ import matplotlib.pyplot as plt
 from utils.data_analysis_04_non_academic_figures import (
     show_figures, save_figure_file, finalize_figure, SECTOR_COLORS, slug,
 )
-from utils.shared_style import figure_colormap, load_style, palette
+from utils.shared_style import figure_colormap, load_style, neutral, palette
 from utils.shared_style import font_size, stroke, figsize as project_figsize
 import numpy as np
 import pandas as pd
@@ -27,7 +27,7 @@ from cycler import cycler
 
 from .shared_style import (
     DEFAULT_DOT_MARKER_AREA, DEFAULT_MARKER_SIZE, PNG_DPI,
-    apply_typography, figure_export_formats, set_title,
+    apply_typography, black_legend, figure_export_formats, set_title,
 )
 from .shared_analysis_window import ANALYSIS_START_YEAR, ANALYSIS_END_YEAR, filter_analysis_window
 
@@ -2333,7 +2333,8 @@ def plot_yearly_metrics_dashboard(yearly_df: pd.DataFrame) -> None:
     axes[0].set_xlabel("Year")
     axes[0].set_ylabel("Paper count")
     axes[0].tick_params(axis="x", rotation=45)
-    axes[0].legend(frameon=False, loc="upper left", bbox_to_anchor=(1.01, 1.0))
+    # Counts rise from near zero, so the early-year top-left is empty.
+    black_legend(axes[0], loc="upper left")
 
     for label in color_map:
         slug = _sector_slug(label)
@@ -2343,9 +2344,11 @@ def plot_yearly_metrics_dashboard(yearly_df: pd.DataFrame) -> None:
     set_title(axes[1], "Annual taxonomy sector shares")
     axes[1].set_xlabel("Year")
     axes[1].set_ylabel("Share of papers (%)")
-    axes[1].set_ylim(0, 100)
+    # Headroom above 100% holds the key; the axis keeps A's full height, ticks stop at 100.
+    axes[1].set_ylim(0, 128)
+    axes[1].set_yticks(range(0, 101, 20))
     axes[1].tick_params(axis="x", rotation=45)
-    axes[1].legend(frameon=False, loc="upper left", bbox_to_anchor=(1.01, 1.0))
+    black_legend(axes[1], loc="upper center", ncol=2, columnspacing=1.2)
 
     finalize_figure(plt.gcf())
     plt.tight_layout()
@@ -2589,7 +2592,7 @@ def plot_top_company_heatmap(company_year_df: pd.DataFrame) -> None:
     ax._ukb_label_fs = font_size("label")
     ax._ukb_tick_fs = font_size("tick")
     ax._ukb_annotation_fs = font_size("annot")
-    ax._ukb_heatmap_edges = False
+    ax._ukb_heatmap_edges = True  # cell grid lines, as in the other heatmaps
     cmap = figure_colormap()
     cmap.set_bad("white")
     im = ax.imshow(np.ma.masked_where(values <= 0, values), aspect="auto", cmap=cmap,
@@ -2612,7 +2615,9 @@ def plot_top_company_heatmap(company_year_df: pd.DataFrame) -> None:
     for i in range(values.shape[0]):
         for j in range(values.shape[1]):
             v = values[i, j]
-            if v <= 0:
+            if not v > 0:
+                ax.text(j, i, "-", ha="center", va="center", fontsize=font_size("annot"),
+                        color=neutral("muted"))
                 continue
             text_color = "white" if v >= np.nanpercentile(values, 70) else "black"
             ax.text(j, i, f"{int(v)}", ha="center", va="center", fontsize=font_size("annot"), color=text_color)
@@ -2622,7 +2627,7 @@ def plot_top_company_heatmap(company_year_df: pd.DataFrame) -> None:
     cbar.ax._ukb_tick_fs = font_size("tick")
     cbar.set_label("Publications")
     finalize_figure(fig)
-    show_figures('collaboration_top_company_heatmap', caption='Annual publication counts for the leading company collaborators. Each cell counts publications containing the company, once per company-publication pair; a publication may contribute to more than one company. Zero cells are white.')
+    show_figures('collaboration_top_company_heatmap', caption='Annual publication counts for the leading company collaborators. Each cell counts publications containing the company, once per company-publication pair; a publication may contribute to more than one company. Zero cells are white and marked "-".')
 
 
 def _iter_for_texts(item: Any) -> Iterable[str]:

@@ -1508,6 +1508,8 @@ def plot_growth_and_reach(
     ax_annual.yaxis.set_major_formatter(mticker.EngFormatter(sep=""))
     ax_annual.set_ylim(0, annual["annual_papers"].max() * 1.20)
     plotter.format_year_axis(ax_annual)
+    # The bars are 0.78 wide, so the shared year axis (+0.35) clips the 2025 bar's edge.
+    ax_annual.set_xlim(right=latest + 0.5)
     ax_annual.set_xlabel("")
     ax_annual.set_xticks([2013, 2018, 2021, 2025])
     plotter.panel_label(ax_annual, "B", y=1.13, in_layout=False)
@@ -1545,8 +1547,8 @@ def plot_growth_and_reach(
             5,
             value,
             color=color,
-            linewidth=stroke("ref"),
-            alpha=0.65,
+            linewidth=stroke("line"),
+            alpha=0.85,
         )
         ax_rates.scatter(
             value,
@@ -1588,22 +1590,19 @@ def plot_growth_and_reach(
 
     matrix_labels = [spec["matrix_label"] for spec in indicators.values()]
     matrix_row_labels = [spec["profile_label"] for spec in indicators.values()]
-    matrix_colors = [spec["color"] for spec in indicators.values()]
+    # One colormap for every cell (the project's blue-cream-red), as in SI 1's heatmap.
+    matrix_cmap = figure_colormap()
     matrix_size = len(indicator_keys)
-    for row_index, (row_key, row_color) in enumerate(
-        zip(indicator_keys, matrix_colors)
-    ):
-        base_rgb = np.asarray(to_rgb(row_color))
+    for row_index, row_key in enumerate(indicator_keys):
         for column_index, column_key in enumerate(indicator_keys):
             is_diagonal = row_key == column_key
             value = conditional_overlap.loc[row_key, column_key]
-            if is_diagonal:
-                face_color = neutral("light")
+            if is_diagonal or pd.isna(value):
+                face_color = "white"
                 annotation = "\N{EM DASH}"
                 text_color = neutral("muted")
             else:
-                alpha = 0.12 + 0.72 * value / 100
-                face_rgb = (1 - alpha) * np.ones(3) + alpha * base_rgb
+                face_rgb = np.asarray(to_rgb(matrix_cmap(value / 100)))
                 face_color = tuple(face_rgb)
                 annotation = f"{value:.0f}%"
                 luminance = np.dot(face_rgb, [0.2126, 0.7152, 0.0722])

@@ -204,3 +204,5 @@ src/utils/data_analysis_03_academic_impact_field_counts.sh
 # 120k lines) and the PDF/PNG exports are what the repo ships.
 *.svg
 /output
+output/_style_review_tmp/
+/src/data_check/preprint_sensitivity

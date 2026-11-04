@@ -39,7 +39,7 @@ from utils.data_analysis_04_non_academic_figures import (
     show_figures, save_figure_file, finalize_figure, slug, PATENT_STATUS_COLORS,
 )
 from utils.shared_style import (
-    NON_ACADEMIC_PALETTE, figure_colormap, extended_palette, palette,
+    NON_ACADEMIC_PALETTE, figure_colormap, extended_palette, neutral, palette,
 )
 import matplotlib.patheffects as path_effects
 from bs4 import BeautifulSoup
@@ -2653,6 +2653,8 @@ def plot_country_topic_heatmap(
             value = pivot_normalized.values[i, j]
             if value > 0:
                 ax.text(j, i, f'{value:.1f}%', ha='center', va='center', color='white', fontsize=font_size("annot"))
+            else:
+                ax.text(j, i, '-', ha='center', va='center', color=neutral("muted"), fontsize=font_size("annot"))
 
     if title is None:
         title = 'Patent Topics by Country (%)'
@@ -2821,7 +2823,7 @@ def plot_country_topic_summary(pivot_country_topic, topic_by_country, top_countr
         'the patent carries. Countries use structured metadata and the existing name-based '
         'fallback. Percentages are normalised within '
         'country over the displayed topics, not all patent topics; empty or zero '
-        'cells are white. (B) The highest-weight topic in each selected country, '
+        'cells are white and marked "-". (B) The highest-weight topic in each selected country, '
         'identified using all recorded topics, and its fractional patent count. '
         'Bar-end labels give those counts. Topic labels are canonical ANZSRC 2020 '
         'two-digit divisions, not the narrower four-digit groups or mechanistic '

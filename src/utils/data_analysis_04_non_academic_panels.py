@@ -1227,7 +1227,7 @@ from matplotlib.ticker import FuncFormatter, MaxNLocator               # noqa: E
 
 from utils.shared_style import (                                       # noqa: E402
     apply_typography, grid_on, load_style, palette, panel_label,
-    semantic_colors, figure_colormap,
+    semantic_colors, figure_colormap, plot_no_data,
 )
 from utils.shared_style import font_size, stroke, neutral, figsize as project_figsize
 
@@ -1552,9 +1552,12 @@ def draw_patent_country_topics(ax, D):
         for j in range(pivot.shape[1]):
             value = pivot.iat[i, j]
             if np.isfinite(value) and value > 0:
-                ax.text(j, i, f"{value:.0f}", ha="center", va="center",
+                ax.text(j, i, f"{value:.0f}%", ha="center", va="center",
                         fontsize=font_size("small"),
                         color=_heat_text_color(value, pivot.to_numpy().max()))
+            else:
+                ax.text(j, i, "-", ha="center", va="center", fontsize=font_size("small"),
+                        color=neutral("muted"))
     ax.figure.colorbar(image, ax=ax, fraction=0.03, pad=0.02,
                        label="% of the country's patents")
     ax.grid(False)
@@ -1901,7 +1904,8 @@ def draw_policy_country_map(ax, D):
     so a linear ramp paints everything outside the top three the same near-white and the
     map's whole message becomes "three countries exist".
 
-    Countries with no citing document are grey, not the ramp's lightest blue: absent and
+    Countries with no citing document are white with a grey hatch (`plot_no_data`), as on
+    every other map, not the ramp's lightest blue: absent and
     minimal are different claims and a sequential ramp cannot make that distinction on
     its own. The named counts are printed for the leading publishers, because a
     choropleth alone cannot be read to a number.
@@ -1923,12 +1927,11 @@ def draw_policy_country_map(ax, D):
     matched = int(world["documents"].notna().sum())
 
     cmap = figure_colormap()
-    world.plot(column="documents", ax=ax, cmap=cmap,
-               norm=LogNorm(vmin=1, vmax=float(counts.max())),
-               edgecolor=st.get("edgecolor", "black"), linewidth=stroke("edge"),
-               missing_kwds={"color": "white",
-                             "edgecolor": st.get("edgecolor", "black"),
-                             "linewidth": stroke("edge")})
+    has_documents = world["documents"].notna()
+    world[has_documents].plot(column="documents", ax=ax, cmap=cmap,
+                              norm=LogNorm(vmin=1, vmax=float(counts.max())),
+                              edgecolor=st.get("edgecolor", "black"), linewidth=stroke("edge"))
+    plot_no_data(ax, world[~has_documents])
     ax.set_xlim(-179, 179)
     ax.set_ylim(-58, 84)
     ax.set_axis_off()
@@ -1936,8 +1939,9 @@ def draw_policy_country_map(ax, D):
 
     mappable = plt.cm.ScalarMappable(cmap=cmap,
                                      norm=LogNorm(vmin=1, vmax=float(counts.max())))
-    cbar = ax.figure.colorbar(mappable, ax=ax, fraction=0.030, pad=0.02,
-                              shrink=0.72)
+    # Under the map, so its label cannot meet the y-label of the panel to its right.
+    cbar = ax.figure.colorbar(mappable, ax=ax, orientation="horizontal", fraction=0.06,
+                              pad=0.03, shrink=0.72)
     cbar.set_label("Policy documents (log)", fontsize=font_size("label"))
     ticks = [t for t in (1, 3, 10, 30, 100) if t <= counts.max()]
     cbar.set_ticks(ticks)
@@ -2327,7 +2331,7 @@ def draw_collab_company_by_year(ax, D, *, colors=None):
     frame = D["collaboration"]["company_by_year"]
     colors = _sector_colors() if colors is None else colors
     _stacked_bars(ax, frame[COMPANY_SECTORS], colors, "Publication year",
-                  "Publications with a company collaborator",
+                  "Publications with a\ncompany collaborator",
                   legend_title="Company sector")
     return ax
 
@@ -2489,7 +2493,7 @@ SI_CAPTIONS = {
         "A": "Research divisions (FOR 2020, top level) the patents are classified into.",
         "B": "Patents by publication year, split application against granted.",
         "C": "Number of research divisions one patent spans.",
-        "D": "Research-division mix within each of the eight largest assignee countries.",
+        "D": "Research-division mix within each of the eight largest assignee countries; cells give the percentage of the country's patents, and empty cells are marked \"-\".",
     },
     "trials": {
         "A": "Trials per ICD-10 chapter on a schematic body outline; marker area is "
@@ -2504,10 +2508,10 @@ SI_CAPTIONS = {
     },
     "policy": {
         "A": "Policy documents citing UK Biobank research, by year and publisher origin.",
-        "B": "Publisher countries, on a logarithmic colour scale. White is a country with "
-             "no citing document, which is a different statement from the ramp's "
-             "lightest blue; the leading publishers are named with their counts.",
-        "C": "Publishing institutions.",
+        "B": "Publishing institutions.",
+        "C": "Publisher countries, on a logarithmic colour scale. Grey-hatched white is a "
+             "country with no citing document, which is a different statement from the "
+             "ramp's lightest blue; the leading publishers are named with their counts.",
         "D": "Research divisions (FOR 2020) the documents are classified into.",
     },
     "altmetric": {
@@ -2520,11 +2524,11 @@ SI_CAPTIONS = {
     },
     "collaboration": {
         "A": "Collaborator organisation mentions, by sector.",
-        "B": "Publications with at least one collaborator in each sector.",
-        "C": "Share of each year's publications with a collaborator in each non-academic "
+        "B": "Publications with a company collaborator, UK against non-UK.",
+        "C": "Publications with at least one collaborator in each sector.",
+        "D": "The company collaborators themselves.",
+        "E": "Share of each year's publications with a collaborator in each non-academic "
              "sector.",
-        "D": "Publications with a company collaborator, UK against non-UK.",
-        "E": "The company collaborators themselves.",
         "F": "Company-collaboration rate by research division (divisions with 100+ "
              "publications).",
     },
@@ -2710,7 +2714,7 @@ def figure_si_policy(D, save=True):
     `D["policy"]["top_cited_papers"]`) and both draw functions are still here, so either
     can be quoted or re-added without re-deriving anything.
 
-    **B is now a choropleth** rather than the ranked country bar, which is where a
+    **C is now a choropleth** rather than the ranked country bar, which is where a
     geographic finding belongs; `draw_policy_countries` still draws the bar.
 
     The yearly origin split uses steel blue and red; publisher and division bars use
@@ -2719,18 +2723,20 @@ def figure_si_policy(D, save=True):
     st = _style()
     name = "04_04_supplementary_figure_03_policy"
     fig = _assemble(
-        [draw_policy_by_year, draw_policy_country_map, draw_policy_publishers,
+        [draw_policy_by_year, draw_policy_publishers, draw_policy_country_map,
          draw_policy_divisions],
         2, 2, project_figsize("landscape"), D, name,
-        save=False, hspace=0.42, wspace=0.85, height_ratios=[0.85, 1.15],
+        save=False, hspace=0.42, wspace=0.70, height_ratios=[1.0, 1.0],
+        width_ratios=[1.2, 1.0],
     )
+    fig.subplots_adjust(left=.08, right=.97)
     for ax in fig.axes:
         ax._ukb_label_fs = font_size("label")
         ax._ukb_tick_fs = font_size("tick")
         ax._ukb_annotation_fs = font_size("annot")
         ax._ukb_legend_fs = font_size("legend")
         ax._ukb_title_fs = font_size("panel_label")
-    for ax in (fig.axes[0], fig.axes[2], fig.axes[3]):
+    for ax in (fig.axes[0], fig.axes[1], fig.axes[3]):
         ax.set_axisbelow(True)
         ax.grid(False, which="both")
         grid_on(ax, axis="both", which="major")
@@ -2776,15 +2782,21 @@ def figure_si_collaboration(D, save=True):
     st = _style()
     colors = {**_sector_colors(), "Company (non-UK)": palette("steel_blue"),
               "Government/Public": palette("navy"), "UK company": palette("red")}
-    return _assemble(
+    fig = _assemble(
         [partial(draw_collab_sector_summary, colors=colors),
-         partial(draw_collab_sector_papers, colors=colors),
-         partial(draw_collab_sector_share, colors=colors),
          partial(draw_collab_company_by_year, colors=colors),
-         draw_collab_top_companies, draw_collab_divisions],
-        3, 2, project_figsize("standard"), D, "04_06_supplementary_figure_05_collaboration", save=save,
-        hspace=0.45, wspace=0.55,
+         partial(draw_collab_sector_papers, colors=colors),
+         draw_collab_top_companies,
+         partial(draw_collab_sector_share, colors=colors),
+         draw_collab_divisions],
+        3, 2, project_figsize("standard"), D, "04_06_supplementary_figure_05_collaboration", save=False,
+        hspace=0.45, wspace=0.85, width_ratios=[1.2, 1.0],
     )
+    # Every right-hand panel carries a y-label, so the gap between the columns is wide.
+    fig.subplots_adjust(left=.10, right=.97)
+    if save:
+        savefig(fig, "04_06_supplementary_figure_05_collaboration")
+    return fig
 
 
 #: name -> builder, in the order the notebook draws them.
