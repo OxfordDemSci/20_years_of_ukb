@@ -92,7 +92,16 @@ load_python() {
   export PYTHONUNBUFFERED=1
 }
 
-py() { "$VENV/bin/python" "$PY_SCRIPT" "$@"; }
+# The venv's interpreter is the module's, and needs the module's shared libraries
+# (libffi, …) on the path: every call that runs it here, not only the jobs, loads it.
+PY_READY=0
+ensure_python() {
+  [[ "$PY_READY" == 1 ]] && return 0
+  load_python
+  PY_READY=1
+}
+
+py() { ensure_python; "$VENV/bin/python" "$PY_SCRIPT" "$@"; }
 
 commit() { git -C "$REPO" rev-parse HEAD; }
 
@@ -136,6 +145,7 @@ check_schema() {
   local groups="$OUTDIR/schema/schema_groups.csv"
   [[ -s "$groups" ]] || die "no $groups — run 'schema' and read it before submitting"
   local errors
+  ensure_python
   errors=$("$VENV/bin/python" -c "import pandas as pd; print(int(pd.read_csv('$groups').n_errors.sum()))")
   if [[ "$errors" != 0 && "${ALLOW_SCHEMA_ERRORS:-0}" != 1 ]]; then
     die "$errors file(s) in $groups cannot be read by this job. Resolve them, or set
@@ -227,7 +237,7 @@ chain() {
 # job body: every submitted job re-enters here with PHASE set
 # =============================================================================
 if [[ -n "${PHASE:-}" && -n "${SLURM_JOB_ID:-}" ]]; then
-  load_python
+  ensure_python
   echo "$PHASE task ${SLURM_ARRAY_TASK_ID:-single} on $(hostname) at $(date)"
   if [[ "$PHASE" != setup-env && -n "${GC_COMMIT:-}" && "$(commit)" != "$GC_COMMIT" ]]; then
     die "checkout moved from $GC_COMMIT to $(commit) after submission — refusing to compute"
@@ -340,7 +350,7 @@ case "$cmd" in
     # No Slurm: the whole chain in this shell, one shard, for a handful of files — e.g.
     #   head -5 files.txt > few.txt; FILELIST=few.txt OUTDIR=… ./…gender_corpus.sh local
     # Run it inside an interactive job (srun --pty), not on the login node.
-    load_python
+    ensure_python
     [[ -x "$VENV/bin/python" ]] || die "no environment at $VENV"
     yr=(--first-year "$FIRST_YEAR" --last-year "$LAST_YEAR")
     py names --file-list "$FILELIST" --buckets "$BUCKETS" "${yr[@]}" --out "$OUTDIR"
