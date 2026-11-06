@@ -1,0 +1,19 @@
+# BMRC environment for data_analysis_05_author_gender_corpus.py, pinned to the versions
+# the local parity test (tests/test_05_author_gender_corpus.py) passed with. The name
+# packages change their bundled name tables between releases, so a different version is
+# a different classifier: keep these pins and both arms classified by the same one.
+# Built into wheels on the login node (`.sh wheels`); compute nodes install offline.
+numpy==2.3.5
+pandas==2.3.3
+pyarrow==23.0.0
+python-dateutil==2.9.0.post0
+pytz==2025.2
+tzdata==2025.3
+six==1.17.0
+gender-guesser==0.4.0
+gender-detector==0.1.0
+nomquamgender==0.1.4
+unidecode==1.4.0
+names-dataset==3.3.1
+pycountry==24.6.1
+gename==0.0.7

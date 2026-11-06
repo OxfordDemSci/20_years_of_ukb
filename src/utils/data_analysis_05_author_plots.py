@@ -922,6 +922,56 @@ def plot_gender_supplement(core: A.CoreTables, style):
     )
 
 
+def plot_gender_corpus_comparison(fields: pd.DataFrame, overall: pd.DataFrame, style):
+    """UK Biobank vs the whole Dimensions corpus: female name share by FoR division (A)
+    and by authorship role (B). `fields` is `compare_fields(..., level="L2")` and
+    `overall` is `compare_overall(..., level="L2")` from data_analysis_05_author_gender_corpus.
+
+    The background is drawn year-standardised in A and field-and-year-standardised in B,
+    so each gap is measured against the corpus at UK Biobank's own mix.
+    """
+    ukbb_color, background_color = palette("navy"), neutral("muted")
+    fig, axes = panel_grid(
+        1, 2, style, aspect="standard",
+        gridspec_kw={"width_ratios": [1.6, 1.0]},
+        adjust={"left": 0.22, "right": 0.97, "bottom": 0.10, "top": 0.95, "wspace": 0.50},
+    )
+
+    def dumbbell(ax, labels, ukbb, low, high, background):
+        y = np.arange(len(labels))
+        ax.hlines(y, np.fmin(ukbb, background), np.fmax(ukbb, background),
+                  color=neutral("light"), linewidth=stroke("line"), zorder=1)
+        ax.scatter(background, y, s=marker_area(style), color=background_color,
+                   edgecolor="black", linewidth=stroke("edge"), zorder=2,
+                   label="Dimensions corpus (standardised)")
+        # Clipped: at a 0 % or 100 % share the Wilson bound can sit a rounding error
+        # inside the point, which matplotlib rejects as a negative error.
+        xerr = np.clip([ukbb - low, high - ukbb], 0, None)
+        ax.errorbar(ukbb, y, xerr=xerr, fmt="o", color=ukbb_color,
+                    markeredgecolor="black", markeredgewidth=stroke("edge"),
+                    markersize=marker_size(style), elinewidth=stroke("line"), capsize=0,
+                    zorder=3, label="UK Biobank (95% CI)")
+        ax.set_yticks(y, labels)
+        ax.invert_yaxis()
+        ax.set_xlabel("Female share of classified names")
+        ax.xaxis.set_major_formatter(mticker.PercentFormatter(100, decimals=0))
+        style_axis(ax, style, grid_axis="x")
+
+    f = fields.sort_values("ukbb_female_share", ascending=False)
+    dumbbell(axes[0], [_field_label(v) for v in f["label"]],
+             f["ukbb_female_share"].to_numpy(float), f["ukbb_ci_low"].to_numpy(float),
+             f["ukbb_ci_high"].to_numpy(float), f["background_standardised"].to_numpy(float))
+    black_legend(axes[0], style, loc="lower right")
+
+    o = overall.dropna(subset=["ukbb_female_share"])
+    dumbbell(axes[1], list(o["role"]), o["ukbb_female_share"].to_numpy(float),
+             o["ukbb_ci_low"].to_numpy(float), o["ukbb_ci_high"].to_numpy(float),
+             o["background_standardised"].to_numpy(float))
+
+    label_panels(axes, "AB", style)
+    return save_figure(fig, "05_08_supplementary_figure_07_gender_vs_corpus", style)
+
+
 def load_world_geometries():
     """Load Natural Earth from the project cache, local legacy path, or source URL."""
     import geopandas as gpd

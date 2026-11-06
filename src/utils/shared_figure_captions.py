@@ -146,7 +146,7 @@ def caption_for_name(name):
         captions = figure_captions()
         if stem == P.MAIN_FIGURE_STEMS[3]:
             return captions["figure_03_caption.txt"]
-        for number in range(1, 7):
+        for number in range(1, 8):
             if f"supplementary_figure_{number:02d}_" in stem:
                 return captions[f"supplementary_figure_{number:02d}_caption.txt"]
     return None

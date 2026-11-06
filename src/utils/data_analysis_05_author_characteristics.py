@@ -2660,6 +2660,19 @@ def figure_captions() -> OrderedDict:
             f"{HYPERAUTHOR_THRESHOLD} resolved authors. Complete annual trajectories remain available in "
             "network_metrics_by_year.csv."
         ),
+        "supplementary_figure_07_caption.txt": (
+            "Supplementary Figure 7 | Female name share of UK Biobank authorships against the whole "
+            "Dimensions corpus, 2015-2025, within the Fields of Research UK Biobank publishes in. "
+            "(A) Share of author-paper pairs assigned to the Female name category among pairs assigned "
+            "Female or Male, by FOR 2020 division, for UK Biobank (with 95% Wilson confidence intervals) "
+            "and for all other Dimensions publications in the same division, re-weighted to UK "
+            "Biobank's publication-year mix in that division. (B) The same comparison by authorship "
+            "role over all divisions, with the corpus re-weighted to UK Biobank's division and year mix. "
+            "Both arms are counted from one Dimensions snapshot with the same name-category method, "
+            "including researcher-identity consensus. Name categories are algorithmically inferred, "
+            "are not self-identified gender, and exclude authorships whose names could not be "
+            "classified; unclassified shares are reported in the accompanying tables."
+        ),
     })
 
 

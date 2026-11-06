@@ -80,6 +80,10 @@ DIMENSION_FLAT = DIMENSION / "flat"
 # -- analysis outputs, one directory per analysis notebook -------------------------
 ANALYSIS = DATA / "analysis"
 AUTHOR_ANALYSIS = ANALYSIS / "author_analysis"
+# The BMRC gender-by-field job (data_analysis_05_author_gender_corpus): the three small
+# files `make-inputs` writes for the cluster, and the merged tables copied back from it.
+AUTHOR_GENDER_CORPUS_INPUTS = AUTHOR_ANALYSIS / "gender_corpus_inputs"
+AUTHOR_GENDER_CORPUS = AUTHOR_ANALYSIS / "gender_corpus_out"
 ACADEMIC_IMPACT = ANALYSIS / "academic_impact"
 # The category-count job's output directory. Named for the FOR run that came first, but
 # it holds the partials of every classification system (counts.rcdc.*, counts.uoa.*, ...)
