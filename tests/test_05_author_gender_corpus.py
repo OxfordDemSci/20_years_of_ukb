@@ -66,16 +66,29 @@ def _authors_struct(authors):
              "affiliations": [{"name": "U", "country": "GB"}]} for f, r in authors]
 
 
+def _repr_list(entries):
+    """The BMRC copy's newest text files: a Python repr, not JSON (single quotes, None)."""
+    return str(entries)
+
+
 def write_corpus(root: Path) -> list:
-    """Three readable files in three shapes, plus nothing else."""
+    """Four readable files in four shapes, plus nothing else."""
     root.mkdir(parents=True, exist_ok=True)
-    groups = [PAPERS[0:4], PAPERS[4:7], PAPERS[7:]]
+    groups = [PAPERS[0:4], PAPERS[4:7], PAPERS[7:9], PAPERS[9:]]
     paths = []
     for i, group in enumerate(groups):
         base = {"id": [p[0] for p in group], "year": [p[1] for p in group],
                 "date": [f"{p[1]}-06-01" for p in group], "type": ["article"] * len(group),
                 "authors_count": [len(p[2]) for p in group]}
-        if i == 0:      # the local export's shape
+        if i == 3:      # 000000005000–5007 on BMRC: repr cells, double year, no authors_count
+            authors = [[{"first_name": f, "last_name": "X", "researcher_id": r,
+                         "affiliations": [{"name": "U"}]} for f, r in p[2]] for p in group]
+            fors = [[{"id": "8" + c, "name": f"{c} {LABELS[c]}"} for c in p[3]] for p in group]
+            table = pa.table({"id": base["id"], "year": [float(y) for y in base["year"]],
+                              "date": base["date"], "type": base["type"],
+                              "authors": [_repr_list(a) for a in authors],
+                              "category_for": [_repr_list(f) for f in fors]})
+        elif i == 0:    # the local export's shape
             table = pa.table({**base, "authors": [_authors_json(p[2]) for p in group],
                               "category_for_2020": [_for_json(p[3]) for p in group]})
         elif i == 1:    # nested authors, older FoR column name
@@ -200,6 +213,31 @@ class ReadingTest(unittest.TestCase):
             self.assertEqual(problem, "")
             self.assertTrue(all(c.split(".")[-1] in ("first_name", "researcher_id") for c in cols))
 
+    def test_repr_cells_parse_like_json(self):
+        from utils import data_analysis_03_academic_impact_field_counts as FC
+        from utils.shared_for import parse_listcol
+        entries = [{"id": "80003", "name": "32 Biomedical and Clinical Sciences"},
+                   {"id": "80137", "name": "4202 Epidemiology"},
+                   {"id": "80999", "name": "4499 Women's Studies"},              # repr -> "…"
+                   {"id": "80998", "name": "4498 Both ' and \" quotes"}]       # repr escapes
+        for cell in (json.dumps(entries), str(entries)):
+            with self.subTest(cell=cell[:30]):
+                got = list(FC._for_pairs(cell, "text"))
+                self.assertEqual([c for c, _ in got], ["32", "4202", "4499", "4498"])
+                self.assertEqual(got[2][1], "Women's Studies")
+                want = [d["name"].split(" ", 1)[0] for d in parse_listcol(cell)]
+                self.assertEqual([c for c, _ in got], want)
+        rcdc = str([{"id": "558", "name": "Prevention"}, {"id": "1", "name": "Aging"}])
+        self.assertEqual(list(FC._flat_pairs(rcdc, "text", None)),
+                         [("Prevention", "Prevention"), ("Aging", "Aging")])
+
+    def test_repr_authors_flatten_like_json(self):
+        authors = [{"first_name": "Anna", "researcher_id": "ur.1", "orcid": None},
+                   {"first_name": "J.", "researcher_id": None, "orcid": None}]
+        a = G.flatten_authors(pa.array([json.dumps(authors)]), "text", np.array([0]))
+        b = G.flatten_authors(pa.array([str(authors)]), "text", np.array([0]))
+        pd.testing.assert_frame_equal(a, b)
+
     def test_roles(self):
         auth = G.add_roles(pd.DataFrame({"row": [0, 1, 1, 1, 2, 2]}))
         self.assertEqual(auth.role.tolist(), ["Single author", "First author", "Middle author",
@@ -295,7 +333,8 @@ class ChainTest(unittest.TestCase):
         G.main(["schema", "--files", *self.files, "--out", str(self.root / "schema"),
                 "--for-vocab", str(vocab)])
         groups = pd.read_csv(self.root / "schema" / "schema_groups.csv")
-        self.assertEqual(len(groups), 3)
+        self.assertEqual(len(groups), 4)
+        self.assertTrue((groups.sampled_codes > 0).all())   # the repr file's codes are read
         self.assertEqual(set(groups.authors_format), {"text", "struct"})
         self.assertGreater(groups.sampled_non2020_codes.sum(), 0)
 

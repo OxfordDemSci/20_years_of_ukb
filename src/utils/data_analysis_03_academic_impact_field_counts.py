@@ -152,7 +152,10 @@ PARSING: REGEX, NOT ast.literal_eval
 The cell is JSON with a rigid shape, so a single regex over the raw string yields the
 same (code, label) pairs ~50x faster than ast.literal_eval per row. `selfcheck` asserts
 the FOR fast-path matches shared_for on real rows. Some newer corpus exports store
-the column as a nested struct instead of text; both shapes are handled.
+the column as a nested struct instead of text; both shapes are handled. The BMRC copy's
+newest text files (000000005000–5007) write the cell as a Python repr — single-quoted
+keys — which the JSON pattern does not match; a second pattern reads it (2026-11-06).
+Before that, their papers (5.3M dated 2015–2025) counted as carrying no category.
 
 READ-ONLY BY CONSTRUCTION
 -------------------------
@@ -191,6 +194,32 @@ MISSING_TYPE = "unknown"
 FOR_PAT = re.compile(r'"name"\s*:\s*"(\d{2,4}) ([^"]*)"')
 # Any classification label: '"name":"<whatever>"'. Used for the flat systems.
 NAME_PAT = re.compile(r'"name"\s*:\s*"([^"]*)"')
+# The same cells written as a Python repr instead of JSON — "[{'id': '80003', 'name': '32
+# Biomedical and Clinical Sciences'}]" — which is how the BMRC copy's newest text files
+# (000000005000–5007) store them. Neither JSON pattern matches a single-quoted key, so
+# before these existed every such paper read as carrying no category at all. repr quotes a
+# value in single quotes, switching to double quotes when it contains an apostrophe, and
+# escapes a quote it cannot avoid; both value forms are accepted.
+_PY_VALUE = r"""(?:'((?:[^'\\]|\\.)*)'|"((?:[^"\\]|\\.)*)")"""
+NAME_PAT_PY = re.compile(r"'name'\s*:\s*" + _PY_VALUE)
+_FOR_NAME = re.compile(r"(\d{2,4}) (.*)", re.S)
+
+
+def _text_names(cell: str) -> List[str]:
+    """Every `name` value of a text cell, JSON or Python repr."""
+    names = NAME_PAT.findall(cell)
+    names += [a or b for a, b in NAME_PAT_PY.findall(cell)]
+    return names
+
+
+def _text_for_pairs(cell: str) -> List[Tuple[str, str]]:
+    """(code, label) of every numeric-coded `name` in a text FOR cell, JSON or repr."""
+    pairs = FOR_PAT.findall(cell)
+    for a, b in NAME_PAT_PY.findall(cell):
+        m = _FOR_NAME.fullmatch(a or b)
+        if m:
+            pairs.append((m.group(1), m.group(2)))
+    return pairs
 
 
 # =============================================================================
@@ -421,7 +450,7 @@ def _for_pairs(cell, fmt: str) -> Iterable[Tuple[str, str]]:
                 if code:
                     yield code, entry.get("name") or ""
     elif cell:
-        yield from FOR_PAT.findall(cell)
+        yield from _text_for_pairs(cell)
 
 
 def _iter_struct_entries(cell) -> Iterable[Tuple[Optional[str], str]]:
@@ -455,7 +484,7 @@ def _flat_pairs(cell, fmt: str, code_re: Optional[Pattern]) -> Iterable[Tuple[st
         return
     if not cell:
         return
-    for name in NAME_PAT.findall(cell):
+    for name in _text_names(cell):
         if code_re is not None:
             m = code_re.match(name)
             if m:
@@ -1331,8 +1360,8 @@ def cmd_selfcheck(args: argparse.Namespace) -> None:
 
     bad = 0
     for cell in cells:
-        fast2 = {c for c, _ in FOR_PAT.findall(cell or "") if len(c) == 2}
-        fast4 = {c for c, _ in FOR_PAT.findall(cell or "") if len(c) == 4}
+        fast2 = {c for c, _ in _text_for_pairs(cell or "") if len(c) == 2}
+        fast4 = {c for c, _ in _text_for_pairs(cell or "") if len(c) == 4}
         slow2, slow4 = set(), set()
         for d in for_utils.parse_listcol(cell):
             if isinstance(d, dict):
